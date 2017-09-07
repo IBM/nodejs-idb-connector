@@ -1128,7 +1128,6 @@ void DbStmt::NumRows(const ARGUMENTS& args) {
   HandleScope scope(isolate);
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   CHECK(obj->stmtAllocated == false, STMT_NOT_READY, "The SQL Statement handler is not initialized.", isolate)
-  CHECK(obj->resultSetAvailable == false, RSSET_NOT_READY, "There is no result set to be queried. Please execute a SQL command first.", isolate);
   SQLINTEGER rowCount;
   if(SQLRowCount (obj->stmth, &rowCount) != SQL_SUCCESS) {
     obj->throwErrMsg(SQL_ERROR, "SQLRowCount() failed.", isolate);
