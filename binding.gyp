@@ -5,7 +5,7 @@
         '-std=c++0x',
         '-Wno-unknown-pragmas',
         '-Wno-format',
-        '-O3'
+        '-O1'
       ],
       'ldflags': [
         '-static-libstdc++', 
