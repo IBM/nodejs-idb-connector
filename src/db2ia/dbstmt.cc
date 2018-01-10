@@ -669,18 +669,6 @@ void DbStmt::Execute(const ARGUMENTS& args) {
     obj->throwErrMsg(SQL_HANDLE_STMT, isolate);
     return;
   }
-  
-  if (args.Length() == 1 && args[0]->IsFunction() && obj->spOutCount > 0 ) {
-    // executeAsync(function(array){...})
-    Handle<Array> array = Array::New(isolate);
-    Local<Function> cb = Local<Function>::Cast(args[args.Length() - 1]);
-    const unsigned argc = 1;
-    for(int i = 0; i < obj->spOutCount; i++)
-      array->Set(i, String::NewFromUtf8(isolate, obj->spOut[i]));
-    obj->freeSp();
-    Local<Value> argv[argc] = { Local<Value>::New(isolate, array) };
-    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
-  }
     
   SQLNumResultCols(obj->stmth, &obj->colCount);
   /* determine statement type */
@@ -709,11 +697,18 @@ void DbStmt::Execute(const ARGUMENTS& args) {
       }
     }
   }
-  
-  if (args.Length() == 1 && args[0]->IsFunction() && obj->spOutCount == 0 ) {
-    // executeSync(function(){fetch()...})
+  /* execute(()=>{fetchAll(...)}) or */ 
+  /* execute(out=>{console.log(out)}) or */
+  /* execute(out=>{console.log(out); fetchAll(...)}) */
+  if (args.Length() == 1 && args[0]->IsFunction()) {
+    Handle<Array> array = Array::New(isolate);
     Local<Function> cb = Local<Function>::Cast(args[args.Length() - 1]);
-    cb->Call(isolate->GetCurrentContext()->Global(), 0, 0);
+    const unsigned argc = 1;
+    for(int i = 0; i < obj->spOutCount; i++)
+      array->Set(i, String::NewFromUtf8(isolate, obj->spOut[i]));
+    obj->freeSp();
+    Local<Value> argv[argc] = { Local<Value>::New(isolate, array) };
+    cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
   }
 }
 
