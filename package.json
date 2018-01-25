@@ -1,0 +1,30 @@
+{
+  "name": "nodejs-idb-connector",
+  "version": "1.0.0",
+  "description": "A Node.js DB2 driver for IBM i",
+  "main": "lib/db2a.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node test/test.js",
+    "install": "node-gyp rebuild"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@bitbucket.org/litmis/nodejs-idb-connector.git"
+  },
+  "keywords": [
+    "ibmi",
+    "xmlservice",
+    "db2"
+  ],
+  "author": "Xu Meng",
+  "license": "MIT",
+  "gypfile": true,
+  "homepage": "https://bitbucket.org/litmis/nodejs-idb-connector#readme",
+  "dependencies": {
+    "bindings": "^1.3.0"
+  }
+}
