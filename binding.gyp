@@ -18,23 +18,17 @@
         '-gxcoff',
         '-O0'
       ],
-      'conditions': [
-        [ 'target_arch=="ppc"', {
-          'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
-        }],
-        [ 'target_arch=="ppc64"', {
-          'cflags': [ '-maix64' ],
-          'ldflags': [ '-maix64' ],
-        }],
-      ],
       'ldflags': [ 
         '-Wl,-bbigtoc', 
         '-Wl,-brtl', 
-        '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib:/opt/freeware/lib'
+        '-Wl,-bmaxdata:0x60000000/dsa',
+        '-Wl,-blibpath:/QOpenSys/usr/lib:/opt/freeware/lib',
+        '-static-libstdc++', 
+        '-static-libgcc'
       ],
       'link_settings': {
         'libraries': [
-          '-L/QOpenSys/pkgs/lib:/QOpenSys/usr/lib:/opt/freeware/lib',
+          '-L/QOpenSys/usr/lib:/opt/freeware/lib',
           '-ldb400'
         ],
       }
