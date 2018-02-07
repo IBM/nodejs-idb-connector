@@ -7,7 +7,7 @@ https://www.ibm.com/developerworks/community/wikis/home?lang=en#!/wiki/IBM%20i%2
 # API Reference
 https://www.ibm.com/developerworks/community/wikis/home?lang=en#!/wiki/IBM%20i%20Technology%20Updates/page/DB2%20for%20i%20Access%20APIs%20-%20New
 
-# Installation (GCC 4.8+ is required)
+# Installation
 	npm -g i idb-connector
 	
   Then you can require('idb-connector') in your code. 
