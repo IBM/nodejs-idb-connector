@@ -40,7 +40,7 @@ class DbStmt : public node::ObjectWrap {
       rowData = (SQLCHAR**)calloc(colCount, sizeof(SQLCHAR*)); 
       for(int i = 0; i < colCount; i++) { 
         dbColumn[i].name = (SQLCHAR*)calloc(MAX_COLNAME_WIDTH, sizeof(SQLCHAR)); 
-        rowData[i] = (SQLCHAR*)calloc(MAX_COL_WIDTH, sizeof(SQLCHAR)); 
+        rowData[i] = (SQLCHAR*)calloc(maxColWidth, sizeof(SQLCHAR)); 
       } 
       colRowAllocated = true; 
     }
@@ -227,6 +227,7 @@ class DbStmt : public node::ObjectWrap {
     int spOutCount = 0;
     int spInNumCount;
     int spOutNumCount;
+    int maxColWidth = MAX_COL_WIDTH;
     
     SQLSMALLINT colCount = 0;
     db2_column* dbColumn;

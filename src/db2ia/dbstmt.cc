@@ -34,6 +34,19 @@ DbStmt::DbStmt(DbConn* conn) {
   envh = conn->envh;
   connh = conn->connh;
   con = conn;
+  
+  char *attr = "MAXCOLWIDTH", *max_col_width = NULL;
+  max_col_width = getenv(attr);
+  if (max_col_width != NULL) {
+    int intval = atoi(max_col_width);
+    if(intval > MAX_COL_WIDTH) 
+      maxColWidth = MAX_COL_WIDTH;
+    else if(intval < 128) 
+      maxColWidth = 128;
+    else 
+      maxColWidth = intval;
+  }
+      
   stmtAllocated = true;  // Any SQL Statement Handler processing can not be allowed before this.
 }  
 
@@ -234,7 +247,7 @@ void DbStmt::Exec(const ARGUMENTS& args) {
         obj->throwErrMsg( SQL_ERROR, "SQLDescribeCol() failed.", isolate);
         return;
       }
-      rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], MAX_COL_WIDTH, &rlength);
+      rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], obj->maxColWidth, &rlength);
       if(rc != SQL_SUCCESS) {
         obj->freeColRow();
         obj->throwErrMsg( SQL_ERROR, "SQLBindCol() failed.", isolate);
@@ -316,7 +329,7 @@ void DbStmt::ExecAsyncRun(uv_work_t *req) {
           &obj->dbColumn[i].sqlType,  //the SQL type of the Column
           &obj->dbColumn[i].colPrecise, &obj->dbColumn[i].colScale, &obj->dbColumn[i].colNull);
     LOG(cbd->rc != SQL_SUCCESS)
-    cbd->rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], MAX_COL_WIDTH, &rlength);
+    cbd->rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], obj->maxColWidth, &rlength);
     LOG(cbd->rc != SQL_SUCCESS)
   }
   
@@ -326,7 +339,7 @@ void DbStmt::ExecAsyncRun(uv_work_t *req) {
     for(int i = 0; i < obj->colCount; i++)
     {
       int colLen = strlen(obj->rowData[i]) + 1;
-      if(colLen > MAX_COL_WIDTH) colLen = MAX_COL_WIDTH;
+      if(colLen > obj->maxColWidth) colLen = obj->maxColWidth;
       rowData[i] = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
       memcpy(rowData[i], obj->rowData[i], colLen * sizeof(SQLCHAR));
     }
@@ -689,7 +702,7 @@ void DbStmt::Execute(const ARGUMENTS& args) {
         obj->throwErrMsg(SQL_ERROR, "SQLDescribeCol() failed.", isolate);
         return;
       }
-      rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], MAX_COL_WIDTH, &rlength);
+      rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], obj->maxColWidth, &rlength);
       if(rc != SQL_SUCCESS) {
         obj->freeColRow();
         obj->throwErrMsg(SQL_ERROR, "SQLBindCol() failed.", isolate);
@@ -756,7 +769,7 @@ void DbStmt::ExecuteAsyncRun(uv_work_t *req) {
           &obj->dbColumn[i].sqlType,  //the SQL type of the Column
           &obj->dbColumn[i].colPrecise, &obj->dbColumn[i].colScale, &obj->dbColumn[i].colNull);
     LOG(cbd->rc != SQL_SUCCESS)
-    cbd->rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], MAX_COL_WIDTH, &rlength);
+    cbd->rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], obj->maxColWidth, &rlength);
     LOG(cbd->rc != SQL_SUCCESS)
   }
 }
@@ -838,7 +851,7 @@ void DbStmt::NextResult(const ARGUMENTS& args) {
       return;
     }
     
-    rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], MAX_COL_WIDTH, &rlength);
+    rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], obj->maxColWidth, &rlength);
     if(rc != SQL_SUCCESS) {
       obj->freeColRow();
       obj->throwErrMsg(SQL_ERROR, "SQLBindCol() failed.", isolate);
@@ -1035,7 +1048,7 @@ void DbStmt::FetchAllAsyncRun(uv_work_t *req) {
     for(int i = 0; i < obj->colCount; i++)
     {
       int colLen = strlen(obj->rowData[i]) + 1;
-      if(colLen > MAX_COL_WIDTH) colLen = MAX_COL_WIDTH;
+      if(colLen > obj->maxColWidth) colLen = obj->maxColWidth;
       rowData[i] = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
       memcpy(rowData[i], obj->rowData[i], colLen * sizeof(SQLCHAR));
     }
