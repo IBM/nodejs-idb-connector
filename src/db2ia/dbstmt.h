@@ -32,29 +32,89 @@ class DbStmt : public node::ObjectWrap {
   private:
     explicit DbStmt(DbConn* conn);
     ~DbStmt();
-    
-    void allocColRow() {
-      if(colRowAllocated == true) 
-        freeColRow(); 
-      dbColumn = (db2_column*)calloc(colCount, sizeof(db2_column)); 
-      rowData = (SQLCHAR**)calloc(colCount, sizeof(SQLCHAR*)); 
-      for(int i = 0; i < colCount; i++) { 
-        dbColumn[i].name = (SQLCHAR*)calloc(MAX_COLNAME_WIDTH, sizeof(SQLCHAR)); 
-        rowData[i] = (SQLCHAR*)calloc(maxColWidth, sizeof(SQLCHAR)); 
-      } 
-      colRowAllocated = true; 
+
+    int getColDesc(Isolate* isolate) {
+      if(colDescAllocated == true) 
+        freeColDesc();
+      
+      SQLRETURN rc;
+      dbColumn = (db2_column*)calloc(colCount, sizeof(db2_column));
+      
+      if(isDebug)
+        printf("SQLDescribeCol(%d).\n", colCount);
+      
+      for(int i = 0; i < colCount; i++) {
+        dbColumn[i].name = (SQLCHAR*)calloc(MAX_COLNAME_WIDTH, sizeof(SQLCHAR));
+        rc = SQLDescribeCol(stmth, i + 1, //Column index starts from 1.
+              dbColumn[i].name,  //the buffer to store the Column Name
+              MAX_COLNAME_WIDTH, //the size of the store buffer 
+              &dbColumn[i].nameLength,  //the accurate length of the Column Name
+              &dbColumn[i].sqlType,  //the SQL type of the Column
+              &dbColumn[i].colPrecise, &dbColumn[i].colScale, &dbColumn[i].colNull);
+        if(rc != SQL_SUCCESS) {
+          freeColDesc();
+          if(isolate != NULL)
+            throwErrMsg(SQL_ERROR, "SQLDescribeCol() failed.", isolate);
+          else printErrorToLog();
+          return -1;
+        }
+      }
+      colDescAllocated = true;
+      return 0;
     }
     
-    void freeColRow() {
-      if(colRowAllocated == true) { 
-        for(int i = 0; i < colCount && dbColumn[i].name && rowData[i]; i++) { 
+    void freeColDesc() {
+      if(colDescAllocated == true) { 
+        for(int i = 0; i < colCount && dbColumn[i].name; i++)
           free(dbColumn[i].name); 
-          free(rowData[i]); 
-        } 
         free(dbColumn); 
-        free(rowData); 
-        colRowAllocated = false; 
+        colDescAllocated = false; 
+      }
+    }
+    
+    int bindColData(Isolate* isolate) {
+      if(colDataAllocated == true) 
+        freeColData();
+      
+      if(colDescAllocated != true)
+        if(getColDesc(isolate) < 0)
+          return -1;
+      
+      SQLRETURN rc;
+      SQLINTEGER rlength = 0;
+      rowData = (SQLCHAR**)calloc(colCount, sizeof(SQLCHAR*)); 
+      
+      if(isDebug)
+        printf("SQLBindCol(%d).\n", colCount);
+      
+      for(int i = 0; i < colCount; i++) {
+        SQLINTEGER maxColLen = dbColumn[i].colPrecise << 2;
+        rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+        rc = SQLBindCol(stmth, i + 1, SQL_CHAR, (SQLPOINTER)rowData[i], maxColLen, &rlength);
+        if(rc != SQL_SUCCESS) {
+          freeColData();
+          if(isolate != NULL)
+            throwErrMsg(SQL_ERROR, "SQLBindCol() failed.", isolate);
+          else printErrorToLog();
+          return -1;
+        }
       } 
+      colDataAllocated = true;
+      return 0;
+    }
+    
+    void freeColData() {
+      if(colDataAllocated == true) { 
+        for(int i = 0; i < colCount && rowData[i]; i++)
+          free(rowData[i]); 
+        free(rowData); 
+        colDataAllocated = false; 
+      }
+    }
+    
+    void freeCol() {
+      freeColDesc();
+      freeColData();
     }
     
     void freeSp() {
@@ -144,8 +204,8 @@ class DbStmt : public node::ObjectWrap {
       isolate->ThrowException(Exception::Error(String::NewFromUtf8(isolate, errMsg)));
     }
 
-    static void nop(uv_work_t* req) {    }
-    static void after_work(uv_work_t* req, int status) {    }
+    static void nop(uv_work_t* req) { }
+    static void after_work(uv_work_t* req, int status) { }
     
     static void New(const ARGUMENTS& args);
     static Persistent<Function> constructor;
@@ -203,12 +263,13 @@ class DbStmt : public node::ObjectWrap {
     static void StmtError(const ARGUMENTS& args);
     
     static void Close(const ARGUMENTS& args);
-
+    
     uv_work_t request;
 
     bool stmtAllocated = false;
     bool resultSetAvailable = false;
-    bool colRowAllocated = false;
+    bool colDescAllocated = false;
+    bool colDataAllocated = false;
     
     bool isDebug = false;
     
@@ -227,7 +288,6 @@ class DbStmt : public node::ObjectWrap {
     int spOutCount = 0;
     int spInNumCount;
     int spOutNumCount;
-    int maxColWidth = MAX_COL_WIDTH;
     
     SQLSMALLINT colCount = 0;
     db2_column* dbColumn;

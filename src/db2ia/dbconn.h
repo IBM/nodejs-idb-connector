@@ -16,7 +16,6 @@
 #include <uv.h>
 
 #define MAX_COLNAME_WIDTH 256
-#define MAX_COL_WIDTH 32766
 #define SP_PARAM_MAX 128
 
 #define INVALID_PARAM_NUM 8001
