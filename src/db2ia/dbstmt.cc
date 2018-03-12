@@ -34,19 +34,6 @@ DbStmt::DbStmt(DbConn* conn) {
   envh = conn->envh;
   connh = conn->connh;
   con = conn;
-  
-  char *attr = "MAXCOLWIDTH", *max_col_width = NULL;
-  max_col_width = getenv(attr);
-  if (max_col_width != NULL) {
-    int intval = atoi(max_col_width);
-    if(intval > MAX_COL_WIDTH) 
-      maxColWidth = MAX_COL_WIDTH;
-    else if(intval < 128) 
-      maxColWidth = 128;
-    else 
-      maxColWidth = intval;
-  }
-      
   stmtAllocated = true;  // Any SQL Statement Handler processing can not be allowed before this.
 }  
 
@@ -228,32 +215,10 @@ void DbStmt::Exec(const ARGUMENTS& args) {
 
   Handle<Array> array = Array::New(isolate);
   
-  obj->allocColRow();
   /* determine statement type */
   if (obj->colCount > 0) { /* statement is a select statement */
     obj->resultSetAvailable = true;
-
-    for(int i = 0; i < obj->colCount; i++)
-    {
-      SQLINTEGER rlength = 0;
-      rc = SQLDescribeCol(obj->stmth, i + 1, //Column index starts from 1.
-            obj->dbColumn[i].name,  //the buffer to store the Column Name
-            MAX_COLNAME_WIDTH, //the size of the store buffer 
-            &obj->dbColumn[i].nameLength,  //the accute length of the Column Name
-            &obj->dbColumn[i].sqlType,  //the SQL type of the Column
-            &obj->dbColumn[i].colPrecise, &obj->dbColumn[i].colScale, &obj->dbColumn[i].colNull);
-      if(rc != SQL_SUCCESS) {
-        obj->freeColRow();
-        obj->throwErrMsg( SQL_ERROR, "SQLDescribeCol() failed.", isolate);
-        return;
-      }
-      rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], obj->maxColWidth, &rlength);
-      if(rc != SQL_SUCCESS) {
-        obj->freeColRow();
-        obj->throwErrMsg( SQL_ERROR, "SQLBindCol() failed.", isolate);
-        return;
-      }
-    }
+    if(obj->bindColData(isolate) < 0) return;
     
     while((rc = SQLFetch(obj->stmth)) == SQL_SUCCESS) {
       Handle<Object> row = Object::New(isolate);
@@ -264,7 +229,7 @@ void DbStmt::Exec(const ARGUMENTS& args) {
       array->Set(arrayCount++, row);  //Build the JSON data
     }
     if (rc != SQL_NO_DATA_FOUND) {
-      obj->freeColRow();
+      obj->freeCol();
       obj->throwErrMsg(SQL_ERROR, "SQLFetch() failed.", isolate);
     }
   }
@@ -275,7 +240,7 @@ void DbStmt::Exec(const ARGUMENTS& args) {
     Local<Value> argv[argc] = { Local<Value>::New(isolate, array) };
     cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
   }
-  obj->freeColRow();
+  obj->freeCol();
   
   // DEBUG("SQLCloseCursor: stmth %d\n", obj->stmth)
   // rc = SQLCloseCursor(obj->stmth);
@@ -317,21 +282,7 @@ void DbStmt::ExecAsyncRun(uv_work_t *req) {
     return;
     
   obj->resultSetAvailable = true;
-  obj->allocColRow();
-  
-  for(int i = 0; i < obj->colCount; i++)
-  {
-    SQLINTEGER rlength = 0;
-    cbd->rc = SQLDescribeCol(obj->stmth, i + 1, //Column index starts from 1.
-          obj->dbColumn[i].name,  //the buffer to store the Column Name
-          MAX_COLNAME_WIDTH, //the size of the store buffer 
-          &obj->dbColumn[i].nameLength,  //the accute length of the Column Name
-          &obj->dbColumn[i].sqlType,  //the SQL type of the Column
-          &obj->dbColumn[i].colPrecise, &obj->dbColumn[i].colScale, &obj->dbColumn[i].colNull);
-    LOG(cbd->rc != SQL_SUCCESS)
-    cbd->rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], obj->maxColWidth, &rlength);
-    LOG(cbd->rc != SQL_SUCCESS)
-  }
+  if(obj->bindColData(NULL) < 0) return;
   
   while((cbd->rc = SQLFetch(obj->stmth)) == SQL_SUCCESS) 
   {
@@ -339,7 +290,6 @@ void DbStmt::ExecAsyncRun(uv_work_t *req) {
     for(int i = 0; i < obj->colCount; i++)
     {
       int colLen = strlen(obj->rowData[i]) + 1;
-      if(colLen > obj->maxColWidth) colLen = obj->maxColWidth;
       rowData[i] = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
       memcpy(rowData[i], obj->rowData[i], colLen * sizeof(SQLCHAR));
     }
@@ -383,7 +333,7 @@ void DbStmt::ExecAsyncAfter(uv_work_t *req, int status) {
     }
   }
   
-  obj->freeColRow();
+  obj->freeCol();
   
   // DEBUG("SQLCloseCursor: stmth %d\n", obj->stmth)
   // SQLCloseCursor(obj->stmth);
@@ -407,7 +357,7 @@ void DbStmt::Close(const ARGUMENTS& args) {
   HandleScope scope(isolate);
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   
-  obj->freeColRow();
+  obj->freeCol();
   DEBUG("SQLFreeStmt: stmth %d\n", obj->stmth)
   if(obj->stmtAllocated) {
     SQLFreeStmt(obj->stmth, SQL_DROP);  //Free the statement handle here. No further processing allowed.
@@ -687,28 +637,7 @@ void DbStmt::Execute(const ARGUMENTS& args) {
   /* determine statement type */
   if (obj->colCount > 0) {/* statement is a select statement */
     obj->resultSetAvailable = true;
-    obj->allocColRow();
-    for(int i = 0; i < obj->colCount; i++)
-    {
-      SQLINTEGER rlength = 0;
-      rc = SQLDescribeCol(obj->stmth, i + 1, //Column index starts from 1.
-            obj->dbColumn[i].name,  //the buffer to store the Column Name
-            MAX_COLNAME_WIDTH, //the size of the store buffer 
-            &obj->dbColumn[i].nameLength,  //the accute length of the Column Name
-            &obj->dbColumn[i].sqlType,  //the SQL type of the Column
-            &obj->dbColumn[i].colPrecise, &obj->dbColumn[i].colScale, &obj->dbColumn[i].colNull);
-      if(rc != SQL_SUCCESS) {
-        obj->freeColRow();
-        obj->throwErrMsg(SQL_ERROR, "SQLDescribeCol() failed.", isolate);
-        return;
-      }
-      rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], obj->maxColWidth, &rlength);
-      if(rc != SQL_SUCCESS) {
-        obj->freeColRow();
-        obj->throwErrMsg(SQL_ERROR, "SQLBindCol() failed.", isolate);
-        return;
-      }
-    }
+    if(obj->bindColData(isolate) < 0) return;
   }
   /* execute(()=>{fetchAll(...)}) or */ 
   /* execute(out=>{console.log(out)}) or */
@@ -757,21 +686,7 @@ void DbStmt::ExecuteAsyncRun(uv_work_t *req) {
     return;
     
   obj->resultSetAvailable = true;
-  obj->allocColRow();
-  
-  /* It is a select statement */
-  for(int i = 0; i < obj->colCount; i++) {
-    SQLINTEGER rlength = 0;
-    cbd->rc = SQLDescribeCol(obj->stmth, i + 1, //Column index starts from 1.
-          obj->dbColumn[i].name,  //the buffer to store the Column Name
-          MAX_COLNAME_WIDTH, //the size of the store buffer 
-          &obj->dbColumn[i].nameLength,  //the accute length of the Column Name
-          &obj->dbColumn[i].sqlType,  //the SQL type of the Column
-          &obj->dbColumn[i].colPrecise, &obj->dbColumn[i].colScale, &obj->dbColumn[i].colNull);
-    LOG(cbd->rc != SQL_SUCCESS)
-    cbd->rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], obj->maxColWidth, &rlength);
-    LOG(cbd->rc != SQL_SUCCESS)
-  }
+  if(obj->bindColData(NULL) < 0) return;
 }
   
 void DbStmt::ExecuteAsyncAfter(uv_work_t *req, int status) {
@@ -834,30 +749,7 @@ void DbStmt::NextResult(const ARGUMENTS& args) {
 
   /* It is a select statement */
   obj->resultSetAvailable = true;
-  obj->allocColRow();
-
-  for(int i = 0; i < obj->colCount; i++)
-  {
-    SQLINTEGER rlength = 0;
-    rc = SQLDescribeCol(obj->stmth, i + 1, //Column index starts from 1.
-          obj->dbColumn[i].name,  //the buffer to store the Column Name
-          MAX_COLNAME_WIDTH, //the size of the store buffer 
-          &obj->dbColumn[i].nameLength,  //the accute length of the Column Name
-          &obj->dbColumn[i].sqlType,  //the SQL type of the Column
-          &obj->dbColumn[i].colPrecise, &obj->dbColumn[i].colScale, &obj->dbColumn[i].colNull);
-    if(rc != SQL_SUCCESS) {
-      obj->freeColRow();
-      obj->throwErrMsg(SQL_ERROR, "SQLDescribeCol() failed.", isolate);
-      return;
-    }
-    
-    rc = SQLBindCol(obj->stmth, i + 1, SQL_CHAR, (SQLPOINTER)obj->rowData[i], obj->maxColWidth, &rlength);
-    if(rc != SQL_SUCCESS) {
-      obj->freeColRow();
-      obj->throwErrMsg(SQL_ERROR, "SQLBindCol() failed.", isolate);
-      return;
-    }
-  }
+  if(obj->bindColData(isolate) < 0) return;
 }
 void DbStmt::Fetch(const ARGUMENTS& args) {
   Isolate* isolate = args.GetIsolate(); 
@@ -1010,7 +902,7 @@ void DbStmt::FetchAll(const ARGUMENTS& args) {
     array->Set(arrayCount++, row);  //Build the JSON data
   }
   if (rc != SQL_NO_DATA_FOUND) {
-    obj->freeColRow();
+    obj->freeCol();
     obj->throwErrMsg(SQL_ERROR, "SQLFetch() failed.", isolate);
   }
   if (args.Length() == 1) {
@@ -1048,7 +940,6 @@ void DbStmt::FetchAllAsyncRun(uv_work_t *req) {
     for(int i = 0; i < obj->colCount; i++)
     {
       int colLen = strlen(obj->rowData[i]) + 1;
-      if(colLen > obj->maxColWidth) colLen = obj->maxColWidth;
       rowData[i] = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
       memcpy(rowData[i], obj->rowData[i], colLen * sizeof(SQLCHAR));
     }
@@ -1092,7 +983,7 @@ void DbStmt::FetchAllAsyncAfter(uv_work_t *req, int status) {
       cb->Call(isolate->GetCurrentContext()->Global(), 1, argv);
     }
   }
-  obj->freeColRow();
+  obj->freeCol();
   delete cbd;
   delete req;
 }
@@ -1148,7 +1039,7 @@ void DbStmt::FieldType(const ARGUMENTS& args) {
   HandleScope scope(isolate);
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   CHECK(args.Length() != 1, INVALID_PARAM_NUM, "The fieldType() method only accept one parameter.", isolate)
-  CHECK(obj->resultSetAvailable == false || obj->colRowAllocated == false, RSSET_NOT_READY, "The Result set is unavailable. Try query something first.", isolate)
+  CHECK(obj->resultSetAvailable == false || obj->colDescAllocated == false, RSSET_NOT_READY, "The Result set is unavailable. Try query something first.", isolate)
 
   SQLSMALLINT i = args[0]->Int32Value();
   CHECK(i >= obj->colCount || i < 0, INVALID_PARAM_RANGE, "The input parameter is beyond the boundary.", isolate)
@@ -1161,7 +1052,7 @@ void DbStmt::FieldWidth(const ARGUMENTS& args) {
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   CHECK(args.Length() != 1, INVALID_PARAM_NUM, "The fieldWidth() method only accept one parameter.", isolate)
 
-  CHECK(obj->resultSetAvailable == false || obj->colRowAllocated == false, RSSET_NOT_READY, "The Result set is unavailable. Try query something first.", isolate)
+  CHECK(obj->resultSetAvailable == false || obj->colDescAllocated == false, RSSET_NOT_READY, "The Result set is unavailable. Try query something first.", isolate)
 
   SQLSMALLINT i = args[0]->Int32Value();
   CHECK(i >= obj->colCount || i < 0, INVALID_PARAM_RANGE, "The input parameter is beyond the boundary.", isolate)
@@ -1174,7 +1065,7 @@ void DbStmt::FieldName(const ARGUMENTS& args) {
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   CHECK(args.Length() != 1, INVALID_PARAM_NUM, "The fieldName() method only accept one parameter.", isolate)
 
-  CHECK(obj->resultSetAvailable == false || obj->colRowAllocated == false, RSSET_NOT_READY, "The Result set is unavailable. Try query something first.", isolate)
+  CHECK(obj->resultSetAvailable == false || obj->colDescAllocated == false, RSSET_NOT_READY, "The Result set is unavailable. Try query something first.", isolate)
 
   SQLSMALLINT i = args[0]->Int32Value();
   CHECK(i >= obj->colCount || i < 0, INVALID_PARAM_RANGE, "The input parameter is beyond the boundary.", isolate)
@@ -1187,7 +1078,7 @@ void DbStmt::FieldPrecise(const ARGUMENTS& args) {
   HandleScope scope(isolate);
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   CHECK(args.Length() != 1, INVALID_PARAM_NUM, "The fieldPrecise() method only accept one parameter.", isolate)
-  CHECK(obj->resultSetAvailable == false || obj->colRowAllocated == false, RSSET_NOT_READY, "The Result set is unavailable. Try query something first.", isolate)
+  CHECK(obj->resultSetAvailable == false || obj->colDescAllocated == false, RSSET_NOT_READY, "The Result set is unavailable. Try query something first.", isolate)
 
   SQLSMALLINT i = args[0]->Int32Value();
   CHECK(i >= obj->colCount || i < 0, INVALID_PARAM_RANGE, "The input parameter is beyond the boundary.", isolate)
@@ -1200,7 +1091,7 @@ void DbStmt::FieldScale(const ARGUMENTS& args) {
   HandleScope scope(isolate);
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   CHECK(args.Length() != 1, INVALID_PARAM_NUM, "The fieldScale() method only accept one parameter.", isolate)
-  CHECK(obj->resultSetAvailable == false || obj->colRowAllocated == false, RSSET_NOT_READY, "The Result set is unavailable. Try query something first.", isolate)
+  CHECK(obj->resultSetAvailable == false || obj->colDescAllocated == false, RSSET_NOT_READY, "The Result set is unavailable. Try query something first.", isolate)
 
   SQLSMALLINT i = args[0]->Int32Value();
   CHECK(i >= obj->colCount || i < 0, INVALID_PARAM_RANGE, "The input parameter is beyond the boundary.", isolate)
@@ -1213,7 +1104,7 @@ void DbStmt::FieldNullable(const ARGUMENTS& args) {
   HandleScope scope(isolate);
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   CHECK(args.Length() != 1, INVALID_PARAM_NUM, "The fieldNullable() method only accept one parameter.", isolate)
-  CHECK(obj->resultSetAvailable == false || obj->colRowAllocated == false, RSSET_NOT_READY, "The Result set is unavailable. Try query something first.", isolate)
+  CHECK(obj->resultSetAvailable == false || obj->colDescAllocated == false, RSSET_NOT_READY, "The Result set is unavailable. Try query something first.", isolate)
 
   SQLSMALLINT i = args[0]->Int32Value();
   CHECK(i >= obj->colCount || i < 0, INVALID_PARAM_RANGE, "The input parameter is beyond the boundary.", isolate)
