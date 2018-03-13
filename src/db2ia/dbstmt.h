@@ -17,11 +17,22 @@ using namespace v8;
 
 struct db2_column {
   SQLCHAR*    name;
-  SQLSMALLINT  nameLength;
-  SQLSMALLINT  sqlType;
+  SQLSMALLINT nameLength;
+  SQLSMALLINT sqlType;
   SQLINTEGER  colPrecise;
-  SQLSMALLINT  colScale;
-  SQLSMALLINT  colNull;
+  SQLSMALLINT colScale;
+  SQLSMALLINT colNull;
+};
+
+struct db2_param {
+  SQLSMALLINT dataType;
+  SQLINTEGER  paramSize;
+  SQLSMALLINT decDigits;
+  SQLSMALLINT nullable;
+  int         io;
+  int         ind;
+  int         jsType;
+  void*       buf;
 };
 
 class DbStmt : public node::ObjectWrap {
@@ -118,18 +129,23 @@ class DbStmt : public node::ObjectWrap {
     }
     
     void freeSp() {
-      if(spInCount > 0) { 
-        for(int i = 0; i < spInCount; i++) 
-          free(spIn[i]); 
-        spInCount = 0;
-      } 
-      if(spOutCount > 0) { 
-        for(int i = 0; i < spOutCount; i++) 
-          free(spOut[i]); 
-        spOutCount = 0;
-      } 
-      spInNumCount = 0;
-      spOutNumCount = 0;
+      if(param) {
+        for(int i = 0; i < paramCount; i++)
+          free(param[i].buf);
+        free(param);
+        param = NULL;
+      }
+    }
+  
+    void printParam() {
+      for(int i = 0; i < paramCount; i++) {
+        printf("TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d] BUF",
+            param[i].dataType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind);
+        if(param[i].jsType == 1)
+          printf("[%s]\n", (char*)param[i].buf);
+        else if(param[i].jsType == 2)
+          printf("[%d]\n", *(long*)param[i].buf);
+      }
     }
     
     void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
@@ -293,5 +309,9 @@ class DbStmt : public node::ObjectWrap {
     db2_column* dbColumn;
     SQLCHAR** rowData;
     std::vector<SQLCHAR**> result;
+    
+    db2_param* param = NULL;
+    int paramCount = 0;
+    
     char msg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
 };
