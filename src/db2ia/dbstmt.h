@@ -6,6 +6,7 @@
 
 #include "dbconn.h"
 #include <vector>
+#include "node_buffer.h"
 
 #define LOG(a) if((a)) { obj->printErrorToLog(); return; }
 #define INITASYNC \
@@ -22,17 +23,23 @@ struct db2_column {
   SQLINTEGER  colPrecise;
   SQLSMALLINT colScale;
   SQLSMALLINT colNull;
+  SQLINTEGER  rlength;
 };
 
 struct db2_param {
-  SQLSMALLINT dataType;
+  SQLSMALLINT valueType;
+  SQLSMALLINT paramType;
   SQLINTEGER  paramSize;
   SQLSMALLINT decDigits;
   SQLSMALLINT nullable;
   int         io;
   int         ind;
-  int         jsType;
   void*       buf;
+};
+
+struct result_item {
+  SQLCHAR*    data;
+  SQLINTEGER  rlength;
 };
 
 class DbStmt : public node::ObjectWrap {
@@ -62,6 +69,8 @@ class DbStmt : public node::ObjectWrap {
               &dbColumn[i].nameLength,  //the accurate length of the Column Name
               &dbColumn[i].sqlType,  //the SQL type of the Column
               &dbColumn[i].colPrecise, &dbColumn[i].colScale, &dbColumn[i].colNull);
+        if(isDebug)      
+          printf("[%d]sqlType[%d]\tcolScale[%d]\tcolPrecise[%d]\n", i, dbColumn[i].sqlType, dbColumn[i].colScale, dbColumn[i].colPrecise);
         if(rc != SQL_SUCCESS) {
           freeColDesc();
           if(isolate != NULL)
@@ -93,15 +102,77 @@ class DbStmt : public node::ObjectWrap {
       
       SQLRETURN rc;
       SQLINTEGER rlength = 0;
+      SQLINTEGER maxColLen = 0;
+      int ctype = SQL_C_CHAR;
       rowData = (SQLCHAR**)calloc(colCount, sizeof(SQLCHAR*)); 
       
       if(isDebug)
         printf("SQLBindCol(%d).\n", colCount);
       
+      // SQL_C_BIGINT
+      // SQL_C_BINARY
+      // SQL_C_BLOB
+      // SQL_C_BLOB_LOCATOR
+      // SQL_C_CHAR
+      // SQL_C_CLOB
+      // SQL_C_CLOB_LOCATOR
+      // SQL_C_DATE
+      // SQL_TYPE_DATE
+      // SQL_C_DATETIME
+      // SQL_C_DBCHAR
+      // SQL_C_DBCLOB
+      // SQL_C_DBCLOB_LOCATOR
+      // SQL_C_DECFLOAT128
+      // SQL_C_DECFLOAT64
+      // SQL_C_DECFLOAT32
+      // SQL_C_DOUBLE
+      // SQL_C_FLOAT
+      // SQL_C_LONG
+      // SQL_C_SLONG
+      // SQL_C_REAL
+      // SQL_C_SHORT
+      // SQL_C_TIME
+      // SQL_C_TIMESTAMP
+      // SQL_C_STINYINT
+      // SQL_C_UTINYINT
+      // SQL_TYPE_TIME
+      // SQL_TYPE_TIMESTAMP
+      // SQL_C_WCHAR
+
       for(int i = 0; i < colCount; i++) {
-        SQLINTEGER maxColLen = dbColumn[i].colPrecise << 2;
-        rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-        rc = SQLBindCol(stmth, i + 1, SQL_CHAR, (SQLPOINTER)rowData[i], maxColLen, &rlength);
+        switch(dbColumn[i].sqlType) {
+          case SQL_DECIMAL :
+          case SQL_NUMERIC :
+          {
+            maxColLen = dbColumn[i].colPrecise * 256 + dbColumn[i].colScale;
+            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+            rc = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          }
+          break;
+          case SQL_VARBINARY :
+          case SQL_BINARY :
+          {
+            maxColLen = dbColumn[i].colPrecise;
+            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+            rc = SQLBindCol(stmth, i + 1, SQL_C_BINARY, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          }
+          break;
+          case SQL_WCHAR :
+          case SQL_WVARCHAR :
+          {
+            maxColLen = dbColumn[i].colPrecise << 2;
+            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+            rc = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          }
+          break;
+          default :
+          {
+            maxColLen = dbColumn[i].colPrecise + 1;
+            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+            rc = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          }
+          break;
+        }
         if(rc != SQL_SUCCESS) {
           freeColData();
           if(isolate != NULL)
@@ -140,11 +211,15 @@ class DbStmt : public node::ObjectWrap {
     void printParam() {
       for(int i = 0; i < paramCount; i++) {
         printf("TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d] BUF",
-            param[i].dataType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind);
-        if(param[i].jsType == 1)
+            param[i].paramType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind);
+        if(param[i].valueType = SQL_C_CHAR)  // String
           printf("[%s]\n", (char*)param[i].buf);
-        else if(param[i].jsType == 2)
-          printf("[%d]\n", *(long*)param[i].buf);
+        else if(param[i].valueType = SQL_C_BIGINT)  // Integer
+          printf("[%d]\n", *(int64_t*)param[i].buf);
+        else if(param[i].valueType = SQL_C_DOUBLE)  // Decimal
+          printf("[%f]\n", *(double*)param[i].buf);
+        else if(param[i].valueType = SQL_C_BIT)  // Decimal
+          printf("[%d]\n", *(bool*)param[i].buf);
       }
     }
     
@@ -308,7 +383,7 @@ class DbStmt : public node::ObjectWrap {
     SQLSMALLINT colCount = 0;
     db2_column* dbColumn;
     SQLCHAR** rowData;
-    std::vector<SQLCHAR**> result;
+    std::vector<result_item*> result;
     
     db2_param* param = NULL;
     int paramCount = 0;
