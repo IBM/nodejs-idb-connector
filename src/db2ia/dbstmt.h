@@ -33,7 +33,7 @@ struct db2_param {
   SQLSMALLINT decDigits;
   SQLSMALLINT nullable;
   int         io;
-  int         ind;
+  SQLINTEGER  ind;
   void*       buf;
 };
 
