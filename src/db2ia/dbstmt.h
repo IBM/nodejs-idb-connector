@@ -221,21 +221,6 @@ class DbStmt : public node::ObjectWrap {
       }
     }
   
-    void printParam() {
-      for(int i = 0; i < paramCount; i++) {
-        printf("TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d] BUF",
-            param[i].paramType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind);
-        if(param[i].valueType == SQL_C_CHAR || param[i].valueType == SQL_VARCHAR)  // String
-          printf("[%s]\n", (char*)param[i].buf);
-        else if(param[i].valueType == SQL_C_BIGINT)  // Integer
-          printf("[%d]\n", *(int64_t*)param[i].buf);
-        else if(param[i].valueType == SQL_C_DOUBLE)  // Decimal
-          printf("[%f]\n", *(double*)param[i].buf);
-        else if(param[i].valueType == SQL_C_BIT)  // Decimal
-          printf("[%d]\n", *(bool*)param[i].buf);
-      }
-    }
-    
     void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
     {
       if(isDebug == true) 
