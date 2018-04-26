@@ -157,6 +157,19 @@ class DbStmt : public node::ObjectWrap {
             rc = SQLBindCol(stmth, i + 1, SQL_C_BINARY, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
           }
           break;
+          case SQL_BLOB :
+          {
+            // maxColLen = dbColumn[i].colPrecise;
+            // rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+            // int* length = (int*)malloc(sizeof(int));
+            // struct blob_data {
+              // int    length;
+              // SQLCHAR* data;
+            // };
+            // blob_data* blob = (blob_data*)malloc(sizeof(blob_data));;
+            // rc = SQLBindCol(stmth, i + 1, SQL_C_BLOB, blob, sizeof(blob_data), &blob->length);
+          }
+          break;
           case SQL_WCHAR :
           case SQL_WVARCHAR :
           {
@@ -212,13 +225,13 @@ class DbStmt : public node::ObjectWrap {
       for(int i = 0; i < paramCount; i++) {
         printf("TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d] BUF",
             param[i].paramType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind);
-        if(param[i].valueType = SQL_C_CHAR)  // String
+        if(param[i].valueType == SQL_C_CHAR || param[i].valueType == SQL_VARCHAR)  // String
           printf("[%s]\n", (char*)param[i].buf);
-        else if(param[i].valueType = SQL_C_BIGINT)  // Integer
+        else if(param[i].valueType == SQL_C_BIGINT)  // Integer
           printf("[%d]\n", *(int64_t*)param[i].buf);
-        else if(param[i].valueType = SQL_C_DOUBLE)  // Decimal
+        else if(param[i].valueType == SQL_C_DOUBLE)  // Decimal
           printf("[%f]\n", *(double*)param[i].buf);
-        else if(param[i].valueType = SQL_C_BIT)  // Decimal
+        else if(param[i].valueType == SQL_C_BIT)  // Decimal
           printf("[%d]\n", *(bool*)param[i].buf);
       }
     }
@@ -310,7 +323,8 @@ class DbStmt : public node::ObjectWrap {
     static void ExecAsyncAfter(uv_work_t *req, int status);
     
     static void CloseCursor(const ARGUMENTS& args);
-    
+    static void Reset(const ARGUMENTS& args);
+     
     static void Prepare(const ARGUMENTS& args);
     static void PrepareAsync(const ARGUMENTS& args);
     static void PrepareAsyncRun(uv_work_t *req);
@@ -340,7 +354,7 @@ class DbStmt : public node::ObjectWrap {
     
     static void Commit(const ARGUMENTS& args);
     static void Rollback(const ARGUMENTS& args);
-    
+
     static void NumFields(const ARGUMENTS& args);
     static void NumRows(const ARGUMENTS& args);
     
