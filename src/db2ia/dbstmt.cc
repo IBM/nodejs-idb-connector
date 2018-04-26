@@ -63,6 +63,7 @@ void DbStmt::Init() {
   
   NODE_SET_PROTOTYPE_METHOD(tpl, "nextResult", NextResult);
   NODE_SET_PROTOTYPE_METHOD(tpl, "closeCursor", CloseCursor);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "reset", Reset);
 
   NODE_SET_PROTOTYPE_METHOD(tpl, "fetch", FetchAsync);
   NODE_SET_PROTOTYPE_METHOD(tpl, "fetchSync", Fetch);
@@ -231,6 +232,9 @@ void DbStmt::Exec(const ARGUMENTS& args) {
             case SQL_BINARY :
               value = Local<Value>::New(isolate, node::Buffer::New(isolate, obj->rowData[i], obj->dbColumn[i].rlength).ToLocalChecked());
               break;
+            case SQL_BLOB : //TODO
+              // value = Local<Value>::New(isolate, node::Buffer::New(isolate, obj->rowData[i] + sizeof(int), *(int*)obj->rowData[i]).ToLocalChecked());
+              break;
             default : 
               value = Local<Value>::New(isolate, String::NewFromUtf8(isolate, obj->rowData[i]));
               break;
@@ -392,13 +396,23 @@ void DbStmt::CloseCursor(const ARGUMENTS& args) {
   SQLCloseCursor(obj->stmth);
 }
 
+void DbStmt::Reset(const ARGUMENTS& args) {
+  Isolate* isolate = args.GetIsolate(); 
+  HandleScope scope(isolate);
+  DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
+  
+  DEBUG("SQLFreeStmt: stmth %d [SQL_RESET_PARAMS]\n", obj->stmth)
+  if(obj->stmtAllocated)
+    SQLFreeStmt(obj->stmth, SQL_RESET_PARAMS); //Release all params set by SQLBindParam()
+}
+
 void DbStmt::Close(const ARGUMENTS& args) {
   Isolate* isolate = args.GetIsolate(); 
   HandleScope scope(isolate);
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   
   obj->freeCol();
-  DEBUG("SQLFreeStmt: stmth %d\n", obj->stmth)
+  DEBUG("SQLFreeStmt: stmth %d [SQL_DROP]\n", obj->stmth)
   if(obj->stmtAllocated) {
     SQLFreeStmt(obj->stmth, SQL_DROP);  //Free the statement handle here. No further processing allowed.
     //CHECK(rc != SQL_SUCCESS, SQL_ERROR, "SQLFreeStmt() failed.", isolate)
@@ -534,13 +548,32 @@ void DbStmt::BindParam(const ARGUMENTS& args) {
     
     if(value->IsString()) {
       Local<String> string = value->ToString();
-      int bufSize = string->Length() + 1;
       obj->param[i].valueType = SQL_C_CHAR;
       obj->param[i].paramType = SQL_VARCHAR;
-      obj->param[i].paramSize = bufSize;
-      obj->param[i].buf = malloc(bufSize);
-      string->WriteUtf8((char*)(obj->param[i].buf));
-      obj->param[i].ind = SQL_NTS;
+      if(obj->param[i].io == SQL_PARAM_INPUT) {
+        int bufSize = string->Utf8Length() + 1;
+        obj->param[i].paramSize = bufSize;
+        obj->param[i].buf = malloc(bufSize);
+        string->WriteUtf8((char*)(obj->param[i].buf));
+        if(bindIndicator == 0) //CLOB
+          obj->param[i].ind = string->Utf8Length();
+        else if(bindIndicator == 1) //NTS
+          obj->param[i].ind = SQL_NTS;
+      }
+      else if(obj->param[i].io == SQL_PARAM_OUTPUT) {
+        int bufSize = obj->param[i].paramSize;
+        obj->param[i].buf = malloc(bufSize);
+        obj->param[i].ind = bufSize;
+      }
+      else if(obj->param[i].io == SQL_PARAM_INPUT_OUTPUT) {
+        int bufSize = obj->param[i].paramSize;
+        obj->param[i].buf = malloc(bufSize);
+        string->WriteUtf8((char*)(obj->param[i].buf));
+        if(bindIndicator == 0) //CLOB
+          obj->param[i].ind = string->Utf8Length();
+        else if(bindIndicator == 1) //NTS
+          obj->param[i].ind = SQL_NTS;
+      }
     }
     else if(value->IsNull()) {
       obj->param[i].valueType = SQL_C_DEFAULT;
@@ -581,42 +614,8 @@ void DbStmt::BindParam(const ARGUMENTS& args) {
             obj->param[i].decDigits, 
             obj->param[i].buf, 0, 
             &obj->param[i].ind);
-            
-    // int bufSize = obj->param[i].paramSize << 2;
-    
-    // if(bindIndicator == 0 || bindIndicator == 1) { //Parameter is string 
-      // String::Utf8Value param(object->Get(0));
-      // obj->param[i].jsType = 1;  // String
-      // obj->param[i].buf = (char*)calloc(bufSize, sizeof(char));
-      
-      // if(obj->param[i].io == SQL_PARAM_INPUT || obj->param[i].io == SQL_PARAM_INPUT_OUTPUT) {
-        // memcpy(obj->param[i].buf, *param, strlen(*param) < bufSize ? strlen(*param) : bufSize);
-        // if(bindIndicator == 0) //CLOB
-          // obj->param[i].ind = strlen(*param);
-        // else if(bindIndicator == 1) //NTS
-          // obj->param[i].ind = SQL_NTS;
-      // }
-      // else if(obj->param[i].io == SQL_PARAM_OUTPUT)
-        // obj->param[i].ind = bufSize;
-      
-      // DEBUG("SQLBindParameter [%d] = %s \n", i + 1, obj->param[i].buf)
-      // rc = SQLBindParameter(obj->stmth, i + 1, obj->param[i].io, SQL_C_CHAR, obj->param[i].paramType, obj->param[i].paramSize, obj->param[i].decDigits, obj->param[i].buf, 0, &obj->param[i].ind);
-    // }
-    // else if(bindIndicator == 2) { //Parameter is integer
-      // obj->param[i].jsType = 2;  // Number
-      // obj->param[i].buf = (double*)calloc(1, sizeof(double));
-      // if(obj->param[i].io == SQL_PARAM_INPUT || obj->param[i].io == SQL_PARAM_INPUT_OUTPUT)
-        // *(double*)obj->param[i].buf = object->Get(0)->NumberValue();
-      // DEBUG("SQLBindParameter [%d] = %d \n", i + 1, *(double*)obj->param[i].buf)
-      // rc = SQLBindParameter(obj->stmth, i + 1, obj->param[i].io, SQL_DECIMAL, obj->param[i].paramType, obj->param[i].paramSize, obj->param[i].decDigits, obj->param[i].buf, 0, NULL);
-    // }
-    // else if(bindIndicator == 3) { //Parameter is NULL
-      // SQLINTEGER nullLen = SQL_NULL_DATA;
-      // DEBUG("SQLBindParameter [%d] = NULL \n", i + 1)
-      // rc = SQLBindParameter(obj->stmth, i + 1, SQL_PARAM_INPUT, SQL_C_DEFAULT, obj->param[i].paramType, obj->param[i].paramSize, obj->param[i].decDigits, obj->param[i].buf, 0, &nullLen);
-    // }
   }
-  obj->printParam();
+  if(obj->isDebug) obj->printParam();
   if (args.Length() == 2) {  // Run call back function.
     Local<Function> cb = Local<Function>::Cast(args[1]);
     cb->Call(isolate->GetCurrentContext()->Global(), 0, 0);
@@ -687,20 +686,35 @@ void DbStmt::BindParamAsyncAfter(uv_work_t *req, int status) {
       obj->throwErrMsg(SQL_ERROR, "SQLDescribeParam() failed.", isolate);
 
     Local<Value> value = object->Get(0);
-    
-    obj->param[i].paramSize = 0;
-    obj->param[i].ind = SQL_NULL_DATA;
-    obj->param[i].decDigits = 0;
-    
+
     if(value->IsString()) {
       Local<String> string = value->ToString();
-      int bufSize = string->Utf8Length() + 1;
       obj->param[i].valueType = SQL_C_CHAR;
       obj->param[i].paramType = SQL_VARCHAR;
-      obj->param[i].paramSize = bufSize;
-      obj->param[i].buf = malloc(bufSize);
-      string->WriteUtf8((char *)(obj->param[i].buf));
-      obj->param[i].ind = SQL_NTS;
+      if(obj->param[i].io == SQL_PARAM_INPUT) {
+        int bufSize = string->Utf8Length() + 1;
+        obj->param[i].paramSize = bufSize;
+        obj->param[i].buf = malloc(bufSize);
+        string->WriteUtf8((char*)(obj->param[i].buf));
+        if(bindIndicator == 0) //CLOB
+          obj->param[i].ind = string->Utf8Length();
+        else if(bindIndicator == 1) //NTS
+          obj->param[i].ind = SQL_NTS;
+      }
+      else if(obj->param[i].io == SQL_PARAM_OUTPUT) {
+        int bufSize = obj->param[i].paramSize;
+        obj->param[i].buf = malloc(bufSize);
+        obj->param[i].ind = bufSize;
+      }
+      else if(obj->param[i].io == SQL_PARAM_INPUT_OUTPUT) {
+        int bufSize = obj->param[i].paramSize;
+        obj->param[i].buf = malloc(bufSize);
+        string->WriteUtf8((char*)(obj->param[i].buf));
+        if(bindIndicator == 0) //CLOB
+          obj->param[i].ind = string->Utf8Length();
+        else if(bindIndicator == 1) //NTS
+          obj->param[i].ind = SQL_NTS;
+      }
     }
     else if(value->IsNull()) {
       obj->param[i].valueType = SQL_C_DEFAULT;
@@ -716,7 +730,6 @@ void DbStmt::BindParamAsyncAfter(uv_work_t *req, int status) {
     }
     else if(value->IsNumber()) {
       double *number = new double(value->NumberValue());
-      
       obj->param[i].valueType = SQL_C_DOUBLE;
       obj->param[i].paramType = SQL_DECIMAL;
       obj->param[i].buf = number;
@@ -726,7 +739,6 @@ void DbStmt::BindParamAsyncAfter(uv_work_t *req, int status) {
     }
     else if(value->IsBoolean()) {
       bool *boolean = new bool(value->BooleanValue());
-      
       obj->param[i].valueType = SQL_C_BIT;
       obj->param[i].paramType = SQL_BIT;
       obj->param[i].buf = boolean;
@@ -741,40 +753,8 @@ void DbStmt::BindParamAsyncAfter(uv_work_t *req, int status) {
             obj->param[i].decDigits, 
             obj->param[i].buf, 0, 
             &obj->param[i].ind);
-    
-    // if(bindIndicator == 0 || bindIndicator == 1) { //Parameter is string 
-      // String::Utf8Value param(object->Get(0));
-      // obj->param[i].jsType = 1;  // String
-      // obj->param[i].buf = (char*)calloc(bufSize, sizeof(char));
-      
-      // if(obj->param[i].io == SQL_PARAM_INPUT || obj->param[i].io == SQL_PARAM_INPUT_OUTPUT) {
-        // memcpy(obj->param[i].buf, *param, strlen(*param) < bufSize ? strlen(*param) : bufSize);
-        // if(bindIndicator == 0) //CLOB
-          // obj->param[i].ind = strlen(*param);
-        // else if(bindIndicator == 1) //NTS
-          // obj->param[i].ind = SQL_NTS;
-      // }
-      // else if(obj->param[i].io == SQL_PARAM_OUTPUT)
-        // obj->param[i].ind = bufSize;
-      
-      // DEBUG("SQLBindParameter [%d] = %s \n", i + 1, obj->param[i].buf)
-      // rc = SQLBindParameter(obj->stmth, i + 1, obj->param[i].io, SQL_C_CHAR, obj->param[i].paramType, obj->param[i].paramSize, obj->param[i].decDigits, obj->param[i].buf, 0, &obj->param[i].ind);
-    // }
-    // else if(bindIndicator == 2) { //Parameter is integer
-      // obj->param[i].jsType = 2;  // Number
-      // obj->param[i].buf = (double*)calloc(1, sizeof(double));
-      // if(obj->param[i].io == SQL_PARAM_INPUT || obj->param[i].io == SQL_PARAM_INPUT_OUTPUT)
-        // *(double*)obj->param[i].buf = object->Get(0)->NumberValue();
-      // DEBUG("SQLBindParameter [%d] = %d \n", i + 1, *(double*)obj->param[i].buf)
-      // rc = SQLBindParameter(obj->stmth, i + 1, obj->param[i].io, SQL_DECIMAL, obj->param[i].paramType, obj->param[i].paramSize, obj->param[i].decDigits, obj->param[i].buf, 0, NULL);
-    // }
-    // else if(bindIndicator == 3) { //Parameter is NULL
-      // SQLINTEGER nullLen = SQL_NULL_DATA;
-      // DEBUG("SQLBindParameter [%d] = NULL \n", i + 1)
-      // rc = SQLBindParameter(obj->stmth, i + 1, SQL_PARAM_INPUT, SQL_C_DEFAULT, obj->param[i].paramType, obj->param[i].paramSize, obj->param[i].decDigits, obj->param[i].buf, 0, &nullLen);
-    // }
   }
-  obj->printParam();
+  if(obj->isDebug) obj->printParam();
   if (cbd->arglength == 2) {
     const unsigned argc = 0;
     Local<Function> cb = Local<Function>::New(isolate, cbd->callback);
@@ -981,6 +961,9 @@ void DbStmt::Fetch(const ARGUMENTS& args) {
           case SQL_BINARY :
             value = Local<Value>::New(isolate, node::Buffer::New(isolate, obj->rowData[i], obj->dbColumn[i].rlength).ToLocalChecked());
             break;
+          case SQL_BLOB : //TODO
+            // value = Local<Value>::New(isolate, node::Buffer::New(isolate, obj->rowData[i] + sizeof(int), *(int*)obj->rowData[i]).ToLocalChecked());
+            break;
           default : 
             value = Local<Value>::New(isolate, String::NewFromUtf8(isolate, obj->rowData[i]));
             break;
@@ -1066,6 +1049,9 @@ void DbStmt::FetchAsyncAfter(uv_work_t *req, int status) {
         case SQL_BINARY :
           value = Local<Value>::New(isolate, node::Buffer::New(isolate, obj->rowData[i], obj->dbColumn[i].rlength).ToLocalChecked());
           break;
+        case SQL_BLOB : //TODO
+          // value = Local<Value>::New(isolate, node::Buffer::New(isolate, obj->rowData[i] + sizeof(int), *(int*)obj->rowData[i]).ToLocalChecked());
+          break;
         default : 
           value = Local<Value>::New(isolate, String::NewFromUtf8(isolate, obj->rowData[i]));
           break;
@@ -1121,6 +1107,9 @@ void DbStmt::FetchAll(const ARGUMENTS& args) {
           case SQL_VARBINARY :
           case SQL_BINARY :
             value = Local<Value>::New(isolate, node::Buffer::New(isolate, obj->rowData[i], obj->dbColumn[i].rlength).ToLocalChecked());
+            break;
+          case SQL_BLOB : //TODO
+            // value = Local<Value>::New(isolate, node::Buffer::New(isolate, obj->rowData[i] + sizeof(int), *(int*)obj->rowData[i]).ToLocalChecked());
             break;
           default : 
             value = Local<Value>::New(isolate, String::NewFromUtf8(isolate, obj->rowData[i]));
