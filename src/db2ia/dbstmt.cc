@@ -563,7 +563,7 @@ void DbStmt::BindParam(const ARGUMENTS& args) {
       else if(obj->param[i].io == SQL_PARAM_OUTPUT) {
         int bufSize = obj->param[i].paramSize + 1;
         obj->param[i].buf = malloc(bufSize);
-        obj->param[i].ind = bufSize;
+        obj->param[i].ind = obj->param[i].paramSize;
       }
       else if(obj->param[i].io == SQL_PARAM_INPUT_OUTPUT) {
         int bufSize = obj->param[i].paramSize + 1;
@@ -700,12 +700,12 @@ void DbStmt::BindParamAsyncAfter(uv_work_t *req, int status) {
           obj->param[i].ind = SQL_NTS;
       }
       else if(obj->param[i].io == SQL_PARAM_OUTPUT) {
-        int bufSize = obj->param[i].paramSize;
+        int bufSize = obj->param[i].paramSize + 1;
         obj->param[i].buf = malloc(bufSize);
-        obj->param[i].ind = bufSize;
+        obj->param[i].ind = obj->param[i].paramSize;
       }
       else if(obj->param[i].io == SQL_PARAM_INPUT_OUTPUT) {
-        int bufSize = obj->param[i].paramSize;
+        int bufSize = obj->param[i].paramSize + 1;
         obj->param[i].buf = malloc(bufSize);
         string->WriteUtf8((char*)(obj->param[i].buf));
         if(bindIndicator == 0) //CLOB
@@ -794,14 +794,14 @@ void DbStmt::Execute(const ARGUMENTS& args) {
     for(int i = 0, j = 0; i < obj->paramCount; i++) {
       db2_param* param = &obj->param[i];
       if(param->io != SQL_PARAM_INPUT) {
-        if(param->valueType = SQL_C_CHAR)  // String
-          array->Set(j, String::NewFromUtf8(isolate, (char*)param->buf));
-        else if(param->valueType = SQL_C_BIGINT)  // Integer
+        if(param->valueType == SQL_C_BIGINT)  // Integer
           array->Set(j, Integer::New(isolate, *(int64_t*)param->buf));
-        else if(param->valueType = SQL_C_DOUBLE)  // Decimal
+        else if(param->valueType == SQL_C_DOUBLE)  // Decimal
           array->Set(j, Number::New(isolate, *(double*)param->buf));
-        else if(param->valueType = SQL_C_BIT)  // Boolean
+        else if(param->valueType == SQL_C_BIT)  // Boolean
           array->Set(j, Boolean::New(isolate, *(bool*)param->buf));
+        else
+          array->Set(j, String::NewFromUtf8(isolate, (char*)param->buf));
         j++;
       }
     }
@@ -859,14 +859,14 @@ void DbStmt::ExecuteAsyncAfter(uv_work_t *req, int status) {
     for(int i = 0, j = 0; i < obj->paramCount; i++) {
       db2_param* param = &obj->param[i];
       if(param->io != SQL_PARAM_INPUT) {
-        if(param->valueType = SQL_C_CHAR)  // String
-          array->Set(j, String::NewFromUtf8(isolate, (char*)param->buf));
-        else if(param->valueType = SQL_C_BIGINT)  // Integer
+        if(param->valueType == SQL_C_BIGINT)  // Integer
           array->Set(j, Integer::New(isolate, *(int64_t*)param->buf));
-        else if(param->valueType = SQL_C_DOUBLE)  // Decimal
+        else if(param->valueType == SQL_C_DOUBLE)  // Decimal
           array->Set(j, Number::New(isolate, *(double*)param->buf));
-        else if(param->valueType = SQL_C_BIT)  // Decimal
+        else if(param->valueType == SQL_C_BIT)  // Boolean
           array->Set(j, Boolean::New(isolate, *(bool*)param->buf));
+        else
+          array->Set(j, String::NewFromUtf8(isolate, (char*)param->buf));
         j++;
       }
     }
