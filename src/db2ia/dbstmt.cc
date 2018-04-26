@@ -546,7 +546,7 @@ void DbStmt::BindParam(const ARGUMENTS& args) {
     obj->param[i].ind = SQL_NULL_DATA;
     obj->param[i].decDigits = 0;
     
-    if(value->IsString()) {
+    if(value->IsString() || bindIndicator == 0 || bindIndicator == 1) { //Parameter is string 
       Local<String> string = value->ToString();
       obj->param[i].valueType = SQL_C_CHAR;
       obj->param[i].paramType = SQL_VARCHAR;
@@ -561,12 +561,12 @@ void DbStmt::BindParam(const ARGUMENTS& args) {
           obj->param[i].ind = SQL_NTS;
       }
       else if(obj->param[i].io == SQL_PARAM_OUTPUT) {
-        int bufSize = obj->param[i].paramSize;
+        int bufSize = obj->param[i].paramSize + 1;
         obj->param[i].buf = malloc(bufSize);
         obj->param[i].ind = bufSize;
       }
       else if(obj->param[i].io == SQL_PARAM_INPUT_OUTPUT) {
-        int bufSize = obj->param[i].paramSize;
+        int bufSize = obj->param[i].paramSize + 1;
         obj->param[i].buf = malloc(bufSize);
         string->WriteUtf8((char*)(obj->param[i].buf));
         if(bindIndicator == 0) //CLOB
@@ -575,21 +575,20 @@ void DbStmt::BindParam(const ARGUMENTS& args) {
           obj->param[i].ind = SQL_NTS;
       }
     }
-    else if(value->IsNull()) {
-      obj->param[i].valueType = SQL_C_DEFAULT;
-      obj->param[i].paramType = SQL_VARCHAR;
-      obj->param[i].ind = SQL_NULL_DATA;
-    }
-    else if(value->IsInt32()) {
+    else if(value->IsInt32() || bindIndicator == 2) { //Parameter is Integer
       int64_t *number = new int64_t(value->IntegerValue());
       obj->param[i].valueType = SQL_C_BIGINT;
       obj->param[i].paramType = SQL_BIGINT;
       obj->param[i].buf = number;
       obj->param[i].ind = 0;
     }
-    else if(value->IsNumber()) {
+    else if(value->IsNull() || bindIndicator == 3) { //Parameter is NULL
+      obj->param[i].valueType = SQL_C_DEFAULT;
+      obj->param[i].paramType = SQL_VARCHAR;
+      obj->param[i].ind = SQL_NULL_DATA;
+    }
+    else if(value->IsNumber() || bindIndicator == 4) { //Parameter is Decimal
       double *number = new double(value->NumberValue());
-      
       obj->param[i].valueType = SQL_C_DOUBLE;
       obj->param[i].paramType = SQL_DECIMAL;
       obj->param[i].buf = number;
@@ -597,9 +596,8 @@ void DbStmt::BindParam(const ARGUMENTS& args) {
       obj->param[i].decDigits = 7;
       obj->param[i].paramSize = sizeof(double);
     }
-    else if(value->IsBoolean()) {
+    else if(value->IsBoolean() || bindIndicator == 5) { //Parameter is Boolean
       bool *boolean = new bool(value->BooleanValue());
-      
       obj->param[i].valueType = SQL_C_BIT;
       obj->param[i].paramType = SQL_BIT;
       obj->param[i].buf = boolean;
@@ -614,8 +612,8 @@ void DbStmt::BindParam(const ARGUMENTS& args) {
             obj->param[i].decDigits, 
             obj->param[i].buf, 0, 
             &obj->param[i].ind);
+    DEBUG("SQLBindParameter(%d) TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d]\n", rc, obj->param[i].paramType, obj->param[i].paramSize, obj->param[i].decDigits, obj->param[i].io, obj->param[i].ind);
   }
-  if(obj->isDebug) obj->printParam();
   if (args.Length() == 2) {  // Run call back function.
     Local<Function> cb = Local<Function>::Cast(args[1]);
     cb->Call(isolate->GetCurrentContext()->Global(), 0, 0);
@@ -687,7 +685,7 @@ void DbStmt::BindParamAsyncAfter(uv_work_t *req, int status) {
 
     Local<Value> value = object->Get(0);
 
-    if(value->IsString()) {
+    if(value->IsString() || bindIndicator == 0 || bindIndicator == 1) { //Parameter is string 
       Local<String> string = value->ToString();
       obj->param[i].valueType = SQL_C_CHAR;
       obj->param[i].paramType = SQL_VARCHAR;
@@ -716,19 +714,19 @@ void DbStmt::BindParamAsyncAfter(uv_work_t *req, int status) {
           obj->param[i].ind = SQL_NTS;
       }
     }
-    else if(value->IsNull()) {
-      obj->param[i].valueType = SQL_C_DEFAULT;
-      obj->param[i].paramType = SQL_VARCHAR;
-      obj->param[i].ind = SQL_NULL_DATA;
-    }
-    else if(value->IsInt32()) {
+    else if(value->IsInt32() || bindIndicator == 2) { //Parameter is Integer
       int64_t *number = new int64_t(value->IntegerValue());
       obj->param[i].valueType = SQL_C_BIGINT;
       obj->param[i].paramType = SQL_BIGINT;
       obj->param[i].buf = number;
       obj->param[i].ind = 0;
     }
-    else if(value->IsNumber()) {
+    else if(value->IsNull() || bindIndicator == 3) { //Parameter is NULL
+      obj->param[i].valueType = SQL_C_DEFAULT;
+      obj->param[i].paramType = SQL_VARCHAR;
+      obj->param[i].ind = SQL_NULL_DATA;
+    }
+    else if(value->IsNumber() || bindIndicator == 4) { //Parameter is Decimal
       double *number = new double(value->NumberValue());
       obj->param[i].valueType = SQL_C_DOUBLE;
       obj->param[i].paramType = SQL_DECIMAL;
@@ -737,7 +735,7 @@ void DbStmt::BindParamAsyncAfter(uv_work_t *req, int status) {
       obj->param[i].decDigits = 7;
       obj->param[i].paramSize = sizeof(double);
     }
-    else if(value->IsBoolean()) {
+    else if(value->IsBoolean() || bindIndicator == 5) { //Parameter is Boolean
       bool *boolean = new bool(value->BooleanValue());
       obj->param[i].valueType = SQL_C_BIT;
       obj->param[i].paramType = SQL_BIT;
@@ -753,8 +751,8 @@ void DbStmt::BindParamAsyncAfter(uv_work_t *req, int status) {
             obj->param[i].decDigits, 
             obj->param[i].buf, 0, 
             &obj->param[i].ind);
+    DEBUG("SQLBindParameter(%d) TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d]\n", rc, obj->param[i].paramType, obj->param[i].paramSize, obj->param[i].decDigits, obj->param[i].io, obj->param[i].ind);
   }
-  if(obj->isDebug) obj->printParam();
   if (cbd->arglength == 2) {
     const unsigned argc = 0;
     Local<Function> cb = Local<Function>::New(isolate, cbd->callback);
