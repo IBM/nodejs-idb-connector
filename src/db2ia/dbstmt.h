@@ -220,7 +220,106 @@ class DbStmt : public node::ObjectWrap {
         param = NULL;
       }
     }
-  
+
+    int bindParams(Isolate* isolate, Handle<Array> params) {
+      Handle<Array> object;
+      int bindIndicator;
+      SQLRETURN rc;
+      freeSp();
+      /*
+      SQLBindParameter(SQLHSTMT StatementHandle,
+        SQLSMALLINT ParameterNumber,  // i + 1
+        SQLSMALLINT InputOutputType,  // In=1;Out=2;InOut=3
+        SQLSMALLINT ValueType,  // C data type, SQL_C_DEFAULT: default => ParameterType
+        SQLSMALLINT ParameterType,  // SQL data type
+        SQLINTEGER ColumnSize,  // Precision of the ?
+        SQLSMALLINT DecimalDigits,  // Scale of the ?
+        SQLPOINTER ParameterValuePtr, // Input/Output buffer
+        SQLINTEGER BufferLength,  // Not used.
+        SQLINTEGER *StrLen_or_IndPtr); // For I/IO, *length of ParameterValuePtr. For O, 
+      */
+      paramCount = params->Length();
+      param = (db2_param*)calloc(paramCount, sizeof(db2_param));
+
+      for(SQLSMALLINT i = 0; i < paramCount; i++) {
+        object = Handle<Array>::Cast(params->Get(i));  //Get a  ? parameter from the array.
+        param[i].io = object->Get(1)->Int32Value();  //Get the parameter In/Out type.
+        bindIndicator = object->Get(2)->Int32Value();  //Get the indicator(str/int).
+        
+        rc = SQLDescribeParam(stmth, i + 1, 
+                            &param[i].paramType, 
+                            &param[i].paramSize, 
+                            &param[i].decDigits, 
+                            &param[i].nullable);
+        if(rc != SQL_SUCCESS)
+          throwErrMsg(SQL_ERROR, "SQLDescribeParam() failed.", isolate);
+
+        Local<Value> value = object->Get(0);
+        
+        if(bindIndicator == 0 || bindIndicator == 1) { //Parameter is string 
+          String::Utf8Value string(value);
+          param[i].valueType = SQL_C_CHAR;
+          if(param[i].io == SQL_PARAM_INPUT) {
+            param[i].buf = strdup(*string);
+            if(bindIndicator == 0) //CLOB
+              param[i].ind = strlen(*string);
+            else if(bindIndicator == 1) //NTS
+              param[i].ind = SQL_NTS;
+          }
+          else if(param[i].io == SQL_PARAM_OUTPUT) {
+            param[i].buf = (char*)calloc(param[i].paramSize + 1, sizeof(char));
+            param[i].ind = param[i].paramSize;
+          }
+          else if(param[i].io == SQL_PARAM_INPUT_OUTPUT) {
+            param[i].buf = (char*)calloc(param[i].paramSize + 1, sizeof(char));
+            strcpy((char*)param[i].buf, *string);
+            if(bindIndicator == 0) //CLOB
+              param[i].ind = strlen(*string);
+            else if(bindIndicator == 1) //NTS
+              param[i].ind = SQL_NTS;
+          }
+        }
+        else if(bindIndicator == 2) { //Parameter is Integer
+          int64_t *number = (int64_t*)malloc(sizeof(int64_t));
+          *number = value->IntegerValue();
+          param[i].valueType = SQL_C_BIGINT;
+          param[i].buf = number;
+          param[i].ind = 0;
+        }
+        else if(bindIndicator == 3) { //Parameter is NULL
+          param[i].valueType = SQL_C_DEFAULT;
+          param[i].ind = SQL_NULL_DATA;
+        }
+        else if(value->IsNumber() || bindIndicator == 4) { //Parameter is Decimal
+          double *number = (double*)malloc(sizeof(double));
+          *number = value->NumberValue();
+          param[i].valueType = SQL_C_DOUBLE;
+          param[i].buf = number;
+          param[i].ind = sizeof(double);
+          param[i].decDigits = 7;
+          param[i].paramSize = sizeof(double);
+        }
+        else if(value->IsBoolean() || bindIndicator == 5) { //Parameter is Boolean
+          bool *boolean = (bool*)malloc(sizeof(bool));
+          *boolean = value->BooleanValue();
+          param[i].valueType = SQL_C_BIT;
+          param[i].buf = boolean;
+          param[i].ind = 0;
+        }
+        
+        rc = SQLBindParameter(stmth, i + 1, 
+                param[i].io, 
+                param[i].valueType, 
+                param[i].paramType, 
+                param[i].paramSize, 
+                param[i].decDigits, 
+                param[i].buf, 0, 
+                &param[i].ind);
+        if(isDebug)
+          printf("SQLBindParameter(%d) TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d]\n", rc, param[i].paramType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind);
+      }
+    }
+    
     void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
     {
       if(isDebug == true) 
