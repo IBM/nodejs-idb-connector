@@ -198,6 +198,102 @@ class DbStmt : public node::ObjectWrap {
       return 0;
     }
     
+    int fetchData(SQLRETURN* rc) {
+      while((*rc = SQLFetch(stmth)) == SQL_SUCCESS) 
+      {
+        result_item* row = (result_item*)calloc(colCount, sizeof(result_item)); 
+        for(int i = 0; i < colCount; i++)
+        {
+          int colLen = 0;
+          if(dbColumn[i].rlength == SQL_NTS) {
+            colLen = strlen(rowData[i]);
+            row[i].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
+            memcpy(row[i].data, rowData[i], colLen * sizeof(SQLCHAR));
+            row[i].rlength = SQL_NTS;
+          }
+          else if(dbColumn[i].rlength == SQL_NULL_DATA) {
+            row[i].data = NULL;
+            row[i].rlength = SQL_NULL_DATA;
+          }
+          else {
+            colLen = dbColumn[i].rlength;
+            row[i].data = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
+            memcpy(row[i].data, rowData[i], colLen * sizeof(SQLCHAR));
+            row[i].rlength = colLen;
+          }
+        }
+        result.push_back(row);
+      }
+    }
+    
+    int fetchColData(Isolate* isolate, Handle<Array> array) {
+      SQLRETURN rc;
+      int arrayCount = 0; 
+      while((rc = SQLFetch(stmth)) == SQL_SUCCESS) {
+        Handle<Object> row = Object::New(isolate);
+        for(int i = 0; i < colCount; i++) {
+          Local<Value> value;
+          if(dbColumn[i].rlength == SQL_NULL_DATA)
+            value = Local<Value>::New(isolate, Null(isolate));
+          else {
+            switch(dbColumn[i].sqlType) {
+              case SQL_VARBINARY :
+              case SQL_BINARY :
+                value = Local<Value>::New(isolate, node::Buffer::New(isolate, rowData[i], dbColumn[i].rlength).ToLocalChecked());
+                break;
+              case SQL_BLOB : //TODO
+                // value = Local<Value>::New(isolate, node::Buffer::New(isolate, rowData[i] + sizeof(int), *(int*)rowData[i]).ToLocalChecked());
+                break;
+              default : 
+                value = Local<Value>::New(isolate, String::NewFromUtf8(isolate, rowData[i]));
+                break;
+            }
+          }
+          row->Set(String::NewFromUtf8(isolate, (char const*)dbColumn[i].name), value);
+        }
+        array->Set(arrayCount++, row);  //Build the JSON data
+      }
+      if (rc != SQL_NO_DATA_FOUND) {
+        freeCol();
+        if(isolate != NULL)
+          throwErrMsg(SQL_HANDLE_STMT, isolate);
+        else printErrorToLog();
+          return -1;
+      }
+      return 0;
+    }
+    
+    int fetchColDataAsync(Isolate* isolate, Handle<Array> array) {
+      for(int i = 0; i < result.size(); i++)
+      {
+        Handle<Object> row = Object::New(isolate);
+        for(int j = 0; j < colCount; j++)
+        {
+          Local<Value> value;
+          if(result[i][j].rlength == SQL_NULL_DATA)
+            value = Local<Value>::New(isolate, Null(isolate));
+          else {
+            switch(dbColumn[j].sqlType) {
+              case SQL_VARBINARY :
+              case SQL_BINARY :
+                value = Local<Value>::New(isolate, node::Buffer::New(isolate, result[i][j].data, result[i][j].rlength).ToLocalChecked());
+                break;
+              default : 
+                value = Local<Value>::New(isolate, String::NewFromUtf8(isolate, result[i][j].data));
+                break;
+            }
+          }
+          row->Set(String::NewFromUtf8(isolate, (char const*)dbColumn[j].name), value);
+          if(result[i][j].data)
+            free(result[i][j].data);
+        }
+        array->Set(i, row);  //Build the JSON data
+        free(result[i]);
+      }
+      result.clear();
+      return 0;
+    }
+    
     void freeColData() {
       if(colDataAllocated == true) { 
         for(int i = 0; i < colCount && rowData[i]; i++)
@@ -318,6 +414,51 @@ class DbStmt : public node::ObjectWrap {
         if(isDebug)
           printf("SQLBindParameter(%d) TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d]\n", rc, param[i].paramType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind);
       }
+    }
+    
+    int fetchSp(Isolate* isolate, Handle<Array> array) {
+      for(int i = 0, j = 0; i < paramCount; i++) {
+        db2_param* p = &param[i];
+        if(p->io != SQL_PARAM_INPUT) {
+          if(p->valueType == SQL_C_BIGINT)  // Integer
+            array->Set(j, Integer::New(isolate, *(int64_t*)p->buf));
+          else if(p->valueType == SQL_C_DOUBLE)  // Decimal
+            array->Set(j, Number::New(isolate, *(double*)p->buf));
+          else if(p->valueType == SQL_C_BIT)  // Boolean
+            array->Set(j, Boolean::New(isolate, *(bool*)p->buf));
+          else
+            array->Set(j, String::NewFromUtf8(isolate, (char*)p->buf));
+          j++;
+        }
+      }
+      freeSp();
+      return 0;
+    }
+    
+    
+    int fetch(Isolate* isolate, Handle<Object> row) {
+      for(int i = 0; i < colCount; i++)
+      {
+        Local<Value> value;
+        if(dbColumn[i].rlength == SQL_NULL_DATA)
+          value = Local<Value>::New(isolate, Null(isolate));
+        else {
+          switch(dbColumn[i].sqlType) {
+            case SQL_VARBINARY :
+            case SQL_BINARY :
+              value = Local<Value>::New(isolate, node::Buffer::New(isolate, rowData[i], dbColumn[i].rlength).ToLocalChecked());
+              break;
+            case SQL_BLOB : //TODO
+              // value = Local<Value>::New(isolate, node::Buffer::New(isolate, rowData[i] + sizeof(int), *(int*)rowData[i]).ToLocalChecked());
+              break;
+            default : 
+              value = Local<Value>::New(isolate, String::NewFromUtf8(isolate, rowData[i]));
+              break;
+          }
+        }
+        row->Set(String::NewFromUtf8(isolate, (char const*)dbColumn[i].name), value);
+      }
+      return 0;
     }
     
     void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
