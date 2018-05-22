@@ -1,15 +1,15 @@
 {
   "name": "idb-connector",
-  "version": "1.0.2",
+  "version": "1.0.11",
   "description": "A Node.js DB2 driver for IBM i",
   "main": "lib/db2a.js",
   "directories": {
-    "lib": "lib",
     "test": "test"
   },
   "scripts": {
     "test": "node test/test.js",
-    "install": "node-gyp rebuild"
+    "install": "node-pre-gyp install --fallback-to-build",
+    "prepublish": "npm ls"
   },
   "repository": {
     "type": "git",
@@ -21,8 +21,31 @@
     "IBM i",
     "iSeries"
   ],
-  "author": "Xu Meng",
+  "author": "IBM",
   "license": "MIT",
   "gypfile": true,
-  "homepage": "https://bitbucket.org/litmis/nodejs-idb-connector#readme"
+  "homepage": "https://bitbucket.org/litmis/nodejs-idb-connector#readme",
+  "contributors": [
+    {
+      "name": "Xu Meng",
+      "email": "dmabupt@gmail.com"
+    },
+    {
+      "name": "Aaron Bartell",
+      "email": "aaronbartell@gmail.com"
+    }
+  ],
+  "dependencies": {
+    "node-pre-gyp": "0.6.x"
+  },
+  "bundledDependencies": [
+    "node-pre-gyp"
+  ],
+  "binary": {
+    "module_name": "db2ia",
+    "module_path": "./lib/binding/{configuration}/{node_abi}-ibmi-{arch}/",
+    "remote_path": ".",
+    "package_name": "{module_name}-v{version}-{node_abi}-ibmi-{arch}.tar.gz",
+    "host": "https://bitbucket.org/litmis/nodejs-idb-connector/downloads"
+  }
 }
