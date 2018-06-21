@@ -108,55 +108,86 @@ class DbStmt : public node::ObjectWrap {
       
       if(isDebug)
         printf("SQLBindCol(%d).\n", colCount);
-      
-      // SQL_C_BIGINT
-      // SQL_C_BINARY
-      // SQL_C_BLOB
-      // SQL_C_BLOB_LOCATOR
-      // SQL_C_CHAR
-      // SQL_C_CLOB
-      // SQL_C_CLOB_LOCATOR
-      // SQL_C_DATE
-      // SQL_TYPE_DATE
-      // SQL_C_DATETIME
-      // SQL_C_DBCHAR
-      // SQL_C_DBCLOB
-      // SQL_C_DBCLOB_LOCATOR
-      // SQL_C_DECFLOAT128
-      // SQL_C_DECFLOAT64
-      // SQL_C_DECFLOAT32
-      // SQL_C_DOUBLE
-      // SQL_C_FLOAT
-      // SQL_C_LONG
-      // SQL_C_SLONG
-      // SQL_C_REAL
-      // SQL_C_SHORT
-      // SQL_C_TIME
-      // SQL_C_TIMESTAMP
-      // SQL_C_STINYINT
-      // SQL_C_UTINYINT
-      // SQL_TYPE_TIME
-      // SQL_TYPE_TIMESTAMP
-      // SQL_C_WCHAR
+       
+      // SQL_CHAR=1
+      // SQL_NUMERIC=2    colScale + colScale + 3
+      // SQL_DECIMAL=3    colScale + colScale + 3
+      // SQL_INTEGER=4    -2147483648 ~ 2147483647  11 chars
+      // SQL_SMALLINT=5   -32768 ~ 32767  6 chars
+      // SQL_FLOAT=6      colScale + colScale + 3
+      // SQL_REAL=7       colScale + colScale + 3
+      // SQL_DOUBLE=8     colScale + colScale + 3
+      // SQL_DATETIME=9
+      // SQL_VARCHAR=12
+      // SQL_BLOB=13
+      // SQL_CLOB=14
+      // SQL_DBCLOB=15
+      // SQL_DATALINK=16
+      // SQL_WCHAR=17
+      // SQL_WVARCHAR=18
+      // SQL_BIGINT=19    -9223372036854775808 ~ 9223372036854775807  20 chars
+      // SQL_BLOB_LOCATOR=20
+      // SQL_CLOB_LOCATOR=21
+      // SQL_DBCLOB_LOCATOR=22
+      // SQL_UTF8_CHAR=23 
+      // SQL_WLONGVARCHAR=SQL_WVARCHAR
+      // SQL_LONGVARCHAR=SQL_VARCHAR
+      // SQL_GRAPHIC=95
+      // SQL_VARGRAPHIC=96
+      // SQL_LONGVARGRAPHIC=SQL_VARGRAPHIC
+      // SQL_BINARY=-2
+      // SQL_VARBINARY=-3
+      // SQL_LONGVARBINARY=SQL_VARBINARY
+      // SQL_DATE=91
+      // SQL_TYPE_DATE=91
+      // SQL_TIME=92
+      // SQL_TYPE_TIME=92
+      // SQL_TIMESTAMP=93
+      // SQL_TYPE_TIMESTAMP=93
+      // SQL_CODE_DATE=1
+      // SQL_CODE_TIME=2
+      // SQL_CODE_TIMESTAMP=3
+      // SQL_ALL_TYPES=0
+      // SQL_DECFLOAT=-360 
+      // SQL_XML=-370 
 
       for(int i = 0; i < colCount; i++) {
         switch(dbColumn[i].sqlType) {
-          case SQL_DECIMAL :
-          case SQL_NUMERIC :
+          case SQL_SMALLINT :
           {
-            maxColLen = dbColumn[i].colPrecise * 256 + dbColumn[i].colScale;
+            maxColLen = 7;
             rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
             rc = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
-          }
-          break;
+          } break;
+          case SQL_INTEGER :
+          {
+            maxColLen = 12;
+            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+            rc = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          } break;
+          case SQL_BIGINT :
+          {
+            maxColLen = 21;
+            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+            rc = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          } break;
+          case SQL_DECIMAL :
+          case SQL_NUMERIC :
+          case SQL_FLOAT :
+          case SQL_REAL :
+          case SQL_DOUBLE :
+          {
+            maxColLen = dbColumn[i].colPrecise + dbColumn[i].colScale + 3;
+            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+            rc = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          } break;
           case SQL_VARBINARY :
           case SQL_BINARY :
           {
             maxColLen = dbColumn[i].colPrecise;
             rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
             rc = SQLBindCol(stmth, i + 1, SQL_C_BINARY, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
-          }
-          break;
+          } break;
           case SQL_BLOB :
           {
             // maxColLen = dbColumn[i].colPrecise;
@@ -168,23 +199,20 @@ class DbStmt : public node::ObjectWrap {
             // };
             // blob_data* blob = (blob_data*)malloc(sizeof(blob_data));;
             // rc = SQLBindCol(stmth, i + 1, SQL_C_BLOB, blob, sizeof(blob_data), &blob->length);
-          }
-          break;
+          } break;
           case SQL_WCHAR :
           case SQL_WVARCHAR :
           {
             maxColLen = dbColumn[i].colPrecise << 2;
             rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
             rc = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
-          }
-          break;
+          } break;
           default :
           {
-            maxColLen = dbColumn[i].colPrecise + 1;
+            maxColLen = dbColumn[i].colPrecise + dbColumn[i].colScale + 3 ;
             rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
             rc = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
-          }
-          break;
+          } break;
         }
         if(rc != SQL_SUCCESS) {
           freeColData();

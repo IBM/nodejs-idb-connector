@@ -618,6 +618,7 @@ void DbStmt::NextResult(const ARGUMENTS& args) {
   obj->resultSetAvailable = true;
   if(obj->bindColData(isolate) < 0) return;
 }
+
 void DbStmt::Fetch(const ARGUMENTS& args) {
   Isolate* isolate = args.GetIsolate(); 
   HandleScope scope(isolate);
