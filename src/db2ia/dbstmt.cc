@@ -106,7 +106,9 @@ void DbStmt::New(const ARGUMENTS& args) {
     const int argc = 1;
     Local<Value> argv[argc] = { args[0] };
     Local<Function> cons = Local<Function>::New(isolate, constructor);
-    RETURN(cons->NewInstance(argc, argv))
+    Local<Context> context = isolate->GetCurrentContext();
+    Local<Object> instance = cons->NewInstance(context, argc, argv).ToLocalChecked();
+    RETURN(instance)
   }
 }
 
@@ -117,8 +119,8 @@ void DbStmt::NewInstance(const ARGUMENTS& args) {
   const unsigned argc = 1;
   Handle<Value> argv[argc] = { args[0] };
   Local<Function> cons = Local<Function>::New(isolate, constructor);
-  Local<Object> instance = cons->NewInstance(argc, argv);
-
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Object> instance = cons->NewInstance(context, argc, argv).ToLocalChecked();
   RETURN(instance)
 }
 
@@ -616,6 +618,7 @@ void DbStmt::NextResult(const ARGUMENTS& args) {
   obj->resultSetAvailable = true;
   if(obj->bindColData(isolate) < 0) return;
 }
+
 void DbStmt::Fetch(const ARGUMENTS& args) {
   Isolate* isolate = args.GetIsolate(); 
   HandleScope scope(isolate);
