@@ -1591,14 +1591,34 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
 
     for(int i = 0; i < colCount; i++) {
       switch(dbColumn[i].sqlType) {
-        case SQL_DECIMAL :
-        case SQL_NUMERIC :
-        {
-          maxColLen = dbColumn[i].colPrecise * 256 + dbColumn[i].colScale;
-          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
-        }
-        break;
+          case SQL_SMALLINT :
+          {
+            maxColLen = 7;
+            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+            sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          } break;
+          case SQL_INTEGER :
+          {
+            maxColLen = 12;
+            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+            sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          } break;
+          case SQL_BIGINT :
+          {
+            maxColLen = 21;
+            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+            sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          } break;
+          case SQL_DECIMAL :
+          case SQL_NUMERIC :
+          case SQL_FLOAT :
+          case SQL_REAL :
+          case SQL_DOUBLE :
+          {
+            maxColLen = dbColumn[i].colPrecise + dbColumn[i].colScale + 3;
+            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+            sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          } break;
         case SQL_VARBINARY :
         case SQL_BINARY :
         {
