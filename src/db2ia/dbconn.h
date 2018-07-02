@@ -4,6 +4,7 @@
  
 #pragma once
 
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,11 +12,12 @@
 #include "sqlcli.h"
 #include <as400_protos.h>  // For SQLOverrideCCSID400()
 
-#include <node.h>
-#include <node_object_wrap.h>
+#include "napi.h"
 #include <uv.h>
+// #include <node_object_wrap.h>
 
 #define MAX_COLNAME_WIDTH 256
+#define MAX_COL_WIDTH 32766
 #define SP_PARAM_MAX 128
 
 #define INVALID_PARAM_NUM 8001
@@ -29,40 +31,42 @@
 
 #define RETURN(v) args.GetReturnValue().Set(v);
 // #define RETURN_UNDEINED args.GetReturnValue().SetUndefined();
-#define ARGUMENTS FunctionCallbackInfo<Value>
-#define DEBUG(f_, ...) if(obj->isDebug) { printf((f_), ##__VA_ARGS__); }
-#define CHECK(a, b, c, d) if((a)) { obj->throwErrMsg( (b), (c), (d) ); return; }
+#define ARGUMENTS Napi::CallbackInfo
+#define DEBUG(object, f_, ...) if(object->isDebug) { printf((f_), ##__VA_ARGS__); }
+#define CHECK(condition, errorCode, errorMessage, env) if((condition)) { this->throwErrMsg( (errorCode), (errorMessage), (env) ); return; }
+#define CHECK_WITH_RETURN(condition, errorCode, errorMessage, env, returnValue) if((condition)) { this->throwErrMsg( (errorCode), (errorMessage), (env) ); return (returnValue); }
 
-using namespace v8;
+// using namespace Napi;
 
-class DbConn : public node::ObjectWrap {
+class DbConn : public Napi::ObjectWrap<DbConn> {
   friend class DbStmt;
   public:
-    static void Init(SQLHENV envh);
-    static void NewInstance(const ARGUMENTS& args);
+    DbConn(const Napi::CallbackInfo& info);
+    static Napi::Object Init(Napi::Env env, Napi::Object exports, SQLHENV envh);
+    static Napi::Object NewInstance(Napi::Value arg);
   private:
-    explicit DbConn();
-    ~DbConn();
-  
-    void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
-    {
-      if(isDebug == true) 
-      { 
-        SQLCHAR buffer[SQL_MAX_MESSAGE_LENGTH + 1];
-        SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
-        SQLINTEGER sqlcode;
-        SQLSMALLINT length;
-        while( SQLError(henv, hdbc, hstmt, sqlstate, &sqlcode, buffer, SQL_MAX_MESSAGE_LENGTH + 1, &length) == SQL_SUCCESS )
-        {
-          printf("\n **** ERROR *****\n");
-          printf("SQLSTATE: %s\n", sqlstate);
-          printf("Native Error Code: %ld\n", sqlcode);
-          printf("%s \n", buffer);
-        }
-      }
-    }
-    
-    void throwErrMsg(int handleType, Isolate* isolate) 
+    bool connAllocated = false;
+    bool connected = false;
+    bool isDebug = false;
+    //delete Test later
+    Napi::Value Test(const Napi::CallbackInfo& info);
+    //Most likely not needed in new Napi version
+    void New(const ARGUMENTS& args);
+    void SetConnAttr(const Napi::CallbackInfo& info);
+    Napi::Value GetConnAttr(const Napi::CallbackInfo& info);
+    void Conn(const Napi::CallbackInfo& info);
+    void Disconnect(const Napi::CallbackInfo& info);
+    void Close(const Napi::CallbackInfo& info);
+    Napi::Value ValidStmt(const Napi::CallbackInfo& info);
+    void Debug(const Napi::CallbackInfo& info);
+    Napi::Value IsConnected(const Napi::CallbackInfo& info);
+
+
+    static Napi::FunctionReference constructor;
+    static SQLHENV envh;
+    SQLHDBC connh;
+
+     void throwErrMsg(int handleType,  Napi::Env env) 
     {
       SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
       SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
@@ -76,10 +80,7 @@ class DbConn : public node::ObjectWrap {
       memset(errMsg, '\0', SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10);
       SQLRETURN rc = -1;
       
-      // if(handleType == SQL_HANDLE_STMT && stmtAllocated == true) {
-        // rc = SQLGetDiagRec(SQL_HANDLE_STMT, stmth, 1, sqlstate, &sqlcode, msg, SQL_MAX_MESSAGE_LENGTH + 1, &length); 
-        // printError(envh, connh, stmth);
-      // }
+     
       if(handleType == SQL_HANDLE_DBC && connAllocated == true) {
         rc = SQLGetDiagRec(SQL_HANDLE_DBC, connh, 1, sqlstate, &sqlcode, msg, SQL_MAX_MESSAGE_LENGTH + 1, &length); 
         printError(envh, connh, SQL_NULL_HSTMT);
@@ -97,38 +98,23 @@ class DbConn : public node::ObjectWrap {
         }
         sprintf((char *)errMsg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, msg);
       }
-      isolate->ThrowException(Exception::Error(String::NewFromUtf8(isolate, errMsg)));
     }
-    
-    void throwErrMsg(int code, const char* msg, Isolate* isolate)
+
+     void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
     {
-      SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
-      sprintf((char *)errMsg, "SQLSTATE=PAERR SQLCODE=%d %s", code, msg);
-      isolate->ThrowException(Exception::Error(String::NewFromUtf8(isolate, errMsg)));
+      if(isDebug == true) 
+      { 
+        SQLCHAR buffer[SQL_MAX_MESSAGE_LENGTH + 1];
+        SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
+        SQLINTEGER sqlcode;
+        SQLSMALLINT length;
+        while( SQLError(henv, hdbc, hstmt, sqlstate, &sqlcode, buffer, SQL_MAX_MESSAGE_LENGTH + 1, &length) == SQL_SUCCESS )
+        {
+          printf("\n **** ERROR *****\n");
+          printf("SQLSTATE: %s\n", sqlstate);
+          printf("Native Error Code: %ld\n", sqlcode);
+          printf("%s \n", buffer);
+        }
+      }
     }
-
-    static void nop(uv_work_t* req) {   /* Do nothing */  }
-    
-    static void New(const ARGUMENTS& args);
-    static Persistent<Function> constructor;
-    
-    static void SetConnAttr(const ARGUMENTS& args);
-    static void GetConnAttr(const ARGUMENTS& args);
-
-    static void Conn(const ARGUMENTS& args);
-    static void Disconnect(const ARGUMENTS& args);
-    static void Close(const ARGUMENTS& args);
-
-    static void ValidStmt(const ARGUMENTS& args);
-    static void Debug(const ARGUMENTS& args);
-    static void IsConnected(const ARGUMENTS& args);
-
-    bool connAllocated = false;
-    bool connected = false;
-
-    bool isDebug = false;
-    bool isConnected = false;
-
-    static SQLHENV envh;
-    SQLHDBC connh;
 };
