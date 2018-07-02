@@ -1,6 +1,6 @@
 {
   "name": "idb-connector",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "A Node.js DB2 driver for IBM i",
   "main": "lib/db2a.js",
   "directories": {
@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "./node_modules/mocha/bin/mocha",
-    "install": "node-gyp rebuild"
+    "install": "node-pre-gyp install --fallback-to-build"
   },
   "repository": {
     "type": "git",
@@ -35,6 +35,9 @@
     "chai": "^4.1.2",
     "mocha": "^5.2.0"
   },
+  "bundledDependencies": [
+    "node-pre-gyp"
+  ],
   "binary": {
     "module_name": "db2ia",
     "module_path": "./lib/binding/{configuration}/{node_abi}-ibmi-{arch}/",
