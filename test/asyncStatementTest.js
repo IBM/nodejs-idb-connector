@@ -16,10 +16,9 @@ describe('prepare async version', () => {
     dbConn.conn('*LOCAL');
     dbStmt = new addon.dbstmt(dbConn);
 
-    dbStmt.prepare(sql, (error, result) =>{
+    dbStmt.prepare(sql, (error) =>{
       console.log(`Error is: ${error}`);
-      console.log(`Prepare result is: ${result}`);
-      console.log(`TypeOf Prepare result is: ${typeof result}`);
+      console.log(`TypeOf Prepare error is: ${typeof error}`);
       expect(result).to.be.a('undefined');
       done();
     });
@@ -34,8 +33,8 @@ describe('bindParams async version', () => {
       dbStmt,
       dbStmt2;
 
-    dbConn.debug(true);
-    dbConn2.debug(true);
+    // dbConn.debug(true);
+    // dbConn2.debug(true);
 
     dbConn.conn('*LOCAL');
     dbConn2.conn('*LOCAL');
@@ -106,7 +105,7 @@ describe('execute async version', () => {
     dbStmt.prepare(sql, ()=>{
       dbStmt.bindParam([[bal, db2a.SQL_PARAM_OUT, db2a.SQL_NUMERIC]], ()=>{
         console.log('completed the bindParam');
-        dbStmt.execute( (err, result) =>{
+        dbStmt.execute( (result, err) =>{
           console.log(`Error is JSON.stringify(err)`);
           console.log('TypeOf error:' + typeof (err));
           console.log(`ExecuteAsync results:\n ${JSON.stringify(result)}`);
@@ -131,7 +130,7 @@ describe('exec async version', () => {
     dbConn.conn('*LOCAL');
     let dbStmt = new addon.dbstmt(dbConn);
 
-    dbStmt.exec(sql, (err, result) => {
+    dbStmt.exec(sql, (result, err) => {
       console.log(`Exec Async results:\n ${JSON.stringify(result)}\n`);
       expect(result).to.be.an('array');
       expect(result.length).to.be.greaterThan(0);
@@ -175,7 +174,7 @@ describe('fetch async version', () => {
 
     dbStmt.prepare(sql, ()=>{
       dbStmt.execute( ()=>{
-        dbStmt.fetch( (err, result) =>{
+        dbStmt.fetch( (result, err) =>{
           console.log(`Fetch Async results:\n ${JSON.stringify(result)}`);
           expect(result).to.be.a('object');
           done();

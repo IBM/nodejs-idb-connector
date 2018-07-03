@@ -17,13 +17,10 @@ DbStmt::DbStmt(const Napi::CallbackInfo& info) : Napi::ObjectWrap<DbStmt>(info) 
   CHECK(!info[0].IsObject(), INVALID_PARAM_TYPE, "Expected Dbconn Object as a parameter", env);
 
   DbConn* conn = Napi::ObjectWrap<DbConn>::Unwrap(info[0].As<Napi::Object>());
-
-  if (conn->connected) {
-    sqlReturnCode = SQLAllocStmt(conn->connh, &stmth);
-  } else {
-    return;
-  }
-
+  
+  CHECK(!conn->connected, STMT_NOT_READY, "The Dbconn Object is not connected", env);
+  
+  sqlReturnCode = SQLAllocStmt(conn->connh, &stmth);
   if (sqlReturnCode != SQL_SUCCESS) {
     SQLFreeStmt( stmth, SQL_CLOSE );
     // dbStatementObject->throwErrMsg(SQL_HANDLE_DBC, env);
@@ -254,13 +251,14 @@ class ExecAsyncWorker : public Napi::AsyncWorker {
         Napi::Array results = Napi::Array::New(env); 
 
         if (dbStatementObject->fetchColData(env, &results) < 0) return;
-
+        
+        callbackArguments.push_back(results);
+        
         if (strlen(dbStatementObject->msg) > 0) {
           callbackArguments.push_back(Napi::String::New(env, dbStatementObject->msg));
         } else {
           callbackArguments.push_back(Env().Null());
         }
-        callbackArguments.push_back(results);
 
         Callback().Call(callbackArguments);
       }
@@ -353,8 +351,8 @@ void DbStmt::ExecSync(const Napi::CallbackInfo& info) {
     this->resultSetAvailable = true;
     if(this->bindColData(env) < 0){
       return;
-      }
-      this->fetchData();
+    }
+    this->fetchData();
     if(this->fetchColData(env, &results) < 0) {
       return;
     }
@@ -363,8 +361,8 @@ void DbStmt::ExecSync(const Napi::CallbackInfo& info) {
   if (info.Length() >= 2) {
     Napi::Function cb = info[ info.Length() -1 ].As<Napi::Function>();
     std::vector<napi_value> args;
-    args.push_back(Napi::Value(Env().Null()));
     args.push_back(results);
+    args.push_back(Napi::Value(Env().Null()));
     cb.MakeCallback(env.Global(), args);
   }
 
@@ -483,9 +481,9 @@ void DbStmt::PrepareSync(const Napi::CallbackInfo& info) {
 
   DEBUG(this, "Prepare().\n");
 
-  CHECK(info.Length() != 2, INVALID_PARAM_NUM, "Expected 2 Parameters for prepare()", env)
+  CHECK(info.Length() != 1 && info.Length() != 2, INVALID_PARAM_NUM, "Expected 1 or 2 Parameters for prepare()", env)
   CHECK(!info[0].IsString(), INVALID_PARAM_TYPE, "Expected Parameter 1 to be a String", env)
-  CHECK(!info[1].IsFunction(), INVALID_PARAM_TYPE, "Expected Parameter 2 to be a Function", env)
+  CHECK(info.Length() == 2 && !info[1].IsFunction(), INVALID_PARAM_TYPE, "Expected Parameter 2 to be a Function", env)
   CHECK(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statment handler is not initialized.", env);
 
   std::string sql = info[0].As<Napi::String>().Utf8Value();
@@ -499,19 +497,10 @@ void DbStmt::PrepareSync(const Napi::CallbackInfo& info) {
   DEBUG(this, "SQLPrepare(%d): %s\n", sqlReturnCode, cValue);
   CHECK(sqlReturnCode != SQL_SUCCESS, SQL_ERROR, "SQLPrepare() failed.", env);
 
-  std::vector<napi_value> callbackArguments;
-
-  // check if there were any errors
-  if(strlen(this->msg) > 0) {
-    callbackArguments.push_back(Napi::String::New(env, this->msg));
-  } else {
-    callbackArguments.push_back(Env().Null());
+  if(info.Length() == 2) {
+    Napi::Function cb = info[1].As<Napi::Function>();
+    cb.MakeCallback(env.Global(),{env.Null()} );
   }
-
-
-  Napi::Function cb = info[1].As<Napi::Function>();
-  cb.MakeCallback(env.Global(),{env.Null()} );
-
 }
 
 /******************************************************************************
@@ -693,14 +682,14 @@ class ExecuteAsyncWorker : public Napi::AsyncWorker {
         Napi::Array results = Napi::Array::New(env); 
         dbStatementObject->fetchSp(env, &results);
 
+        callbackArguments.push_back(results);
+        
         if(strlen(dbStatementObject->msg) > 0) {
           callbackArguments.push_back(Napi::String::New(env, dbStatementObject->msg));
         } else {
           callbackArguments.push_back(Env().Null());
         }
-
-        callbackArguments.push_back(results);
-
+        
       } else {
         if(strlen(dbStatementObject->msg) > 0) {
           callbackArguments.push_back(Napi::String::New(env, dbStatementObject->msg));
@@ -777,8 +766,8 @@ void DbStmt::ExecuteSync(const Napi::CallbackInfo& info) {
   Napi::HandleScope scope(env);
   
   DEBUG(this, "execute().\n");
-  CHECK(info.Length() != 1, INVALID_PARAM_NUM, "The executeSync() method accepts only one parameter.", env)
-  CHECK(!info[0].IsFunction(), INVALID_PARAM_TYPE, "Expected the first parameter to be a Function.", env);
+  CHECK(info.Length() > 1, INVALID_PARAM_NUM, "The executeSync() method accepts only zero or one parameter.", env)
+  CHECK(info.Length() == 1 && !info[0].IsFunction(), INVALID_PARAM_TYPE, "Expected the first parameter to be a Function.", env);
 
   SQLRETURN sqlReturnCode = SQLExecute(this->stmth);
   DEBUG(this, "SQLExecute(%d):\n", sqlReturnCode);
@@ -802,12 +791,11 @@ void DbStmt::ExecuteSync(const Napi::CallbackInfo& info) {
     Napi::Function cb = info[ info.Length() -1 ].As<Napi::Function>();
 
     // TODO: What does fetchSp actually do?
+    // fetchSp() fetches the param marker (?) value into an array for stored procedures.
     this->fetchSp(env, &array);
     std::vector<napi_value> args;
-    //first callback param is error set it to null
-    args.push_back(env.Null());
     args.push_back(array);
-
+    args.push_back(env.Null());
     // cb.Call(args);
     cb.MakeCallback(env.Global(), args);
   }
@@ -836,9 +824,6 @@ class FetchAsyncWorker : public Napi::AsyncWorker {
 
     // Executed inside the worker-thread.
     void Execute () {
-
-      SQLRETURN sqlReturnCode;
-
       if (originalArgumentsLength > 2) { 
         int retVal = 0;
         sqlReturnCode = SQLGetStmtAttr(dbStatementObject->stmth, SQL_ATTR_CURSOR_SCROLLABLE, &retVal, 0, 0);
@@ -869,14 +854,16 @@ class FetchAsyncWorker : public Napi::AsyncWorker {
       Napi::Object row = Napi::Object::New(env);
 
       dbStatementObject->fetch(env, &row);
-
+      
+      //push the row to the callback result
+      callbackArguments.push_back(row);
+      callbackArguments.push_back(Napi::Number::New(env, sqlReturnCode));
+      
       if(strlen(dbStatementObject->msg) > 0){
         callbackArguments.push_back(Napi::String::New(env , dbStatementObject->msg));
       } else {
         callbackArguments.push_back(env.Null());
       }
-      //push the row to the callback result
-      callbackArguments.push_back(row);
 
       Callback().Call(callbackArguments);
     }
@@ -886,6 +873,7 @@ class FetchAsyncWorker : public Napi::AsyncWorker {
     int originalArgumentsLength;
     int orient;
     int offset;
+    SQLRETURN sqlReturnCode;
 };
 
 //AM
@@ -910,19 +898,18 @@ void DbStmt::Fetch(const Napi::CallbackInfo& info) {
 
   FetchAsyncWorker *worker = new FetchAsyncWorker(this, length, orient, offset, callback);
   worker->Queue();
-
 }
 
 //AM
-void DbStmt::FetchSync(const Napi::CallbackInfo& info) {
+Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
   int length = info.Length();
   
   DEBUG(this, "fetchSync().\n");
-  CHECK(length != 1 && length != 3 , INVALID_PARAM_NUM, "The fetch() method accept only one or three parameters.", env)
-  CHECK(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statement handler is not initialized.", env)
-  CHECK(this->resultSetAvailable == false, RSSET_NOT_READY, "There is no result set to be queried. Please execute a SQL command first.", env);
+  CHECK_WITH_RETURN(length != 1 && length != 3 , INVALID_PARAM_NUM, "The fetch() method accept only one or three parameters.", env, env.Null())
+  CHECK_WITH_RETURN(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statement handler is not initialized.", env, env.Null())
+  CHECK_WITH_RETURN(this->resultSetAvailable == false, RSSET_NOT_READY, "There is no result set to be queried. Please execute a SQL command first.", env, env.Null());
 
   SQLRETURN sqlReturnCode;
   if (info.Length() > 1 && info[0].IsNumber() && info[1].IsNumber()) { 
@@ -963,9 +950,9 @@ void DbStmt::FetchSync(const Napi::CallbackInfo& info) {
   if(sqlReturnCode == SQL_ERROR){
     this->throwErrMsg(SQL_HANDLE_STMT, env);
   }
-  //TODO: Figure out what is meant by this return
-  //RETURN(Number::New(isolate, sqlReturnCode))  // SQL_NO_DATA_FOUND indicate the end of the result set. This is not an error.
-
+  // In a loop of fetch calls, need to check this return code to stop.
+  // SQL_NO_DATA_FOUND indicate the end of the result set. This is not an error.
+  return Napi::Number::New(env, sqlReturnCode); 
 }
 
 /******************************************************************************
@@ -1003,6 +990,13 @@ class FetchAllAsyncWorker : public Napi::AsyncWorker {
         return;
       } 
       callbackArguments.push_back(results);
+      
+      if(strlen(dbStatementObject->msg) > 0){
+        callbackArguments.push_back(Napi::String::New(env , dbStatementObject->msg));
+      } else {
+        callbackArguments.push_back(env.Null());
+      }
+      
       Callback().Call(callbackArguments);
     }
 

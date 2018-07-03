@@ -209,49 +209,43 @@ void DbConn::Conn(const Napi::CallbackInfo& info) {
       Napi::Error::New(env, "conn() takes either 1,2,3, or 4 parameters").ThrowAsJavaScriptException();
       return;
   }
-  std::string arg0 = Napi::String(env , info[0]).Utf8Value();
-  std::vector<char> arg0Vec(arg0.begin(), arg0.end());
-  arg0Vec.push_back('\0');
+  std::string arg0 = Napi::String(env, info[0]).Utf8Value();
+  // std::vector<char> arg0Vec(arg0.begin(), arg0.end());
+  // arg0Vec.push_back('\0');  // may lead to "Authorization failure on distributed database connection attempt"
 
-  SQLCHAR* datasource = &arg0Vec[0];
+  SQLCHAR* datasource = &arg0[0u];
   SQLCHAR* loginuser = NULL;
   SQLCHAR* password = NULL;
 
   if(length >= 3) {
 
-    std::string arg1 = Napi::String(env , info[1]).Utf8Value();
-    std::vector<char> arg1Vec(arg1.begin(), arg1.end());
-    arg1Vec.push_back('\0');
+    std::string arg1 = Napi::String(env, info[1]).Utf8Value();
+    // std::vector<char> arg1Vec(arg1.begin(), arg1.end());
+    // arg1Vec.push_back('\0');
 
-    std::string arg2 = Napi::String(env , info[2]).Utf8Value();
-    std::vector<char> arg2Vec(arg2.begin(), arg2.end());
-    arg2Vec.push_back('\0');
+    std::string arg2 = Napi::String(env, info[2]).Utf8Value();
+    // std::vector<char> arg2Vec(arg2.begin(), arg2.end());
+    // arg2Vec.push_back('\0');
 
-    loginuser = &arg1Vec[0];
-    password = &arg2Vec[0];
+    loginuser = &arg1[0u];
+    password = &arg2[0u];
   } 
 
   rc = SQLConnect(this->connh, datasource, SQL_NTS, loginuser, SQL_NTS, password, SQL_NTS );
 
-  DEBUG(this, "SQLConnect: conn obj [%p] handler [%d]\n", this, this->connh);
-
-  printf("RC is %d\n" , rc);
+  DEBUG(this, "SQLConnect(%d): conn obj [%p] handler [%d]\n", rc, this, this->connh);
 
   if(rc != SQL_SUCCESS) {
     this->throwErrMsg(SQL_HANDLE_DBC, env);
-    printf("RC Fail\n");
     SQLFreeConnect(this->connh);
     return;
   }
-  printf("RC Pass\n");
   this->connected = true;
-  
   if (length == 2 || length == 4) {
     Napi::Function cb = info[ length -1 ].As<Napi::Function>();
     cb.MakeCallback(env.Global() , 0 , 0);
   }
 
-  
 }
 
 void DbConn::Disconnect(const Napi::CallbackInfo& info) {

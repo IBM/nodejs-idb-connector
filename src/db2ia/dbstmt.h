@@ -74,7 +74,7 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     void NextResult(const Napi::CallbackInfo& info);
 
     void Fetch(const Napi::CallbackInfo& info);
-    void FetchSync(const Napi::CallbackInfo& info);
+    Napi::Value FetchSync(const Napi::CallbackInfo& info);
     
     void FetchAll(const Napi::CallbackInfo& info);
     void FetchAllSync(const Napi::CallbackInfo& info);

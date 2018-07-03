@@ -96,7 +96,7 @@ describe('exec sync version', () => {
     dbConn.conn('*LOCAL');
     dbStmt = new addon.dbstmt(dbConn);
 
-    dbStmt.execSync(sql, (err, result) => {
+    dbStmt.execSync(sql, (result, err) => {
       console.log(`Exec Sync results:\n ${JSON.stringify(result)}\n`);
       expect(result).to.be.an('array');
       expect(result.length).to.be.greaterThan(0);
@@ -116,8 +116,8 @@ describe('execute sync version', () => {
     dbStmt = new addon.dbstmt(dbConn);
 
     dbStmt.prepareSync(sql, ()=>{
-      dbStmt.bindParamSync([[bal, db2a.SQL_PARAM_OUT, db2a.SQL_NUMERIC]], ()=>{
-        dbStmt.executeSync( (err, result) =>{
+      dbStmt.bindParamSync([[bal, db2a.SQL_PARAM_OUT, db2a.SQL_NUMERIC]], () => {
+        dbStmt.executeSync( (result, err) => {
           console.log('Error is ' + JSON.stringify(err));
           console.log('TypeOf error:' + typeof (err));
           console.log('ExecuteSync results: ' + JSON.stringify(result));
