@@ -7,7 +7,6 @@
 using namespace v8;
 
 Persistent<Function> DbStmt::constructor;
-SQLHENV DbStmt::envh;
 
 struct CallBackData {
   Persistent<Function> callback;
@@ -37,7 +36,7 @@ DbStmt::DbStmt(DbConn* conn) {
   stmtAllocated = true;  // Any SQL Statement Handler processing can not be allowed before this.
 }  
 
-DbStmt::~DbStmt() {}
+DbStmt::~DbStmt() { }
 
 void DbStmt::Init() {
   Isolate* isolate = Isolate::GetCurrent();
@@ -61,22 +60,24 @@ void DbStmt::Init() {
   NODE_SET_PROTOTYPE_METHOD(tpl, "execute", ExecuteAsync);
   NODE_SET_PROTOTYPE_METHOD(tpl, "executeSync", Execute);
   
-  NODE_SET_PROTOTYPE_METHOD(tpl, "nextResult", NextResult);
-  NODE_SET_PROTOTYPE_METHOD(tpl, "closeCursor", CloseCursor);
-  NODE_SET_PROTOTYPE_METHOD(tpl, "reset", Reset);
 
   NODE_SET_PROTOTYPE_METHOD(tpl, "fetch", FetchAsync);
   NODE_SET_PROTOTYPE_METHOD(tpl, "fetchSync", Fetch);
   
   NODE_SET_PROTOTYPE_METHOD(tpl, "fetchAll", FetchAllAsync);
   NODE_SET_PROTOTYPE_METHOD(tpl, "fetchAllSync", FetchAll);
-    
+  
+  NODE_SET_PROTOTYPE_METHOD(tpl, "nextResult", NextResult);
+  
+  NODE_SET_PROTOTYPE_METHOD(tpl, "closeCursor", CloseCursor);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "reset", Reset);
+  NODE_SET_PROTOTYPE_METHOD(tpl, "close", Close);
+  
   NODE_SET_PROTOTYPE_METHOD(tpl, "commit", Commit);
   NODE_SET_PROTOTYPE_METHOD(tpl, "rollback", Rollback);
 
   NODE_SET_PROTOTYPE_METHOD(tpl, "numFields", NumFields);
   NODE_SET_PROTOTYPE_METHOD(tpl, "numRows", NumRows);
-  
   NODE_SET_PROTOTYPE_METHOD(tpl, "fieldType", FieldType);
   NODE_SET_PROTOTYPE_METHOD(tpl, "fieldWidth", FieldWidth);
   NODE_SET_PROTOTYPE_METHOD(tpl, "fieldName", FieldName);
@@ -85,9 +86,7 @@ void DbStmt::Init() {
   NODE_SET_PROTOTYPE_METHOD(tpl, "fieldNullable", FieldNullable);
   
   NODE_SET_PROTOTYPE_METHOD(tpl, "stmtError", StmtError);
-  
-  NODE_SET_PROTOTYPE_METHOD(tpl, "close", Close);
-  
+
   constructor.Reset(isolate, tpl->GetFunction());
 }
 
@@ -230,7 +229,7 @@ void DbStmt::Exec(const ARGUMENTS& args) {
     Local<Value> argv[argc] = { Local<Value>::New(isolate, array) };
     cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
   }
-  obj->freeCol();
+  obj->freeColDescAndData();
   
   // DEBUG("SQLCloseCursor: stmth %d\n", obj->stmth)
   // rc = SQLCloseCursor(obj->stmth);
@@ -240,7 +239,7 @@ void DbStmt::ExecAsync(const ARGUMENTS& args) {
   Isolate* isolate = args.GetIsolate();
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   
-  DEBUG("ExecAsync().\n");
+  DEBUG("[%p]ExecAsync().\n", obj);
   CHECK(args.Length() != 2, INVALID_PARAM_NUM, "The exec() method accept only two parameters.", isolate)
   CHECK(obj->stmtAllocated == false, STMT_NOT_READY, "The SQL Statment handler is not initialized.", isolate);
   
@@ -288,7 +287,7 @@ void DbStmt::ExecAsyncAfter(uv_work_t *req, int status) {
   
   Handle<Array> array = Array::New(isolate);
   
-  if(obj->fetchColDataAsync(isolate, array) < 0) return;
+  obj->fetchColDataAsync(isolate, array);
   
   if(cbd->arglength == 2) {
     Local<Function> cb = Local<Function>::New(isolate, cbd->callback);
@@ -304,48 +303,10 @@ void DbStmt::ExecAsyncAfter(uv_work_t *req, int status) {
     }
   }
   
-  obj->freeCol();
-  
-  // DEBUG("SQLCloseCursor: stmth %d\n", obj->stmth)
-  // SQLCloseCursor(obj->stmth);
+  obj->freeColDescAndData();
   
   delete cbd->sqlSt;
-  delete cbd;
-  delete req;
-}
-
-void DbStmt::CloseCursor(const ARGUMENTS& args) {
-  Isolate* isolate = args.GetIsolate(); 
-  HandleScope scope(isolate);
-  DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
-  
-  DEBUG("SQLCloseCursor: stmth %d\n", obj->stmth)
-  SQLCloseCursor(obj->stmth);
-}
-
-void DbStmt::Reset(const ARGUMENTS& args) {
-  Isolate* isolate = args.GetIsolate(); 
-  HandleScope scope(isolate);
-  DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
-  
-  DEBUG("SQLFreeStmt: stmth %d [SQL_RESET_PARAMS]\n", obj->stmth)
-  if(obj->stmtAllocated)
-    SQLFreeStmt(obj->stmth, SQL_RESET_PARAMS); //Release all params set by SQLBindParam()
-}
-
-void DbStmt::Close(const ARGUMENTS& args) {
-  Isolate* isolate = args.GetIsolate(); 
-  HandleScope scope(isolate);
-  DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
-  
-  obj->freeCol();
-  DEBUG("SQLFreeStmt: stmth %d [SQL_DROP]\n", obj->stmth)
-  if(obj->stmtAllocated) {
-    SQLFreeStmt(obj->stmth, SQL_DROP);  //Free the statement handle here. No further processing allowed.
-    //CHECK(rc != SQL_SUCCESS, SQL_ERROR, "SQLFreeStmt() failed.", isolate)
-    obj->stmtAllocated = false;  // Any SQL Statement Handler processing can not be allowed after this.
-    obj->resultSetAvailable = false;
-  }
+  CLEANASYNC
 }
 
 void DbStmt::Prepare(const ARGUMENTS& args) {
@@ -418,8 +379,7 @@ void DbStmt::PrepareAsyncAfter(uv_work_t *req, int status) {
   }
   
   delete cbd->sqlSt;
-  delete cbd;
-  delete req;
+  CLEANASYNC
 }
 
 void DbStmt::BindParam(const ARGUMENTS& args) {
@@ -482,8 +442,7 @@ void DbStmt::BindParamAsyncAfter(uv_work_t *req, int status) {
     cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
   }
   
-  delete cbd;
-  delete req;
+  CLEANASYNC
 }
 
 void DbStmt::Execute(const ARGUMENTS& args) {
@@ -592,31 +551,7 @@ void DbStmt::ExecuteAsyncAfter(uv_work_t *req, int status) {
     }
   }
   
-  delete cbd;
-  delete req;
-}
-
-void DbStmt::NextResult(const ARGUMENTS& args) {
-  Isolate* isolate = args.GetIsolate(); 
-  HandleScope scope(isolate);
-  DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
-  
-  SQLCloseCursor(obj->stmth);
-  
-  SQLRETURN rc = SQLMoreResults(obj->stmth);
-  CHECK(rc != SQL_SUCCESS, SQL_ERROR, "SQLMoreResults() failed.", isolate)
-  CHECK(rc == SQL_NO_DATA_FOUND, SQL_ERROR, "No more result set available.", isolate)
-  
-  rc = SQLNumResultCols(obj->stmth, &obj->colCount);
-  CHECK(rc != SQL_SUCCESS, SQL_ERROR, "SQLNumResultCols() failed.", isolate)
-
-  /* determine statement type */
-  if (obj->colCount == 0) /* statement is not a select statement */
-    args.GetReturnValue().SetUndefined();  /* User can issue numRows() to the get affected rows number. */
-
-  /* It is a select statement */
-  obj->resultSetAvailable = true;
-  if(obj->bindColData(isolate) < 0) return;
+  CLEANASYNC
 }
 
 void DbStmt::Fetch(const ARGUMENTS& args) {
@@ -648,7 +583,7 @@ void DbStmt::Fetch(const ARGUMENTS& args) {
   {
     Handle<Object> row = Object::New(isolate);
     
-    obj->fetch(isolate, row);
+    obj->fetchOneRow(isolate, row);
     
     if(args.Length() == 1 ||  args.Length() == 3) {  // Run call back to handle the fetched row.
       Local<Function> cb = Local<Function>::Cast(args[args.Length() - 1]);
@@ -719,7 +654,7 @@ void DbStmt::FetchAsyncAfter(uv_work_t *req, int status) {
 
   Handle<Object> row = Object::New(isolate);
   
-  obj->fetch(isolate, row);
+  obj->fetchOneRow(isolate, row);
 
   Local<Function> cb = Local<Function>::New(isolate, cbd->callback);
   
@@ -738,8 +673,7 @@ void DbStmt::FetchAsyncAfter(uv_work_t *req, int status) {
     cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
   }
 
-  delete cbd;
-  delete req;
+  CLEANASYNC
 }
 
 void DbStmt::FetchAll(const ARGUMENTS& args) {
@@ -813,9 +747,66 @@ void DbStmt::FetchAllAsyncAfter(uv_work_t *req, int status) {
       cb->Call(isolate->GetCurrentContext()->Global(), 1, argv);
     }
   }
-  obj->freeCol();
-  delete cbd;
-  delete req;
+  obj->freeColDescAndData();
+  CLEANASYNC
+}
+
+void DbStmt::CloseCursor(const ARGUMENTS& args) {
+  Isolate* isolate = args.GetIsolate(); 
+  HandleScope scope(isolate);
+  DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
+  
+  DEBUG("SQLCloseCursor: stmth %d\n", obj->stmth)
+  SQLCloseCursor(obj->stmth);
+}
+
+void DbStmt::Reset(const ARGUMENTS& args) {
+  Isolate* isolate = args.GetIsolate(); 
+  HandleScope scope(isolate);
+  DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
+  
+  DEBUG("SQLFreeStmt: stmth %d [SQL_RESET_PARAMS]\n", obj->stmth)
+  if(obj->stmtAllocated)
+    SQLFreeStmt(obj->stmth, SQL_RESET_PARAMS); //Release all params set by SQLBindParam()
+}
+
+void DbStmt::Close(const ARGUMENTS& args) {
+  Isolate* isolate = args.GetIsolate(); 
+  HandleScope scope(isolate);
+  DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
+  
+  obj->freeColDescAndData();
+  DEBUG("SQLFreeStmt: stmth %d [SQL_DROP]\n", obj->stmth)
+  if(obj->stmtAllocated) {
+    SQLFreeStmt(obj->stmth, SQL_DROP);  //Free the statement handle here. No further processing allowed.
+    //CHECK(rc != SQL_SUCCESS, SQL_ERROR, "SQLFreeStmt() failed.", isolate)
+    obj->stmtAllocated = false;  // Any SQL Statement Handler processing can not be allowed after this.
+    obj->resultSetAvailable = false;
+  }
+  obj->MakeWeak();
+}
+
+void DbStmt::NextResult(const ARGUMENTS& args) {
+  Isolate* isolate = args.GetIsolate(); 
+  HandleScope scope(isolate);
+  DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
+  
+  SQLCloseCursor(obj->stmth);
+  
+  SQLRETURN rc = SQLMoreResults(obj->stmth);
+  CHECK(rc != SQL_SUCCESS, SQL_ERROR, "SQLMoreResults() failed.", isolate)
+  CHECK(rc == SQL_NO_DATA_FOUND, SQL_ERROR, "No more result set available.", isolate)
+  
+  rc = SQLNumResultCols(obj->stmth, &obj->colCount);
+  CHECK(rc != SQL_SUCCESS, SQL_ERROR, "SQLNumResultCols() failed.", isolate)
+
+  /* determine statement type */
+  if (obj->colCount == 0) /* statement is not a select statement */
+    args.GetReturnValue().SetUndefined();  /* User can issue numRows() to the get affected rows number. */
+
+  /* It is a select statement */
+  obj->resultSetAvailable = true;
+  if(obj->bindColData(isolate) < 0) return;
 }
 
 void DbStmt::Commit(const ARGUMENTS& args) {
@@ -824,7 +815,7 @@ void DbStmt::Commit(const ARGUMENTS& args) {
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   CHECK(obj->stmtAllocated == false, STMT_NOT_READY, "The SQL Statement handler is not initialized.", isolate)
 
-  SQLRETURN rc = SQLTransact(envh, obj->connh, SQL_COMMIT);
+  SQLRETURN rc = SQLTransact(obj->envh, obj->connh, SQL_COMMIT);
   CHECK(rc != SQL_SUCCESS, SQL_ERROR, "SQLTransact(Commit) failed.", isolate)
 }
 
@@ -833,7 +824,7 @@ void DbStmt::Rollback(const ARGUMENTS& args) {
   HandleScope scope(isolate);
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   CHECK(obj->stmtAllocated == false, STMT_NOT_READY, "The SQL Statement handler is not initialized.", isolate)
-  SQLRETURN rc = SQLTransact(envh, obj->connh, SQL_ROLLBACK);
+  SQLRETURN rc = SQLTransact(obj->envh, obj->connh, SQL_ROLLBACK);
   CHECK(rc != SQL_SUCCESS, SQL_ERROR, "SQLTransact(Rollback) failed.", isolate)
 }
 
@@ -956,7 +947,7 @@ void DbStmt::StmtError(const ARGUMENTS& args) {
   switch(hType)
   {
     case SQL_HANDLE_ENV:
-      handle = envh;
+      handle = obj->envh;
       break;
     case SQL_HANDLE_DBC:
       handle = obj->connh;

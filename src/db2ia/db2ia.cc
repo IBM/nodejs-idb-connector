@@ -7,8 +7,6 @@
 
 using namespace v8;
 
-SQLHENV envh;
-
 void CreateConnObject(const ARGUMENTS& args) {
   DbConn::NewInstance(args);
 }
@@ -17,11 +15,8 @@ void CreateStmtObject(const ARGUMENTS& args) {
   DbStmt::NewInstance(args);
 }
 
-void FreeEnvironment(const ARGUMENTS& args) {
-  SQLFreeEnv(envh);
-}
-
 void InitAll(Handle<Object> exports) {
+  SQLHENV envh;
   int param = SQL_TRUE;
   char *attr = "DB2CCSID", *ccsid = NULL;
   ccsid = getenv(attr);
@@ -47,7 +42,6 @@ void InitAll(Handle<Object> exports) {
   DbStmt::Init();
   NODE_SET_METHOD(exports, "dbconn", CreateConnObject);
   NODE_SET_METHOD(exports, "dbstmt", CreateStmtObject);
-  NODE_SET_METHOD(exports, "close", FreeEnvironment);
 }
 
 NODE_MODULE(db2ia, InitAll)

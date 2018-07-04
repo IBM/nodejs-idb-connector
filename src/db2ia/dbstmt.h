@@ -14,6 +14,12 @@
   DbStmt* obj = cbd->obj; \
   memset(obj->msg, 0, sizeof(obj->msg));
 
+#define CLEANASYNC \
+  cbd->callback.Reset(); \
+  cbd->params.Reset(); \
+  delete cbd; \
+  delete req;
+  
 using namespace v8;
 
 struct db2_column {
@@ -50,7 +56,103 @@ class DbStmt : public node::ObjectWrap {
   private:
     explicit DbStmt(DbConn* conn);
     ~DbStmt();
+    
+    static Persistent<Function> constructor;
+    
+    uv_work_t request;
 
+    bool stmtAllocated = false;
+    bool resultSetAvailable = false;
+    bool colDescAllocated = false;
+    bool colDataAllocated = false;
+    bool isDebug = false;
+    
+    SQLHENV envh;
+    SQLHDBC connh;
+    SQLHSTMT stmth;
+    DbConn* con;
+    
+    char* xmlOut;
+    char* spIn[SP_PARAM_MAX];
+    char* spOut[SP_PARAM_MAX];
+    int spInNum[SP_PARAM_MAX];
+    int spOutNum[SP_PARAM_MAX];
+    SQLINTEGER indicator[SP_PARAM_MAX];
+    int spInCount = 0;
+    int spOutCount = 0;
+    int spInNumCount;
+    int spOutNumCount;
+    
+    db2_param* param = NULL;
+    int paramCount = 0;
+    
+    SQLSMALLINT colCount = 0;
+    db2_column* dbColumn;
+    SQLCHAR** rowData;
+    std::vector<result_item*> result;
+
+    char msg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
+
+    static void New(const ARGUMENTS& args);
+
+    static void SetStmtAttr(const ARGUMENTS& args);
+    static void GetStmtAttr(const ARGUMENTS& args);
+    
+    static void Exec(const ARGUMENTS& args);
+    static void ExecAsync(const ARGUMENTS& args);
+    static void ExecAsyncRun(uv_work_t *req);
+    static void ExecAsyncAfter(uv_work_t *req, int status);
+    
+    static void CloseCursor(const ARGUMENTS& args);
+    static void Reset(const ARGUMENTS& args);
+     
+    static void Prepare(const ARGUMENTS& args);
+    static void PrepareAsync(const ARGUMENTS& args);
+    static void PrepareAsyncRun(uv_work_t *req);
+    static void PrepareAsyncAfter(uv_work_t *req, int status);
+    
+    static void BindParam(const ARGUMENTS& args);
+    static void BindParamAsync(const ARGUMENTS& args);
+    static void BindParamAsyncRun(uv_work_t *req);
+    static void BindParamAsyncAfter(uv_work_t *req, int status);
+    
+    static void Execute(const ARGUMENTS& args);
+    static void ExecuteAsync(const ARGUMENTS& args);
+    static void ExecuteAsyncRun(uv_work_t *req);
+    static void ExecuteAsyncAfter(uv_work_t *req, int status);
+    
+    static void NextResult(const ARGUMENTS& args);
+
+    static void Fetch(const ARGUMENTS& args);
+    static void FetchAsync(const ARGUMENTS& args);
+    static void FetchAsyncRun(uv_work_t *req);
+    static void FetchAsyncAfter(uv_work_t *req, int status);
+    
+    static void FetchAll(const ARGUMENTS& args);
+    static void FetchAllAsync(const ARGUMENTS& args);
+    static void FetchAllAsyncRun(uv_work_t *req);
+    static void FetchAllAsyncAfter(uv_work_t *req, int status);
+    
+    static void Commit(const ARGUMENTS& args);
+    static void Rollback(const ARGUMENTS& args);
+
+    static void NumFields(const ARGUMENTS& args);
+    static void NumRows(const ARGUMENTS& args);
+    
+    static void FieldType(const ARGUMENTS& args);
+    static void FieldWidth(const ARGUMENTS& args);
+    static void FieldName(const ARGUMENTS& args);
+    static void FieldPrecise(const ARGUMENTS& args);
+    static void FieldScale(const ARGUMENTS& args);
+    static void FieldNullable(const ARGUMENTS& args);
+    
+    static void StmtError(const ARGUMENTS& args);
+    
+    static void Close(const ARGUMENTS& args);
+    
+    static void nop(uv_work_t* req) { }
+    
+    // Get Column Descriptions [name][type][precise][etc.]
     int getColDesc(Isolate* isolate) {
       if(colDescAllocated == true) 
         freeColDesc();
@@ -83,6 +185,7 @@ class DbStmt : public node::ObjectWrap {
       return 0;
     }
     
+    // Free column descriptions [name][type][precise][etc.]
     void freeColDesc() {
       if(colDescAllocated == true) { 
         for(int i = 0; i < colCount && dbColumn[i].name; i++)
@@ -92,6 +195,7 @@ class DbStmt : public node::ObjectWrap {
       }
     }
     
+    // Bind volumn data to C variables
     int bindColData(Isolate* isolate) {
       if(colDataAllocated == true) 
         freeColData();
@@ -108,7 +212,8 @@ class DbStmt : public node::ObjectWrap {
       
       if(isDebug)
         printf("SQLBindCol(%d).\n", colCount);
-       
+      
+      /* SQL Data Types
       // SQL_CHAR=1
       // SQL_NUMERIC=2    colScale + colScale + 3
       // SQL_DECIMAL=3    colScale + colScale + 3
@@ -150,7 +255,8 @@ class DbStmt : public node::ObjectWrap {
       // SQL_ALL_TYPES=0
       // SQL_DECFLOAT=-360 
       // SQL_XML=-370 
-
+      */
+      
       for(int i = 0; i < colCount; i++) {
         switch(dbColumn[i].sqlType) {
           case SQL_SMALLINT :
@@ -226,34 +332,23 @@ class DbStmt : public node::ObjectWrap {
       return 0;
     }
     
-    int fetchData(SQLRETURN* rc) {
-      while((*rc = SQLFetch(stmth)) == SQL_SUCCESS) 
-      {
-        result_item* row = (result_item*)calloc(colCount, sizeof(result_item)); 
-        for(int i = 0; i < colCount; i++)
-        {
-          int colLen = 0;
-          if(dbColumn[i].rlength == SQL_NTS) {
-            colLen = strlen(rowData[i]);
-            row[i].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
-            memcpy(row[i].data, rowData[i], colLen * sizeof(SQLCHAR));
-            row[i].rlength = SQL_NTS;
-          }
-          else if(dbColumn[i].rlength == SQL_NULL_DATA) {
-            row[i].data = NULL;
-            row[i].rlength = SQL_NULL_DATA;
-          }
-          else {
-            colLen = dbColumn[i].rlength;
-            row[i].data = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
-            memcpy(row[i].data, rowData[i], colLen * sizeof(SQLCHAR));
-            row[i].rlength = colLen;
-          }
-        }
-        result.push_back(row);
+    // Free the C variables binding to column data.
+    void freeColData() {
+      if(colDataAllocated == true) { 
+        for(int i = 0; i < colCount && rowData[i]; i++)
+          free(rowData[i]); 
+        free(rowData); 
+        colDataAllocated = false; 
       }
     }
     
+    // Free column descriptions & the C variables binding to column data.
+    void freeColDescAndData() {
+      freeColDesc();
+      freeColData();
+    }
+    
+    // [DB Data] ==> [Handle<Array>]
     int fetchColData(Isolate* isolate, Handle<Array> array) {
       SQLRETURN rc;
       int arrayCount = 0; 
@@ -282,7 +377,7 @@ class DbStmt : public node::ObjectWrap {
         array->Set(arrayCount++, row);  //Build the JSON data
       }
       if (rc != SQL_NO_DATA_FOUND) {
-        freeCol();
+        freeColDescAndData();
         if(isolate != NULL)
           throwErrMsg(SQL_HANDLE_STMT, isolate);
         else printErrorToLog();
@@ -291,12 +386,38 @@ class DbStmt : public node::ObjectWrap {
       return 0;
     }
     
+    //  [DB Data] ==> [vector result]
+    int fetchData(SQLRETURN* rc) {
+      while((*rc = SQLFetch(stmth)) == SQL_SUCCESS) {
+        result_item* row = (result_item*)calloc(colCount, sizeof(result_item)); 
+        for(int i = 0; i < colCount; i++) {
+          int colLen = 0;
+          if(dbColumn[i].rlength == SQL_NTS) {
+            colLen = strlen(rowData[i]);
+            row[i].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
+            memcpy(row[i].data, rowData[i], colLen * sizeof(SQLCHAR));
+            row[i].rlength = SQL_NTS;
+          }
+          else if(dbColumn[i].rlength == SQL_NULL_DATA) {
+            row[i].data = NULL;
+            row[i].rlength = SQL_NULL_DATA;
+          }
+          else {
+            colLen = dbColumn[i].rlength;
+            row[i].data = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
+            memcpy(row[i].data, rowData[i], colLen * sizeof(SQLCHAR));
+            row[i].rlength = colLen;
+          }
+        }
+        result.push_back(row);
+      }
+    }
+    
+    // [vector result] ==> [Handle<Array>]
     int fetchColDataAsync(Isolate* isolate, Handle<Array> array) {
-      for(int i = 0; i < result.size(); i++)
-      {
+      for(int i = 0; i < result.size(); i++) {
         Handle<Object> row = Object::New(isolate);
-        for(int j = 0; j < colCount; j++)
-        {
+        for(int j = 0; j < colCount; j++) {
           Local<Value> value;
           if(result[i][j].rlength == SQL_NULL_DATA)
             value = Local<Value>::New(isolate, Null(isolate));
@@ -321,30 +442,33 @@ class DbStmt : public node::ObjectWrap {
       result.clear();
       return 0;
     }
-    
-    void freeColData() {
-      if(colDataAllocated == true) { 
-        for(int i = 0; i < colCount && rowData[i]; i++)
-          free(rowData[i]); 
-        free(rowData); 
-        colDataAllocated = false; 
+
+    // [rowData] ==> [Handle<Object>]
+    int fetchOneRow(Isolate* isolate, Handle<Object> row) {
+      for(int i = 0; i < colCount; i++) {
+        Local<Value> value;
+        if(dbColumn[i].rlength == SQL_NULL_DATA)
+          value = Local<Value>::New(isolate, Null(isolate));
+        else {
+          switch(dbColumn[i].sqlType) {
+            case SQL_VARBINARY :
+            case SQL_BINARY :
+              value = Local<Value>::New(isolate, node::Buffer::New(isolate, rowData[i], dbColumn[i].rlength).ToLocalChecked());
+              break;
+            case SQL_BLOB : //TODO
+              // value = Local<Value>::New(isolate, node::Buffer::New(isolate, rowData[i] + sizeof(int), *(int*)rowData[i]).ToLocalChecked());
+              break;
+            default : 
+              value = Local<Value>::New(isolate, String::NewFromUtf8(isolate, rowData[i]));
+              break;
+          }
+        }
+        row->Set(String::NewFromUtf8(isolate, (char const*)dbColumn[i].name), value);
       }
+      return 0;
     }
     
-    void freeCol() {
-      freeColDesc();
-      freeColData();
-    }
-    
-    void freeSp() {
-      if(param) {
-        for(int i = 0; i < paramCount; i++)
-          free(param[i].buf);
-        free(param);
-        param = NULL;
-      }
-    }
-  
+    // Bind parameter markers ? to array param[]
     int bindParams(Isolate* isolate, Handle<Array> params) {
       Handle<Array> object;
       int bindIndicator;
@@ -444,6 +568,7 @@ class DbStmt : public node::ObjectWrap {
       }
     }
     
+    // [param] ==> [Handle<Array>]
     int fetchSp(Isolate* isolate, Handle<Array> array) {
       for(int i = 0, j = 0; i < paramCount; i++) {
         db2_param* p = &param[i];
@@ -463,36 +588,18 @@ class DbStmt : public node::ObjectWrap {
       return 0;
     }
     
-    
-    int fetch(Isolate* isolate, Handle<Object> row) {
-      for(int i = 0; i < colCount; i++)
-      {
-        Local<Value> value;
-        if(dbColumn[i].rlength == SQL_NULL_DATA)
-          value = Local<Value>::New(isolate, Null(isolate));
-        else {
-          switch(dbColumn[i].sqlType) {
-            case SQL_VARBINARY :
-            case SQL_BINARY :
-              value = Local<Value>::New(isolate, node::Buffer::New(isolate, rowData[i], dbColumn[i].rlength).ToLocalChecked());
-              break;
-            case SQL_BLOB : //TODO
-              // value = Local<Value>::New(isolate, node::Buffer::New(isolate, rowData[i] + sizeof(int), *(int*)rowData[i]).ToLocalChecked());
-              break;
-            default : 
-              value = Local<Value>::New(isolate, String::NewFromUtf8(isolate, rowData[i]));
-              break;
-          }
-        }
-        row->Set(String::NewFromUtf8(isolate, (char const*)dbColumn[i].name), value);
+    // Free array param[]
+    void freeSp() {
+      if(param) {
+        for(int i = 0; i < paramCount; i++)
+          free(param[i].buf);
+        free(param);
+        param = NULL;
       }
-      return 0;
     }
-    
-    void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
-    {
-      if(isDebug == true) 
-      { 
+
+    void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt) {
+      if(isDebug == true) { 
         SQLCHAR buffer[SQL_MAX_MESSAGE_LENGTH + 1];
         SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
         SQLINTEGER sqlcode;
@@ -507,8 +614,7 @@ class DbStmt : public node::ObjectWrap {
       }
     }
     
-    void printErrorToLog()
-    {
+    void printErrorToLog() {
       SQLCHAR buffer[SQL_MAX_MESSAGE_LENGTH + 1];
       SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
       SQLINTEGER sqlcode;
@@ -524,8 +630,7 @@ class DbStmt : public node::ObjectWrap {
       }
     }
     
-    void throwErrMsg(int handleType, Isolate* isolate) 
-    {
+    void throwErrMsg(int handleType, Isolate* isolate) {
       SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
       SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
       SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
@@ -554,106 +659,9 @@ class DbStmt : public node::ObjectWrap {
       isolate->ThrowException(Exception::Error(String::NewFromUtf8(isolate, errMsg)));
     }
     
-    void throwErrMsg(int code, const char* msg, Isolate* isolate)
-    {
+    void throwErrMsg(int code, const char* msg, Isolate* isolate) {
       SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
       sprintf((char *)errMsg, "SQLSTATE=PAERR SQLCODE=%d %s", code, msg);
       isolate->ThrowException(Exception::Error(String::NewFromUtf8(isolate, errMsg)));
     }
-
-    static void nop(uv_work_t* req) { }
-    static void after_work(uv_work_t* req, int status) { }
-    
-    static void New(const ARGUMENTS& args);
-    static Persistent<Function> constructor;
-    
-    static void SetStmtAttr(const ARGUMENTS& args);
-    static void GetStmtAttr(const ARGUMENTS& args);
-    
-    static void Exec(const ARGUMENTS& args);
-    static void ExecAsync(const ARGUMENTS& args);
-    static void ExecAsyncRun(uv_work_t *req);
-    static void ExecAsyncAfter(uv_work_t *req, int status);
-    
-    static void CloseCursor(const ARGUMENTS& args);
-    static void Reset(const ARGUMENTS& args);
-     
-    static void Prepare(const ARGUMENTS& args);
-    static void PrepareAsync(const ARGUMENTS& args);
-    static void PrepareAsyncRun(uv_work_t *req);
-    static void PrepareAsyncAfter(uv_work_t *req, int status);
-    
-    static void BindParam(const ARGUMENTS& args);
-    static void BindParamAsync(const ARGUMENTS& args);
-    static void BindParamAsyncRun(uv_work_t *req);
-    static void BindParamAsyncAfter(uv_work_t *req, int status);
-    
-    static void Execute(const ARGUMENTS& args);
-    static void ExecuteAsync(const ARGUMENTS& args);
-    static void ExecuteAsyncRun(uv_work_t *req);
-    static void ExecuteAsyncAfter(uv_work_t *req, int status);
-    
-    static void NextResult(const ARGUMENTS& args);
-
-    static void Fetch(const ARGUMENTS& args);
-    static void FetchAsync(const ARGUMENTS& args);
-    static void FetchAsyncRun(uv_work_t *req);
-    static void FetchAsyncAfter(uv_work_t *req, int status);
-    
-    static void FetchAll(const ARGUMENTS& args);
-    static void FetchAllAsync(const ARGUMENTS& args);
-    static void FetchAllAsyncRun(uv_work_t *req);
-    static void FetchAllAsyncAfter(uv_work_t *req, int status);
-    
-    static void Commit(const ARGUMENTS& args);
-    static void Rollback(const ARGUMENTS& args);
-
-    static void NumFields(const ARGUMENTS& args);
-    static void NumRows(const ARGUMENTS& args);
-    
-    static void FieldType(const ARGUMENTS& args);
-    static void FieldWidth(const ARGUMENTS& args);
-    static void FieldName(const ARGUMENTS& args);
-    static void FieldPrecise(const ARGUMENTS& args);
-    static void FieldScale(const ARGUMENTS& args);
-    static void FieldNullable(const ARGUMENTS& args);
-    
-    static void StmtError(const ARGUMENTS& args);
-    
-    static void Close(const ARGUMENTS& args);
-    
-    uv_work_t request;
-
-    bool stmtAllocated = false;
-    bool resultSetAvailable = false;
-    bool colDescAllocated = false;
-    bool colDataAllocated = false;
-    
-    bool isDebug = false;
-    
-    static SQLHENV envh;
-    SQLHDBC connh;
-    SQLHSTMT stmth;
-    DbConn* con;
-    
-    char* xmlOut;
-    char* spIn[SP_PARAM_MAX];
-    char* spOut[SP_PARAM_MAX];
-    int spInNum[SP_PARAM_MAX];
-    int spOutNum[SP_PARAM_MAX];
-    SQLINTEGER indicator[SP_PARAM_MAX];
-    int spInCount = 0;
-    int spOutCount = 0;
-    int spInNumCount;
-    int spOutNumCount;
-    
-    SQLSMALLINT colCount = 0;
-    db2_column* dbColumn;
-    SQLCHAR** rowData;
-    std::vector<result_item*> result;
-    
-    db2_param* param = NULL;
-    int paramCount = 0;
-    
-    char msg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
 };
