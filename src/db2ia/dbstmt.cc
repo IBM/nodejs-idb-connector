@@ -36,7 +36,7 @@ DbStmt::DbStmt(DbConn* conn) {
   stmtAllocated = true;  // Any SQL Statement Handler processing can not be allowed before this.
 }  
 
-DbStmt::~DbStmt() {}
+DbStmt::~DbStmt() { }
 
 void DbStmt::Init() {
   Isolate* isolate = Isolate::GetCurrent();
@@ -239,7 +239,7 @@ void DbStmt::ExecAsync(const ARGUMENTS& args) {
   Isolate* isolate = args.GetIsolate();
   DbStmt* obj = ObjectWrap::Unwrap<DbStmt>(args.Holder());
   
-  DEBUG("ExecAsync().\n");
+  DEBUG("[%p]ExecAsync().\n", obj);
   CHECK(args.Length() != 2, INVALID_PARAM_NUM, "The exec() method accept only two parameters.", isolate)
   CHECK(obj->stmtAllocated == false, STMT_NOT_READY, "The SQL Statment handler is not initialized.", isolate);
   
@@ -287,7 +287,7 @@ void DbStmt::ExecAsyncAfter(uv_work_t *req, int status) {
   
   Handle<Array> array = Array::New(isolate);
   
-  if(obj->fetchColDataAsync(isolate, array) < 0) return;
+  obj->fetchColDataAsync(isolate, array);
   
   if(cbd->arglength == 2) {
     Local<Function> cb = Local<Function>::New(isolate, cbd->callback);
@@ -305,12 +305,8 @@ void DbStmt::ExecAsyncAfter(uv_work_t *req, int status) {
   
   obj->freeColDescAndData();
   
-  // DEBUG("SQLCloseCursor: stmth %d\n", obj->stmth)
-  // SQLCloseCursor(obj->stmth);
-  
   delete cbd->sqlSt;
-  delete cbd;
-  delete req;
+  CLEANASYNC
 }
 
 void DbStmt::Prepare(const ARGUMENTS& args) {
@@ -383,8 +379,7 @@ void DbStmt::PrepareAsyncAfter(uv_work_t *req, int status) {
   }
   
   delete cbd->sqlSt;
-  delete cbd;
-  delete req;
+  CLEANASYNC
 }
 
 void DbStmt::BindParam(const ARGUMENTS& args) {
@@ -447,8 +442,7 @@ void DbStmt::BindParamAsyncAfter(uv_work_t *req, int status) {
     cb->Call(isolate->GetCurrentContext()->Global(), argc, argv);
   }
   
-  delete cbd;
-  delete req;
+  CLEANASYNC
 }
 
 void DbStmt::Execute(const ARGUMENTS& args) {
@@ -557,8 +551,7 @@ void DbStmt::ExecuteAsyncAfter(uv_work_t *req, int status) {
     }
   }
   
-  delete cbd;
-  delete req;
+  CLEANASYNC
 }
 
 void DbStmt::Fetch(const ARGUMENTS& args) {
@@ -680,8 +673,7 @@ void DbStmt::FetchAsyncAfter(uv_work_t *req, int status) {
     cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
   }
 
-  delete cbd;
-  delete req;
+  CLEANASYNC
 }
 
 void DbStmt::FetchAll(const ARGUMENTS& args) {
@@ -756,8 +748,7 @@ void DbStmt::FetchAllAsyncAfter(uv_work_t *req, int status) {
     }
   }
   obj->freeColDescAndData();
-  delete cbd;
-  delete req;
+  CLEANASYNC
 }
 
 void DbStmt::CloseCursor(const ARGUMENTS& args) {
@@ -792,6 +783,7 @@ void DbStmt::Close(const ARGUMENTS& args) {
     obj->stmtAllocated = false;  // Any SQL Statement Handler processing can not be allowed after this.
     obj->resultSetAvailable = false;
   }
+  obj->MakeWeak();
 }
 
 void DbStmt::NextResult(const ARGUMENTS& args) {

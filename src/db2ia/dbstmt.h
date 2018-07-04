@@ -14,6 +14,12 @@
   DbStmt* obj = cbd->obj; \
   memset(obj->msg, 0, sizeof(obj->msg));
 
+#define CLEANASYNC \
+  cbd->callback.Reset(); \
+  cbd->params.Reset(); \
+  delete cbd; \
+  delete req;
+  
 using namespace v8;
 
 struct db2_column {
