@@ -19,11 +19,8 @@ DbConn::DbConn() {
     }
     this->connAllocated = true;  // Any Connection Handler processing can not be allowed before this.
   }
-  
   rc=SQLSetConnectAttr(this->connh, SQL_ATTR_AUTOCOMMIT, &param, 0);  // Enable auto_commit by default.
-  // param = SQL_FALSE;
-  // rc=SQLSetConnectAttr(obj->connh, SQL_ATTR_DBC_SYS_NAMING, &param, 0);
-}  
+}
 
 DbConn::~DbConn() {}
 
@@ -36,35 +33,19 @@ void DbConn::Init(SQLHENV env) {
   // Prototypes
   NODE_SET_PROTOTYPE_METHOD(tpl, "setConnAttr", SetConnAttr);
   NODE_SET_PROTOTYPE_METHOD(tpl, "getConnAttr", GetConnAttr);
-  
+
   NODE_SET_PROTOTYPE_METHOD(tpl, "conn", Conn);
   NODE_SET_PROTOTYPE_METHOD(tpl, "disconn", Disconnect);
   NODE_SET_PROTOTYPE_METHOD(tpl, "close", Close);
-  
+
   NODE_SET_PROTOTYPE_METHOD(tpl, "validStmt", ValidStmt);
-  
+
   NODE_SET_PROTOTYPE_METHOD(tpl, "debug", Debug);
   NODE_SET_PROTOTYPE_METHOD(tpl, "isConnected", IsConnected);
-  
+
   constructor.Reset(isolate, tpl->GetFunction());
-  
+
   envh = env;
-}
-
-void DbConn::Debug(const ARGUMENTS& args) {
-  Isolate* isolate = args.GetIsolate(); 
-  HandleScope scope(isolate);
-  DbConn* obj = ObjectWrap::Unwrap<DbConn>(args.Holder());
-  CHECK(args.Length() != 1, INVALID_PARAM_NUM, "The debug() method accept one boolean parameter(true or false).", isolate )
-  CHECK(!args[0]->IsBoolean(), INVALID_PARAM_TYPE, "Debug() The parameter must be a boolean value(true or false).", isolate )
-  obj->isDebug = args[0]->Int32Value();
-}
-
-void DbConn::IsConnected(const ARGUMENTS& args) {
-  Isolate* isolate = args.GetIsolate(); 
-  HandleScope scope(isolate);
-  DbConn* obj = ObjectWrap::Unwrap<DbConn>(args.Holder());
-  RETURN(Boolean::New(isolate, obj->isConnected));
 }
 
 //new db2i() <==> new DbConn()
@@ -97,6 +78,15 @@ void DbConn::NewInstance(const ARGUMENTS& args) {
   Local<Context> context = isolate->GetCurrentContext();
   Local<Object> instance = cons->NewInstance(context, argc, argv).ToLocalChecked();
   RETURN(instance)
+}
+
+void DbConn::Debug(const ARGUMENTS& args) {
+  Isolate* isolate = args.GetIsolate(); 
+  HandleScope scope(isolate);
+  DbConn* obj = ObjectWrap::Unwrap<DbConn>(args.Holder());
+  CHECK(args.Length() != 1, INVALID_PARAM_NUM, "The debug() method accept one boolean parameter(true or false).", isolate )
+  CHECK(!args[0]->IsBoolean(), INVALID_PARAM_TYPE, "Debug() The parameter must be a boolean value(true or false).", isolate )
+  obj->isDebug = args[0]->Int32Value();
 }
 
 void DbConn::SetConnAttr(const ARGUMENTS& args) {
@@ -227,6 +217,13 @@ void DbConn::Disconnect(const ARGUMENTS& args) {
   }
 }
 
+void DbConn::IsConnected(const ARGUMENTS& args) {
+  Isolate* isolate = args.GetIsolate(); 
+  HandleScope scope(isolate);
+  DbConn* obj = ObjectWrap::Unwrap<DbConn>(args.Holder());
+  RETURN(Boolean::New(isolate, obj->connected));
+}
+
 void DbConn::Close(const ARGUMENTS& args) {
   Isolate* isolate = args.GetIsolate(); 
   HandleScope scope(isolate);
@@ -235,7 +232,6 @@ void DbConn::Close(const ARGUMENTS& args) {
   if(obj->connAllocated) {
     DEBUG("SQLFreeConnect: conn obj [%p] handler [%d]\n", obj, obj->connh);
     rc = SQLFreeConnect(obj->connh);
-    // CHECK(rc != SQL_SUCCESS, SQL_ERROR, "SQLFreeConnect() failed.", isolate)
     obj->connAllocated = false;  // Any Connection Handler processing can not be allowed after this.
   }
 }

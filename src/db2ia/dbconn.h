@@ -43,7 +43,26 @@ class DbConn : public node::ObjectWrap {
   private:
     explicit DbConn();
     ~DbConn();
-  
+    
+    static void New(const ARGUMENTS& args);
+    static Persistent<Function> constructor;
+    
+    static SQLHENV envh;
+    
+    static void Debug(const ARGUMENTS& args);
+    static void SetConnAttr(const ARGUMENTS& args);
+    static void GetConnAttr(const ARGUMENTS& args);
+    static void Conn(const ARGUMENTS& args);
+    static void Disconnect(const ARGUMENTS& args);
+    static void IsConnected(const ARGUMENTS& args);
+    static void Close(const ARGUMENTS& args);
+    static void ValidStmt(const ARGUMENTS& args);
+    
+    SQLHDBC connh;
+    bool connAllocated = false;
+    bool connected = false;
+    bool isDebug = false;
+
     void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
     {
       if(isDebug == true) 
@@ -106,29 +125,4 @@ class DbConn : public node::ObjectWrap {
       sprintf((char *)errMsg, "SQLSTATE=PAERR SQLCODE=%d %s", code, msg);
       isolate->ThrowException(Exception::Error(String::NewFromUtf8(isolate, errMsg)));
     }
-
-    static void nop(uv_work_t* req) {   /* Do nothing */  }
-    
-    static void New(const ARGUMENTS& args);
-    static Persistent<Function> constructor;
-    
-    static void SetConnAttr(const ARGUMENTS& args);
-    static void GetConnAttr(const ARGUMENTS& args);
-
-    static void Conn(const ARGUMENTS& args);
-    static void Disconnect(const ARGUMENTS& args);
-    static void Close(const ARGUMENTS& args);
-
-    static void ValidStmt(const ARGUMENTS& args);
-    static void Debug(const ARGUMENTS& args);
-    static void IsConnected(const ARGUMENTS& args);
-
-    bool connAllocated = false;
-    bool connected = false;
-
-    bool isDebug = false;
-    bool isConnected = false;
-
-    static SQLHENV envh;
-    SQLHDBC connh;
 };
