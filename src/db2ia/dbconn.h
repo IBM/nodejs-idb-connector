@@ -13,8 +13,7 @@
 #include <as400_protos.h>  // For SQLOverrideCCSID400()
 
 #include "napi.h"
-#include <uv.h>
-// #include <node_object_wrap.h>
+// #include <uv.h>
 
 #define MAX_COLNAME_WIDTH 256
 #define MAX_COL_WIDTH 32766
@@ -48,17 +47,15 @@ class DbConn : public Napi::ObjectWrap<DbConn> {
     bool connAllocated = false;
     bool connected = false;
     bool isDebug = false;
-    //delete Test later
-    Napi::Value Test(const Napi::CallbackInfo& info);
     //Most likely not needed in new Napi version
     void New(const ARGUMENTS& args);
-    void SetConnAttr(const Napi::CallbackInfo& info);
+    Napi::Value SetConnAttr(const Napi::CallbackInfo& info);
     Napi::Value GetConnAttr(const Napi::CallbackInfo& info);
     void Conn(const Napi::CallbackInfo& info);
-    void Disconnect(const Napi::CallbackInfo& info);
-    void Close(const Napi::CallbackInfo& info);
+    Napi::Value Disconnect(const Napi::CallbackInfo& info);
+    Napi::Value Close(const Napi::CallbackInfo& info);
     Napi::Value ValidStmt(const Napi::CallbackInfo& info);
-    void Debug(const Napi::CallbackInfo& info);
+    Napi::Value Debug(const Napi::CallbackInfo& info);
     Napi::Value IsConnected(const Napi::CallbackInfo& info);
 
 
@@ -99,6 +96,14 @@ class DbConn : public Napi::ObjectWrap<DbConn> {
         sprintf((char *)errMsg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, msg);
       }
     }
+
+    void throwErrMsg(int code, const char* msg, Napi::Env env)
+  {
+    SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
+    sprintf((char *)errMsg, "SQLSTATE=PAERR SQLCODE=%d %s", code, msg);
+    Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
+    return;
+  }
 
      void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
     {

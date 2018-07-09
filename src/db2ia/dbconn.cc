@@ -1,11 +1,7 @@
 /* The Source code for this program is not published  or otherwise  */
 /* divested of its trade secrets,  irrespective of what has been    */
 /* deposited with the U.S. Copyright Office.                        */
- 
 #include "dbconn.h"
-
-// using namespace Napi;
-
 
 SQLHENV DbConn::envh;
 Napi::FunctionReference DbConn::constructor;
@@ -22,8 +18,6 @@ Napi::Object DbConn::Init(Napi::Env env, Napi::Object exports, SQLHENV envh2) {
     InstanceMethod("validStmt", &DbConn::ValidStmt),
     InstanceMethod("debug", &DbConn::Debug),
     InstanceMethod("isConnected", &DbConn::IsConnected),
-    InstanceMethod("test", &DbConn::Test)
-
   });
 
   constructor = Napi::Persistent(constructorfunc);
@@ -37,18 +31,18 @@ Napi::Object DbConn::Init(Napi::Env env, Napi::Object exports, SQLHENV envh2) {
 }
 
 DbConn::DbConn(const Napi::CallbackInfo& info) : Napi::ObjectWrap<DbConn>(info) {
-  SQLRETURN rc = -1;
+  SQLRETURN sqlReturnCode = -1;
   int param = SQL_TRUE;
   if(this->connAllocated == false) {
-    rc = SQLAllocConnect( envh, &this->connh );
-    if(rc != SQL_SUCCESS) {
-      printf("SQL Connection Allocation Fail");
+    sqlReturnCode = SQLAllocConnect( envh, &this->connh );
+    if(sqlReturnCode != SQL_SUCCESS) {
+      DEBUG(this, "SQLAllocConnect(%d): SQL Connection Allocation Fail", sqlReturnCode);
       return;
     }
     this->connAllocated = true;  // Any Connection Handler processing can not be allowed before this.
   }
   
-  rc=SQLSetConnectAttr(this->connh, SQL_ATTR_AUTOCOMMIT, &param, 0);  // Enable auto_commit by default.
+  sqlReturnCode = SQLSetConnectAttr(this->connh, SQL_ATTR_AUTOCOMMIT, &param, 0);  // Enable auto_commit by default.
 }
 
 //Most likely Not needed but was used in version before Napi Compliance.
@@ -57,48 +51,30 @@ void DbConn::New(const ARGUMENTS& args) {
 }
 
 Napi::Object DbConn::NewInstance(Napi::Value arg){
-  Napi::Object obj = constructor.New({ arg });
-  return obj;
+  Napi::Object dbConn = constructor.New({ arg });
+  return dbConn;
 }
-//Test method Delete Later
-Napi::Value DbConn::Test(const Napi::CallbackInfo& info) {
-  return Napi::String::New(info.Env() , "Hello From Dbconn");
-  
-}
-void DbConn::SetConnAttr(const Napi::CallbackInfo& info) {
+
+Napi::Value DbConn::SetConnAttr(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
   int length = info.Length();
   //validation
-  if(length != 2){
-    Napi::Error::New(env, "Expected Two Parameters for SetConnAttr").ThrowAsJavaScriptException();
-    return;
-  }  
-
-  if (!info[0].IsNumber()) {
-    Napi::TypeError::New(env, "Number Expected For first Parameter of SetConnAttr").ThrowAsJavaScriptException();
-    return;
-  }
-
-  if(!info[1].IsNumber() && !info[1].IsString() ){
-    Napi::TypeError::New(env, "Number or String Expected For Second Parameter of SetConnAttr").ThrowAsJavaScriptException();
-    return;
-  }
-  if(this->connAllocated == false){
-    Napi::Error::New(env, "Need to call conn() to allocate connection on DbConn first").ThrowAsJavaScriptException();
-    return;
-  }
+  CHECK_WITH_RETURN(length != 2, INVALID_PARAM_NUM, "Expected Two Parameters for SetConnAttr", env, env.Null())
+  CHECK_WITH_RETURN(!info[0].IsNumber(), INVALID_PARAM_TYPE, "Expected Parameter 1 to be a Number", env, env.Null())
+  CHECK_WITH_RETURN(!info[1].IsNumber() && !info[1].IsString(), INVALID_PARAM_TYPE, "Number or String Expected For Second Parameter of SetConnAttr", env, env.Null())
+  CHECK_WITH_RETURN(this->connAllocated == false, CONN_NOT_READY, "Need to call conn() to allocate connection on DbConn first", env, env.Null())
 
   SQLINTEGER attr = Napi::Number(env, info[0]).Int32Value();
   char* cValue;
   SQLINTEGER sLen = 0;
-  SQLRETURN rc = -1;
+  SQLRETURN sqlReturnCode = -1;
   //check if the second arg was a Number or a String  
   if(info[1].IsNumber() )
   {
     int param = Napi::Number(env, info[1]).Int32Value();
-    rc = SQLSetConnectAttr(this->connh, attr, &param, 0);
-    DEBUG(this, "SetConnAttr() attr = %d, value = %d, rc = %d\n", (int)attr, param, (int)rc);
+    sqlReturnCode = SQLSetConnectAttr(this->connh, attr, &param, 0);
+    DEBUG(this, "SetConnAttr() attr = %d, value = %d, rc = %d\n", (int)attr, param, (int)sqlReturnCode);
   }
   else if(info[1].IsString())
   {
@@ -107,13 +83,14 @@ void DbConn::SetConnAttr(const Napi::CallbackInfo& info) {
     newCString.push_back('\0');
     cValue = &newCString[0];
     sLen = strlen(cValue);
-    rc=SQLSetConnectAttr(this->connh, attr, cValue, sLen);
-    DEBUG(this, "SetConnAttr() attr = %d, value = %s, rc = %d\n", (int)attr, cValue, (int)rc);
+    sqlReturnCode = SQLSetConnectAttr(this->connh, attr, cValue, sLen);
+    DEBUG(this, "SetConnAttr() attr = %d, value = %s, rc = %d\n", (int)attr, cValue, (int)sqlReturnCode);
   }
-  if(rc != SQL_SUCCESS){
+  if(sqlReturnCode != SQL_SUCCESS){
     this->throwErrMsg(SQL_HANDLE_DBC, env);
+    return env.Null();
   }
-    
+  return Napi::Boolean::New(env, 1);
 }
 
 
@@ -123,18 +100,9 @@ Napi::Value DbConn::GetConnAttr(const Napi::CallbackInfo& info) {
   Napi::HandleScope scope(env);
   int length = info.Length();
   //validation
-  if(length != 1){
-    Napi::Error::New(env, "Expected One Parameter for getConnAttr").ThrowAsJavaScriptException();
-    return env.Null();
-  }
-  if ( !info[0].IsNumber() ){
-    Napi::TypeError::New(env, "Expected Parameter to be a Number").ThrowAsJavaScriptException();
-    return env.Null();
-  }
-  if(this->connAllocated == false){
-    Napi::Error::New(env, "Expected Connection to be allocated first, you can do so by using conn()").ThrowAsJavaScriptException();
-    return env.Null();
-  }
+  CHECK_WITH_RETURN(length != 1, INVALID_PARAM_NUM, "Expected One Parameter for getConnAttr", env, env.Null())
+  CHECK_WITH_RETURN(!info[0].IsNumber(), INVALID_PARAM_TYPE, "Expected Parameter 1 to be a Number", env, env.Null())
+  CHECK_WITH_RETURN(this->connAllocated == false, CONN_NOT_READY, "Need to call conn() to allocate connection on first", env, env.Null())
 
   SQLINTEGER attr = Napi::Number(env, info[0]).Int32Value();
 
@@ -142,28 +110,26 @@ Napi::Value DbConn::GetConnAttr(const Napi::CallbackInfo& info) {
   int retVal = 0;
   SQLINTEGER sLen = 0;
   void* pValue = (char*)&buf;
-  SQLRETURN rc = SQLGetConnectAttr(this->connh, attr, pValue, sizeof(buf), &sLen);
+  SQLRETURN sqlReturnCode = SQLGetConnectAttr(this->connh, attr, pValue, sizeof(buf), &sLen);
 
   if(!sLen)  //If the returned value is a number.
   {
     pValue = &retVal;
-    rc = SQLGetConnectAttr(this->connh, attr, pValue, 0, &sLen);
-    DEBUG(this, "GetConnAttr() attr = %d, value = %d, rc = %d\n", (int)attr, *(int*)pValue, (int)rc);
-    if(rc == SQL_SUCCESS){
-      // RETURN(Number::New(isolate, *(int*)pValue))
+    sqlReturnCode = SQLGetConnectAttr(this->connh, attr, pValue, 0, &sLen);
+    DEBUG(this, "GetConnAttr() attr = %d, value = %d, rc = %d\n", (int)attr, *(int*)pValue, (int)sqlReturnCode);
+    if(sqlReturnCode == SQL_SUCCESS){
       return Napi::Number::New(env , *(int*)pValue);
     }
   }
   else  //If the returned value is a string.
   {
-    DEBUG(this, "GetConnAttr() attr = %d, value = %s, rc = %d\n", (int)attr, (char*)pValue, (int)rc);
-    if (rc == SQL_SUCCESS){
-       //RETURN(String::NewFromUtf8(isolate, buf))
+    DEBUG(this, "GetConnAttr() attr = %d, value = %s, rc = %d\n", (int)attr, (char*)pValue, (int)sqlReturnCode);
+    if (sqlReturnCode == SQL_SUCCESS){
        return Napi::String::New(env , buf);
     }
     
   }
-  if(rc != SQL_SUCCESS){
+  if(sqlReturnCode != SQL_SUCCESS){
     this->throwErrMsg(SQL_HANDLE_DBC, env);
     return env.Null();
   }
@@ -173,7 +139,7 @@ void DbConn::Conn(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
   int length = info.Length();
-  SQLRETURN rc;
+  SQLRETURN sqlReturnCode;
   
   //validation
   if(this->connected == true || this->connAllocated == false){
@@ -231,51 +197,57 @@ void DbConn::Conn(const Napi::CallbackInfo& info) {
     password = &arg2[0u];
   } 
 
-  rc = SQLConnect(this->connh, datasource, SQL_NTS, loginuser, SQL_NTS, password, SQL_NTS );
+  sqlReturnCode = SQLConnect(this->connh, datasource, SQL_NTS, loginuser, SQL_NTS, password, SQL_NTS );
 
-  DEBUG(this, "SQLConnect(%d): conn obj [%p] handler [%d]\n", rc, this, this->connh);
+  DEBUG(this, "SQLConnect(%d): conn obj [%p] handler [%d]\n", sqlReturnCode, this, this->connh);
 
-  if(rc != SQL_SUCCESS) {
+  if(sqlReturnCode != SQL_SUCCESS) {
     this->throwErrMsg(SQL_HANDLE_DBC, env);
     SQLFreeConnect(this->connh);
     return;
   }
   this->connected = true;
+  //when length is 2 or 4 need to Make Callbacks
   if (length == 2 || length == 4) {
     Napi::Function cb = info[ length -1 ].As<Napi::Function>();
-    cb.MakeCallback(env.Global() , 0 , 0);
+    cb.MakeCallback(env.Null() , {});
   }
 
 }
 
-void DbConn::Disconnect(const Napi::CallbackInfo& info) {
+Napi::Value DbConn::Disconnect(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
-  SQLRETURN rc;
+  SQLRETURN sqlReturnCode;
 
   if(this->connected) {
     SQLINTEGER auto_commit = 0;
-    rc = SQLGetConnectAttr(this->connh, SQL_ATTR_AUTOCOMMIT, &auto_commit, 0, NULL);
+    sqlReturnCode = SQLGetConnectAttr(this->connh, SQL_ATTR_AUTOCOMMIT, &auto_commit, 0, NULL);
     if (auto_commit != SQL_TRUE ) {  // If Auto_Commit is disabled, Rollback all transactions before exit.
-      rc = SQLEndTran(SQL_HANDLE_DBC, this->connh, SQL_ROLLBACK);
+      sqlReturnCode = SQLEndTran(SQL_HANDLE_DBC, this->connh, SQL_ROLLBACK);
     }
     DEBUG(this, "SQLDisconnect: conn obj [%p] handler [%d]\n", this, this->connh);
-    rc = SQLDisconnect(this->connh);
+    sqlReturnCode = SQLDisconnect(this->connh);
+    CHECK_WITH_RETURN(sqlReturnCode != SQL_SUCCESS, SQL_ERROR, "SQLDisconnect Failed", env,Napi::Boolean::New(env, 0))
     this->connected = false;
   }
+  return Napi::Boolean::New(env, 1);
   
 }
 
-void DbConn::Close(const Napi::CallbackInfo& info) {
+Napi::Value DbConn::Close(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
-  SQLRETURN rc = -1;
+  SQLRETURN sqlReturnCode = -1;
 
   if(this->connAllocated) {
     DEBUG(this, "SQLFreeConnect: conn obj [%p] handler [%d]\n", this, this->connh);
-    rc = SQLFreeConnect(this->connh);
-    this->connAllocated = false;  // Any Connection Handler processing can not be allowed after this.
+    sqlReturnCode = SQLFreeConnect(this->connh);
+    DEBUG(this, "SQLFreeConnect[%d]\n", sqlReturnCode);
+    CHECK_WITH_RETURN(sqlReturnCode != SQL_SUCCESS, SQL_ERROR,"SQLFreeConnect Failed", env, Napi::Boolean::New(env, 0));
+    this->connAllocated = false;
   }
+  return Napi::Boolean::New(env, 1);
   
 }
 
@@ -284,15 +256,8 @@ Napi::Value DbConn::ValidStmt(const Napi::CallbackInfo& info) {
   Napi::HandleScope scope(env);
   int length = info.Length();
 
-  if(length != 1 ){
-    Napi::TypeError::New(env, "Expected 1st Parameter to be a String").ThrowAsJavaScriptException();
-    return env.Null();
-
-  }
-  if(this->connAllocated == false){
-    Napi::Error::New(env, "Expected Connection to be allocated first, you can do so by using conn()").ThrowAsJavaScriptException();
-    return env.Null();
-  }
+  CHECK_WITH_RETURN(length != 1, INVALID_PARAM_NUM,"Expected 1st Parameter to be a String", env, env.Null())
+  CHECK_WITH_RETURN(this->connAllocated == false, CONN_NOT_READY,"Expected Connection to be allocated first, you can do so by using conn()", env, env.Null())
   
   std::string argStr = Napi::String(env , info[0]).Utf8Value();
   std::vector<char> newCString(argStr.begin(), argStr.end());
@@ -302,8 +267,8 @@ Napi::Value DbConn::ValidStmt(const Napi::CallbackInfo& info) {
   SQLINTEGER outLen = 0;
   SQLCHAR outSqlSt[2048];
   
-  SQLRETURN rc = SQLNativeSql(this->connh, tmpSqlSt, strlen(tmpSqlSt), outSqlSt, sizeof(outSqlSt), &outLen);
-  if(rc != SQL_SUCCESS) {
+  SQLRETURN sqlReturnCode = SQLNativeSql(this->connh, tmpSqlSt, strlen(tmpSqlSt), outSqlSt, sizeof(outSqlSt), &outLen);
+  if(sqlReturnCode != SQL_SUCCESS) {
     this->throwErrMsg(SQL_HANDLE_DBC, env);
     return env.Null();
   }
@@ -315,21 +280,16 @@ Napi::Value DbConn::ValidStmt(const Napi::CallbackInfo& info) {
   
 }
 
-void DbConn::Debug(const Napi::CallbackInfo& info) {
+Napi::Value DbConn::Debug(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
   int length = info.Length();
   //validation
-  if(length != 1){
-    Napi::Error::New(env, "Expected One Parameter for Debug").ThrowAsJavaScriptException();
-    return;
-  }
-  if( !info[0].IsBoolean() ){
-    Napi::TypeError::New(env, "Expected 1st Parameter to be a Boolean for Debug").ThrowAsJavaScriptException();
-    return;
-  }
-  
+  CHECK_WITH_RETURN(length != 1, INVALID_PARAM_NUM, "debug() Expected One Parameter", env, env.Null())
+  CHECK_WITH_RETURN(!info[0].IsBoolean(), INVALID_PARAM_TYPE, "debug() Expected 1st Parameter to be a Boolean ", env, env.Null())
+
   this->isDebug = Napi::Boolean(env , info[0]).Value();
+  return  Napi::Boolean(env , info[0]);
 }
 
 Napi::Value DbConn::IsConnected(const Napi::CallbackInfo& info) {
