@@ -16,9 +16,15 @@ describe('prepare async version', () => {
     dbConn.conn('*LOCAL');
     dbStmt = new addon.dbstmt(dbConn);
 
-    dbStmt.prepare(sql, (error) =>{
+    dbStmt.prepare(sql, (error, result) =>{
       console.log(`Error is: ${error}`);
-      console.log(`TypeOf Prepare error is: ${typeof error}`);
+      if (error){
+        console.log(`Type of Error is ${typeof error}`);
+        console.log(util.inspect(error));
+        throw error;
+      }
+      console.log(`Prepare result is: ${result}`);
+      console.log(`TypeOf Prepare result is: ${typeof result}`);
       expect(result).to.be.a('undefined');
       done();
     });
@@ -122,15 +128,21 @@ describe('execute async version', () => {
 
 
 //if successful returns an array. of Type of objects
-describe('exec async version', () => {
+describe.only('exec async version', () => {
   it('performs action of given SQL String', (done) => {
-    let sql = 'SELECT * FROM QIWS.QCUSTCDT',
+    let sql = 'DELETE FROM AMUSSE.TABLE1 WHERE COLUMN1 = 2018',
       dbConn = new addon.dbconn();
-
+    dbConn.debug(true);
     dbConn.conn('*LOCAL');
     let dbStmt = new addon.dbstmt(dbConn);
 
-    dbStmt.exec(sql, (result, err) => {
+    dbStmt.exec(sql, (result, error) => {
+      console.log(`Error is: ${error}`);
+      if (error){
+        console.log(`Type of Error is ${typeof error}`);
+        console.log(util.inspect(error));
+        throw error;
+      }
       console.log(`Exec Async results:\n ${JSON.stringify(result)}\n`);
       expect(result).to.be.an('array');
       expect(result.length).to.be.greaterThan(0);

@@ -86,9 +86,9 @@ describe('bindParams sync version', () => {
   });
 });
 
-describe('exec sync version', () => {
+describe.only('exec sync version callback', () => {
   it('performs action of given SQL String', () => {
-    let sql = 'SELECT * FROM QIWS.QCUSTCDT',
+    let sql = 'DELETE FROM AMUSSE.TABLE1 WHERE COLUMN1 = 2018',
       dbConn = new addon.dbconn(),
       dbStmt;
 
@@ -96,11 +96,30 @@ describe('exec sync version', () => {
     dbConn.conn('*LOCAL');
     dbStmt = new addon.dbstmt(dbConn);
 
-    dbStmt.execSync(sql, (result, err) => {
-      console.log(`Exec Sync results:\n ${JSON.stringify(result)}\n`);
-      expect(result).to.be.an('array');
-      expect(result.length).to.be.greaterThan(0);
+    dbStmt.execSync(sql, (result, error) => {
+      console.log(`Result is: ${util.inspect(result)}`);
+      console.log(`Error is: ${error}`);
+      // console.log(`Exec Sync results:\n ${JSON.stringify(result)}\n`);
+      // expect(result).to.be.an('array');
+      // expect(result.length).to.be.greaterThan(0);
     });
+  });
+});
+
+describe('exec sync version no-callback', () => {
+  it('performs action of given SQL String', () => {
+    let sql = 'DELETE FROM AMUSSE.TABLE1 WHERE COLUMN1 = 2018',
+      dbConn = new addon.dbconn(),
+      dbStmt;
+
+    dbConn.debug(true);
+    dbConn.conn('*LOCAL');
+    dbStmt = new addon.dbstmt(dbConn);
+
+    let result = dbStmt.execSync(sql);
+    console.log(`Exec Sync results:\n ${JSON.stringify(result)}\n`);
+    expect(result).to.be.an('array');
+    expect(result.length).to.be.greaterThan(0);
   });
 });
 
