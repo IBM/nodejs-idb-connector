@@ -34,7 +34,7 @@ DbStmt::DbStmt(const Napi::CallbackInfo& info) : Napi::ObjectWrap<DbStmt>(info) 
   stmtAllocated = true;  // Any SQL Statement Handler processing can not be allowed before this.
 }  
 
-DbStmt::~DbStmt() {}
+//DbStmt::~DbStmt() {}
 
 Napi::Object DbStmt::Init(Napi::Env env, Napi::Object exports) {
   Napi::HandleScope scope(env);
