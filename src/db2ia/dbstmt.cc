@@ -34,7 +34,7 @@ DbStmt::DbStmt(const Napi::CallbackInfo& info) : Napi::ObjectWrap<DbStmt>(info) 
   stmtAllocated = true;  // Any SQL Statement Handler processing can not be allowed before this.
 }  
 
-//DbStmt::~DbStmt() {}
+DbStmt::~DbStmt() {}
 
 Napi::Object DbStmt::Init(Napi::Env env, Napi::Object exports) {
   Napi::HandleScope scope(env);
@@ -255,7 +255,6 @@ class ExecAsyncWorker : public Napi::AsyncWorker {
 
     // Executed when the async work is complete
     void OnOK() {
-      printf("In OnOK()");
       Napi::Env env = Env();
       Napi::HandleScope scope(Env());
 
@@ -287,6 +286,7 @@ class ExecAsyncWorker : public Napi::AsyncWorker {
 };
 
 /*
+ *  Syntex exec(string SQL, function Callback(result, error))
  *  DbStmt::Exec
  *    Description:
  *      Runs the "Exec" workflow asynchronously. Handles passed parameters
@@ -322,6 +322,7 @@ void DbStmt::Exec(const Napi::CallbackInfo& info) {
 }
 
 /*
+ * Syntex execSync(string SQL) or execSync(string SQL, function Callback(result))
  *  DbStmt::ExecSync
  *    Description:
  *      Runs the "Exec" workflow synchronously, blocking the Node.js event
@@ -458,7 +459,6 @@ class PrepareAsyncWorker : public Napi::AsyncWorker {
 
     // Executed when the async work is complete
     void OnOK() {
-      std::cout << "OnOk Method Was Reached!\n";
       Napi::Env env = Env();
       Napi::HandleScope scope(env);
       std::vector<napi_value> callbackArguments;
@@ -603,16 +603,20 @@ class BindParamAsyncWorker : public Napi::AsyncWorker {
     void OnOK() {
       Napi::Env env = Env();
       Napi::HandleScope scope(Env());
-
       Napi::Array array = this->parametersToBind.Value();
-      //TODO: Refactor dbStatementObject->bindParams to check the types implicity instead have caller pass the types.
-      dbStatementObject->bindParams(env, &array);
-      parametersToBind.Reset(); // unsure if needed, might auto refcount to 0
-
       std::vector<napi_value> callbackArguments;
 
-      //SQL Bind Errors was checked for in  dbStatementObject->bindParams
-      // Currently if errors occured will be thrown there.
+      //TODO: Should Refactor dbStatementObject->bindParams to check the types implicity instead have caller pass the types.
+      int returnCode = dbStatementObject->bindParams(env, &array);
+      //check if errors Occured.
+      if(returnCode != 0){
+        //callback signature function(error)
+        callbackArguments.push_back(Napi::Error::New(env, "Failed To Bind Parameters").Value());
+        Callback().Call(callbackArguments);
+        return;
+      }
+      parametersToBind.Reset(); // unsure if needed, might auto refcount to 0
+      //callback signature function(error)
       callbackArguments.push_back(Env().Null());
       Callback().Call(callbackArguments);
     }
@@ -654,6 +658,7 @@ void DbStmt::BindParam(const Napi::CallbackInfo& info) {
 }
 
 /*
+ * Syntex: bindParamSync(array ParamList), bindParamSync(array ParamList, function Callback())
  *  DbStmt::BindParam
  *    Description:
  *      Runs the "BindParam" workflow synchronously, blocking the Node.js event
@@ -674,23 +679,43 @@ void DbStmt::BindParamSync(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env); // This wasn't done in original
   int length = info.Length();
+  Napi::Function cb;
+  std::vector<napi_value> callbackArguments;
   
   DEBUG(this, "BindParamSync().\n");
 
   CHECK(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statment handler is not initialized.", env)
-  CHECK(length != 1 && length != 2, INVALID_PARAM_NUM, "The bindParamSync() method accepts only two parameters.", env)
+  CHECK(length != 1 && length != 2, INVALID_PARAM_NUM, "The bindParamSync() method accepts only one or two parameters.", env)
   CHECK(!info[0].IsArray(), INVALID_PARAM_TYPE, "Parameter 1 Must be an Array", env)
-  CHECK(!info[1].IsFunction(), INVALID_PARAM_TYPE, "Parameter 2 must be a Function", env)
+  if(length == 2 ){
+      CHECK(!info[1].IsFunction(), INVALID_PARAM_TYPE, "Parameter 2 must be a Function", env)
+      cb = info[1].As<Napi::Function>();
+  }
 
   Napi::Array parametersToBind = info[0].As<Napi::Array>();
   // Errors are checked for and thrown in this->bindParams
-  this->bindParams(env, &parametersToBind);
-  std::vector<napi_value> callbackArguments;
-
-  //callback signature function(error)
-  callbackArguments.push_back(Env().Null());
-  Napi::Function callback = info[1].As<Napi::Function>();
-  callback.Call(callbackArguments);
+  int returnCode = this->bindParams(env, &parametersToBind);
+  DEBUG(this, "bindParams(%d)\n" , returnCode);
+  //check if an error occured while binding
+  if(returnCode != 0){
+    DEBUG(this, "Error During BindSync.\n");
+    Napi::Error error = Napi::Error::New(env, "Failed To Bind Parameters");
+    if(length == 2){
+      //callback signature function(error)
+      callbackArguments.push_back(error.Value());
+      cb.Call(callbackArguments);
+      return;
+    }
+    error.ThrowAsJavaScriptException();
+  }
+  //if callback was defined make the callback
+  if(length == 2 ){
+    //callback signature function(error)
+    callbackArguments.push_back(Env().Null());
+    cb.Call(callbackArguments);
+    return;
+  }
+  
 }
 
 /******************************************************************************
@@ -777,7 +802,8 @@ class ExecuteAsyncWorker : public Napi::AsyncWorker {
 };
 
 /*
- *  DbStmt::ExecuteSync
+ * Syntex: execute(function(OutputParameters, error))
+ *  DbStmt::Execute
  *    Description:
  *      Runs the "Execute" workflow asynchronously. Takes a statement prepared
  *      with "Prepare" and possibly bound with "BindParam" and executes it,
@@ -842,8 +868,8 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo& info) {
   DEBUG(this, "ExecuteSync().\n");
   //Validation
   CHECK_WITH_RETURN(length != 0 && length != 1 , INVALID_PARAM_NUM, "The executeSync() method accepts 0 or 1 parameter.", env, env.Null())
-  CHECK_WITH_RETURN(!info[0].IsFunction(), INVALID_PARAM_TYPE, "Expected the first parameter to be a Function.", env, env.Null());
   if(length == 1){
+    CHECK_WITH_RETURN(!info[0].IsFunction(), INVALID_PARAM_TYPE, "Expected the first parameter to be a Function.", env, env.Null());
     cb = info[0].As<Napi::Function>();
   }
   sqlReturnCode = SQLExecute(this->stmth);
@@ -991,8 +1017,8 @@ class FetchAsyncWorker : public Napi::AsyncWorker {
 };
 
 //TODO: Document Method
-//Syntex 1: fetch(function Callback(Row, ReturnCode))
-//Syntex 2: fetch(int Orient, int Offset, function Callback(Row, ReturnCode))
+//Syntex 1: fetch(function Callback(Row, ReturnCode/error))
+//Syntex 2: fetch(int Orient, int Offset, function Callback(Row, ReturnCode/error))
 void DbStmt::Fetch(const Napi::CallbackInfo& info) {
 
   Napi::Env env = info.Env();
@@ -1020,6 +1046,9 @@ void DbStmt::Fetch(const Napi::CallbackInfo& info) {
 }
 
 /*
+ * Syntex: fetchSync(), fetchSync(function(Row, Return Code)),
+ *          fetchSync(int Orient, int Offset, function(Row, ReturnCode))
+ *
  *  DbStmt::FetchSync
  *    Description:
  *      Runs the "Fetch" workflow synchronously, blocking the Node.js event
@@ -1034,11 +1063,6 @@ void DbStmt::Fetch(const Napi::CallbackInfo& info) {
  *                      arg1: The row (Object) that was fetched, if an error did not occue
  *                      arg2: An Error Object indicating what went wrong.
  */
-
-//TODO: Document Method
-//Syntex 1: fetchSync()
-//Syntex 2: fetchSync(function Callback(Row, Return Code))
-//Syntex 3: fetchSync(int Orient, int Offset, function Callback(Row, ReturnCode))
 Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
@@ -1164,6 +1188,7 @@ class FetchAllAsyncWorker : public Napi::AsyncWorker {
 };
 
 //TODO: Document Method
+//Syntex: fetchAll(function(result, error))
 void DbStmt::FetchAll(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
@@ -1171,8 +1196,8 @@ void DbStmt::FetchAll(const Napi::CallbackInfo& info) {
   //Validation
   CHECK(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statement handler is not initialized.", env)
   CHECK(this->resultSetAvailable == false, RSSET_NOT_READY, "There is no result set to be queried. Please execute a SQL command first.", env);
-  CHECK(info.Length() == 1 , INVALID_PARAM_NUM, "Expected Only 1 Argument For FetchAllAsync()", env)
-  CHECK(info[0].IsFunction(), INVALID_PARAM_TYPE, "Expected Argument 1 to be a Function", env)
+  CHECK(info.Length() != 1 , INVALID_PARAM_NUM, "Expected Only 1 Argument For FetchAllAsync()", env)
+  CHECK(!info[0].IsFunction(), INVALID_PARAM_TYPE, "Expected Argument 1 to be a Function", env)
 
   Napi::Function callback = info[0].As<Napi::Function>();
   FetchAllAsyncWorker *worker = new FetchAllAsyncWorker(this, callback);
@@ -1180,32 +1205,46 @@ void DbStmt::FetchAll(const Napi::CallbackInfo& info) {
 }
 
 //TODO: Document Method
+
 Napi::Value DbStmt::FetchAllSync(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
+  int length = info.Length();
+  Napi::Function cb;
+  std::vector<napi_value> callbackArguments;
+
 
   DEBUG(this, "FetchAllSync().\n");
   //Validation
   CHECK_WITH_RETURN(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statement handler is not initialized.", env, env.Null())
   CHECK_WITH_RETURN(this->resultSetAvailable == false, RSSET_NOT_READY, "There is no result set to be queried. Please execute a SQL command first.", env, env.Null())
-  CHECK_WITH_RETURN(info.Length() == 1 , INVALID_PARAM_NUM, "Expected Only 1 Argument For FetchAllSync()", env, env.Null())
-  CHECK_WITH_RETURN(info[0].IsFunction(), INVALID_PARAM_TYPE, "Expected Argument 1 to be a Function", env, env.Null())
+  CHECK_WITH_RETURN(length != 0 && length != 1, INVALID_PARAM_NUM, "Expected Only 1 Argument For FetchAllSync()", env, env.Null())
+  if(length == 1){
+      CHECK_WITH_RETURN(!info[0].IsFunction(), INVALID_PARAM_TYPE, "Expected Argument 1 to be a Function", env, env.Null())
+      cb = info[0].As<Napi::Function>();
+  }
 
   Napi::Array results = Array::New(env);
-  
+  //check if error occured
   if(this->fetchData() < 0){
+    if(length == 1){
+        std::string errorMessage = this->returnErrMsg(SQL_HANDLE_STMT);
+        callbackArguments.push_back(env.Null());
+        callbackArguments.push_back(Napi::Error::New(env, errorMessage).Value());
+        return env.Null();
+      }
     this->throwErrMsg(SQL_HANDLE_DBC, env);
   }
 
   if(this->fetchColData(env, &results) < 0) {
+    DEBUG(this, "fetchColData < 0\n")
     return env.Null();
   } 
   //callback signature function(row)
-  if (info.Length() == 1) {
-    Napi::Function cb = info[ info.Length() -1 ].As<Napi::Function>();
-    std::vector<napi_value> args;
-    args.push_back(results);
-    cb.MakeCallback(env.Global(), args);
+  if (length == 1) {
+    callbackArguments.push_back(results);
+    callbackArguments.push_back(env.Null());
+    cb.MakeCallback(env.Global(), callbackArguments);
     return env.Null();
   }
   //no callback provided return the results
@@ -1228,28 +1267,31 @@ Napi::Value DbStmt::FetchAllSync(const Napi::CallbackInfo& info) {
  *        commit() function takes no arguments.
  *    Return: void // TODO: No longer true
  */
-void DbStmt::NextResult(const Napi::CallbackInfo& info) {
+Napi::Value DbStmt::NextResult(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
   
   SQLRETURN sqlReturnCode = SQLMoreResults(this->stmth);
-  CHECK(sqlReturnCode != SQL_SUCCESS, SQL_ERROR, "SQLMoreResults() failed.", env)
-  CHECK(sqlReturnCode == SQL_NO_DATA_FOUND, SQL_ERROR, "No more result set available.", env)
+  CHECK_WITH_RETURN(sqlReturnCode != SQL_SUCCESS, SQL_ERROR, "SQLMoreResults() failed.", env, env.Null())
+  CHECK_WITH_RETURN(sqlReturnCode == SQL_NO_DATA_FOUND, SQL_ERROR, "No data for result set available.", env, env.Null())
   
   sqlReturnCode = SQLNumResultCols(this->stmth, &this->colCount);
-  CHECK(sqlReturnCode != SQL_SUCCESS, SQL_ERROR, "SQLNumResultCols() failed.", env)
+  CHECK_WITH_RETURN(sqlReturnCode != SQL_SUCCESS, SQL_ERROR, "SQLNumResultCols() failed.", env, env.Null())
 
-  //TODO
-  if (this->colCount == 0) { // not a SELECT statement
-    //need to find way to return as output param in NAPI
-    // args.GetReturnValue().SetUndefined();  /* User can issue numRows() to the get affected rows number. */
-    info.Env().Null();
-  } else { // SELECT statement
+  
+  if (this->colCount > 0) { // is a SELECT statement
     this->resultSetAvailable = true;
-    if(this->bindColData(env) < 0) {
-      return;
+    //Some error occured if < 0
+    if(this->bindColData(env) < 0){
+      Napi::Error::New(env, "bindColData failed During NextResult()").ThrowAsJavaScriptException();
+      return env.Null();
     }
+    //no errors occured      
+    return Napi::Boolean::New(env, 1);
   }
+
+  //not results return
+  return env.Null();
 }
 
 /*
@@ -1870,7 +1912,7 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
       }
       result.push_back(row);
     }
-    DEBUG(this, "In fetchData() SQLFETCH(%d)", sqlReturnCode)
+    DEBUG(this, "Out of fetchData() loop SQLFETCH(%d)\n", sqlReturnCode)
     if(sqlReturnCode == SQL_ERROR){
       return -1;
     }
@@ -1936,7 +1978,7 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
     }
   }
 
-  void DbStmt::bindParams(Napi::Env env, Napi::Array *params) {
+  int DbStmt::bindParams(Napi::Env env, Napi::Array *params) {
 
     Napi::Array object;
     int bindIndicator;
@@ -1949,16 +1991,23 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
     for(SQLSMALLINT i = 0; i < paramCount; i++) {
 
       object = params->Get(i).As<Napi::Array>();  //Get a  ? parameter from the array.
+      
       param[i].io = object.Get(1).ToNumber().Int32Value();  //Get the parameter In/Out type. // MI these were all -> before
       bindIndicator = object.Get(2).ToNumber().Int32Value();  //Get the indicator(str/int). // MI these were all -> before
-      
+    
       sqlReturnCode = SQLDescribeParam(stmth, i + 1, 
                           &param[i].paramType, 
                           &param[i].paramSize, 
                           &param[i].decDigits, 
                           &param[i].nullable);
-      if (sqlReturnCode != SQL_SUCCESS)
-        throwErrMsg(SQL_ERROR, "SQLDescribeParam() failed.", env);
+     
+      if (sqlReturnCode != SQL_SUCCESS){
+         if(isDebug){
+          printf("SQLDescribeParam(%d)\v", sqlReturnCode);
+        }
+          return -1;
+      }
+        
 
       Napi::Value value = object.Get((uint32_t)0); // have to cast otherwise it complains about ambiguity
       
@@ -2023,13 +2072,14 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
               param[i].buf, 0, 
               &param[i].ind);
       if(isDebug){
-        printf("SQLBindParameter(%d) TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d]\n", sqlReturnCode, param[i].paramType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind);
+        printf("SQLBindParameter(%d) TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d] INDEX[%i]\n", sqlReturnCode, param[i].paramType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind, i);
       }
       if (sqlReturnCode != SQL_SUCCESS){
-        throwErrMsg(SQL_ERROR, "SQLBindParameter() Failed", env);
+        return -1;
       }
         
     }
+    return 0;
   }
   
   int DbStmt::fetchSp(Napi::Env env, Napi::Array *array) {

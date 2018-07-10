@@ -71,7 +71,7 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     void Execute(const Napi::CallbackInfo& info);
     Napi::Value ExecuteSync(const Napi::CallbackInfo& info);
     
-    void NextResult(const Napi::CallbackInfo& info);
+    Napi::Value NextResult(const Napi::CallbackInfo& info);
 
     void Fetch(const Napi::CallbackInfo& info);
     Napi::Value FetchSync(const Napi::CallbackInfo& info);
@@ -107,7 +107,7 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     void freeColumnData();
     void freeColumns();
     void freeSp();
-    void bindParams(Napi::Env env, Napi::Array *params);
+    int bindParams(Napi::Env env, Napi::Array *params);
     int fetchSp(Napi::Env env, Napi::Array *array);
     int fetch(Napi::Env env, Napi::Object* row);
     void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt);
