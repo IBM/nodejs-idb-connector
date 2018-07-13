@@ -1994,33 +1994,33 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
       
       param[i].io = object.Get(1).ToNumber().Int32Value();  //Get the parameter In/Out type. // MI these were all -> before
       bindIndicator = object.Get(2).ToNumber().Int32Value();  //Get the indicator(str/int). // MI these were all -> before
-    
+
       sqlReturnCode = SQLDescribeParam(stmth, i + 1, 
                           &param[i].paramType, 
                           &param[i].paramSize, 
                           &param[i].decDigits, 
                           &param[i].nullable);
-     
       if (sqlReturnCode != SQL_SUCCESS){
          if(isDebug){
-          printf("SQLDescribeParam(%d)\v", sqlReturnCode);
+          printf("SQLDescribeParam(%d)\n", sqlReturnCode);
         }
           return -1;
-      }
-        
-
+      }    
       Napi::Value value = object.Get((uint32_t)0); // have to cast otherwise it complains about ambiguity
       
       if(bindIndicator == 0 || bindIndicator == 1) { //Parameter is string 
-        //String::Utf8Value string(value);
-        const char* string = value.ToString().Utf8Value().c_str();
+        std::string string = value.ToString().Utf8Value();
+        const char* cString = string.c_str();
+        printf("The String is: %s\n", cString);
         param[i].valueType = SQL_C_CHAR;
         if(param[i].io == SQL_PARAM_INPUT) {
-          param[i].buf = strdup(string);
-          if(bindIndicator == 0) //CLOB
-            param[i].ind = strlen(string);
-          else if(bindIndicator == 1) //NTS
+          param[i].buf = strdup(cString);
+          if(bindIndicator == 0) {//CLOB
+            param[i].ind = strlen(cString);
+            }
+          else if(bindIndicator == 1){ //NTS
             param[i].ind = SQL_NTS;
+          }
         }
         else if(param[i].io == SQL_PARAM_OUTPUT) {
           param[i].buf = (char*)calloc(param[i].paramSize + 1, sizeof(char));
@@ -2028,9 +2028,9 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
         }
         else if(param[i].io == SQL_PARAM_INPUT_OUTPUT) {
           param[i].buf = (char*)calloc(param[i].paramSize + 1, sizeof(char));
-          strcpy((char*)param[i].buf, string);
+          strcpy((char*)param[i].buf, cString);
           if(bindIndicator == 0) //CLOB
-            param[i].ind = strlen(string);
+            param[i].ind = strlen(cString);
           else if(bindIndicator == 1) //NTS
             param[i].ind = SQL_NTS;
         }
