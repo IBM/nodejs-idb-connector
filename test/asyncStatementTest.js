@@ -151,6 +151,68 @@ describe('execute async version', () => {
   });
 });
 
+describe('execute async version xmlservice call', () => {
+  it('tests xml service SP', (done) => {
+    let sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)',
+      dbConn = new addon.dbconn(),
+      dbStmt,
+      bal = 0;
+
+    dbConn.debug(true);
+    dbConn.conn('*LOCAL');
+    dbStmt = new addon.dbstmt(dbConn);
+
+    let ipc = '*NA',
+      ctl = '*here',
+      xmlIn = '<xmlservice><sh>system "wrksbs"<\/sh><\/xmlservice>',
+      xmlOut = '';
+
+    console.log(xmlIn);
+
+    let params = [
+      [ipc, db2a.SQL_PARAM_INPUT, 1],
+      [ctl, db2a.SQL_PARAM_INPUT, 1],
+      [xmlIn, db2a.SQL_PARAM_INPUT, 0],
+      [xmlOut, db2a.SQL_PARAM_OUTPUT, 0],
+    ];
+
+    dbStmt.prepare(sql, (error)=>{
+      if (error){
+        throw error;
+      }
+      dbStmt.bindParam(params, (error)=>{
+        if (error){
+          throw error;
+        }
+        console.log('completed the bindParam');
+        dbStmt.execute( (out, error) =>{
+          if (error){
+            console.log(util.inspect(error));
+            throw error;
+          }
+          for (let i = 0; i < out.length; i++) {
+            console.log(out[out.length - 1]);
+            console.log('===========================================');
+            console.log('\n\n\n');
+          }
+          // console.log(util.inspect(out));
+          console.log('Test Stored Procedure Done.');
+          dbStmt.close();
+          dbConn.disconn();
+          dbConn.close();
+          expect(error).to.be.null;
+          // console.log(`ExecuteAsync results:\n ${JSON.stringify(out)}`);
+          expect(out).to.be.a('array');
+          expect(out.length).to.be.greaterThan(0);
+          done();
+        });
+      });
+    });
+  });
+});
+
+
+
 
 //if result set is available returns an array of objects
 describe('exec async version', () => {
