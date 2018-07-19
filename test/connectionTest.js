@@ -41,7 +41,7 @@ describe('setConnAttr', () => {
       connection = new addon.dbconn(),
       result =  connection.setConnAttr(attr, value);
 
-    expect(result).to.be.a('undefined');
+    expect(result).to.be.true;
   });
 });
 
@@ -52,7 +52,7 @@ describe('debug', () => {
       connection = new addon.dbconn(),
       result =  connection.debug(choice);
 
-    expect(result).to.be.a('undefined');
+    expect(result).to.be.true;
   });
 });
 
@@ -62,7 +62,7 @@ describe('disconn', () => {
     let connection = new addon.dbconn(),
       result =  connection.disconn();
 
-    expect(result).to.be.a('undefined');
+    expect(result).to.be.true;
   });
 });
 
@@ -72,7 +72,7 @@ describe('close', () => {
     let connection = new addon.dbconn(),
       result =  connection.close();
 
-    expect(result).to.be.a('undefined');
+    expect(result).to.be.true;
   });
 });
 

@@ -56,11 +56,11 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     
     static Napi::FunctionReference constructor;
 
-    void SetStmtAttr(const Napi::CallbackInfo& info);
+    Napi::Value SetStmtAttr(const Napi::CallbackInfo& info);
     Napi::Value GetStmtAttr(const Napi::CallbackInfo& info);
     
     void Exec(const Napi::CallbackInfo& info);
-    void ExecSync(const Napi::CallbackInfo& info);
+    Napi::Value ExecSync(const Napi::CallbackInfo& info);
     
     void Prepare(const Napi::CallbackInfo& info);
     void PrepareSync(const Napi::CallbackInfo& info);
@@ -69,20 +69,21 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     void BindParamSync(const Napi::CallbackInfo& info);
     
     void Execute(const Napi::CallbackInfo& info);
-    void ExecuteSync(const Napi::CallbackInfo& info);
+    Napi::Value ExecuteSync(const Napi::CallbackInfo& info);
     
-    void NextResult(const Napi::CallbackInfo& info);
+    Napi::Value NextResult(const Napi::CallbackInfo& info);
 
     void Fetch(const Napi::CallbackInfo& info);
     Napi::Value FetchSync(const Napi::CallbackInfo& info);
     
     void FetchAll(const Napi::CallbackInfo& info);
-    void FetchAllSync(const Napi::CallbackInfo& info);
+    Napi::Value FetchAllSync(const Napi::CallbackInfo& info);
     
-    void CloseCursor(const Napi::CallbackInfo& info);
+    Napi::Value CloseCursor(const Napi::CallbackInfo& info);
     void Reset(const Napi::CallbackInfo& info);
-    void Commit(const Napi::CallbackInfo& info);
-    void Rollback(const Napi::CallbackInfo& info);
+    Napi::Value Commit(const Napi::CallbackInfo& info);
+    Napi::Value Rollback(const Napi::CallbackInfo& info);
+    Napi::Value Close(const Napi::CallbackInfo& info);
     
     Napi::Value NumFields(const Napi::CallbackInfo& info);
     Napi::Value NumRows(const Napi::CallbackInfo& info);
@@ -93,7 +94,6 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     Napi::Value FieldScale(const Napi::CallbackInfo& info);
     Napi::Value FieldNullable(const Napi::CallbackInfo& info);
 
-    void Close(const Napi::CallbackInfo& info);
     
     void StmtError(const Napi::CallbackInfo& info);
 
@@ -101,19 +101,20 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     int populateColumnDescriptions(Napi::Env env);
     void freeColumnDescriptions();
     int bindColData(Napi::Env env);
-    void fetchData();
+    int fetchData();
     //int fetchColData(Napi::Env env, Napi::Array array);
     int fetchColData(Napi::Env env, Napi::Array *array);
     void freeColumnData();
     void freeColumns();
     void freeSp();
-    void bindParams(Napi::Env env, Napi::Array *params);
+    int bindParams(Napi::Env env, Napi::Array *params);
     int fetchSp(Napi::Env env, Napi::Array *array);
     int fetch(Napi::Env env, Napi::Object* row);
     void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt);
     void printErrorToLog();
     void throwErrMsg(int handleType, Napi::Env env);
     void throwErrMsg(int code, const char* msg, Napi::Env env);
+    std::string returnErrMsg(int handleType);
 
     bool stmtAllocated = false;
     bool resultSetAvailable = false;
