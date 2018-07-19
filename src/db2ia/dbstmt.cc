@@ -225,7 +225,7 @@ class ExecAsyncWorker : public Napi::AsyncWorker {
       DEBUG(dbStatementObject, "SQLExecDirect(%d): %s\n", sqlReturnCode, sqlStatement);  
       if(sqlReturnCode != SQL_SUCCESS) {
         std::string  errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
-        std::cout << "Error Mess is: " << errorMessage << "\n";
+        // std::cout << "Error Message is: " << errorMessage << "\n";
         if(errorMessage.length() != 0 ){
           SetError(errorMessage);
           return;
@@ -234,11 +234,11 @@ class ExecAsyncWorker : public Napi::AsyncWorker {
       SQLNumResultCols(dbStatementObject->stmth, &dbStatementObject->colCount);
       
       if (dbStatementObject->colCount == 0){ /* statement is not a select statement */
-        DEBUG(dbStatementObject, "NO RESULTS: SQLExecDirect() call \n")
+        // DEBUG(dbStatementObject, "NO RESULTS: SQLExecDirect() call \n")
         return;
       }
 
-      DEBUG(dbStatementObject, "SQLExecDirect() call Has Results \n")
+      // DEBUG(dbStatementObject, "SQLExecDirect() call Has Results \n")
       dbStatementObject->resultSetAvailable = true;      
       if(dbStatementObject->bindColData(NULL) < 0) {
         DEBUG(dbStatementObject, "bindColData is < 0 \n")
@@ -359,8 +359,6 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo& info) {
 
   SQLRETURN sqlReturnCode = SQLExecDirect(this->stmth, tmpSqlSt, SQL_NTS);
   DEBUG(this,"SQLExecDirect(%d): %s\n", sqlReturnCode, tmpSqlSt);
-  DEBUG(this, "SQL NO DATA: %d\n", SQL_NO_DATA)
-  DEBUG(this, "SQL NO DATA FOUND: %d\n", SQL_NO_DATA_FOUND)
   //check if an error occured
   if(sqlReturnCode != SQL_SUCCESS) {
     if(length == 2){ // callback signature function(result , error)
@@ -1075,7 +1073,7 @@ Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo& info) {
   
   DEBUG(this, "fetchSync().\n");
   //Validate Arguments
-  CHECK_WITH_RETURN(length != 0 && length != 1 && length <= 3 , INVALID_PARAM_NUM, "The fetch() method accept only zero , one or three parameters.", env, env.Null())
+  CHECK_WITH_RETURN(length != 0 && length != 1 && length != 3 , INVALID_PARAM_NUM, "The fetch() method accept only zero , one or three parameters.", env, env.Null())
   CHECK_WITH_RETURN(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statement handler is not initialized.", env, env.Null())
   CHECK_WITH_RETURN(this->resultSetAvailable == false, RSSET_NOT_READY, "There is no result set to be queried. Please execute a SQL command first.", env, env.Null());
   if (length == 1 || length == 3){
@@ -1115,10 +1113,12 @@ Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo& info) {
         callbackArguments.push_back(row);
         callbackArguments.push_back(Napi::Number::New(env, sqlReturnCode));
         cb.MakeCallback(env.Global(), callbackArguments);
-        return env.Null();
+        return Napi::Number::New(env, sqlReturnCode);
     }
-    //callback was not given return row object
-    return row;
+    else {
+      //callback was not given return row object
+      return row;
+    }
   }
   if(sqlReturnCode == SQL_ERROR){
     this->throwErrMsg(SQL_HANDLE_STMT, env);
@@ -1130,7 +1130,6 @@ Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo& info) {
     callbackArguments.push_back(env.Null());
     callbackArguments.push_back(Napi::Number::New(env, sqlReturnCode));
     cb.MakeCallback(env.Global(), callbackArguments);
-    return env.Null();
   }
   //No callback was specified return the Return Code
   return Napi::Number::New(env, sqlReturnCode); // SQL_NO_DATA_FOUND indicate the end of the result set.
@@ -1912,7 +1911,7 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
       }
       result.push_back(row);
     }
-    DEBUG(this, "Out of fetchData() loop SQLFETCH(%d)\n", sqlReturnCode)
+    // DEBUG(this, "Out of fetchData() loop SQLFETCH(%d)\n", sqlReturnCode)
     if(sqlReturnCode == SQL_ERROR){
       return -1;
     }
@@ -2011,7 +2010,7 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
       if(bindIndicator == 0 || bindIndicator == 1) { //Parameter is string 
         std::string string = value.ToString().Utf8Value();
         const char* cString = string.c_str();
-        printf("The String is: %s\n", cString);
+        // printf("The String is: %s\n", cString);
         param[i].valueType = SQL_C_CHAR;
         if(param[i].io == SQL_PARAM_INPUT) {
           param[i].buf = strdup(cString);
