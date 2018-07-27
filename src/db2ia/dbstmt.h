@@ -1,16 +1,14 @@
-/* The Source code for this program is not published  or otherwise  */
-/* divested of its trade secrets, irrespective of what has been     */
-/* deposited with the U.S. Copyright Office.                        */
+/*  The Source code for this program is not published or otherwise  
+ *  divested of its trade secrets, irrespective of what has been
+ *  deposited with the U.S. Copyright Office.                        
+*/
 
 #pragma once
 
 #include "dbconn.h"
 #include <vector>
 
-
 #define LOG(a) if((a)) { this->printErrorToLog(); return; }
-
-using namespace Napi;
 
 struct db2_column {
   SQLCHAR*    name;
@@ -102,7 +100,6 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     void freeColumnDescriptions();
     int bindColData(Napi::Env env);
     int fetchData();
-    //int fetchColData(Napi::Env env, Napi::Array array);
     int fetchColData(Napi::Env env, Napi::Array *array);
     void freeColumnData();
     void freeColumns();
@@ -126,7 +123,7 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     static SQLHENV envh;
     SQLHDBC connh;
     SQLHSTMT stmth;
-    DbConn* con;
+    DbConn* myDbConn;
     
     char* xmlOut;
     char* spIn[SP_PARAM_MAX];

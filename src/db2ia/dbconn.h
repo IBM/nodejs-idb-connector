@@ -1,6 +1,7 @@
-/* The Source code for this program is not published  or otherwise  */
-/* divested of its trade secrets,  irrespective of what has been    */
-/* deposited with the U.S. Copyright Office.                        */
+/*  The Source code for this program is not published or otherwise  
+ *  divested of its trade secrets, irrespective of what has been
+ *  deposited with the U.S. Copyright Office.                        
+*/
  
 #pragma once
 
@@ -11,9 +12,7 @@
 
 #include "sqlcli.h"
 #include <as400_protos.h>  // For SQLOverrideCCSID400()
-
 #include "napi.h"
-// #include <uv.h>
 
 #define MAX_COLNAME_WIDTH 256
 #define MAX_COL_WIDTH 32766
@@ -28,14 +27,9 @@
 #define STMT_NOT_READY 8013
 #define RSSET_NOT_READY 8014
 
-#define RETURN(v) args.GetReturnValue().Set(v);
-// #define RETURN_UNDEINED args.GetReturnValue().SetUndefined();
-#define ARGUMENTS Napi::CallbackInfo
 #define DEBUG(object, f_, ...) if(object->isDebug) { printf((f_), ##__VA_ARGS__); }
 #define CHECK(condition, errorCode, errorMessage, env) if((condition)) { this->throwErrMsg( (errorCode), (errorMessage), (env) ); return; }
 #define CHECK_WITH_RETURN(condition, errorCode, errorMessage, env, returnValue) if((condition)) { this->throwErrMsg( (errorCode), (errorMessage), (env) ); return (returnValue); }
-
-// using namespace Napi;
 
 class DbConn : public Napi::ObjectWrap<DbConn> {
   friend class DbStmt;
@@ -47,8 +41,6 @@ class DbConn : public Napi::ObjectWrap<DbConn> {
     bool connAllocated = false;
     bool connected = false;
     bool isDebug = false;
-    //Most likely not needed in new Napi version
-    void New(const ARGUMENTS& args);
     Napi::Value SetConnAttr(const Napi::CallbackInfo& info);
     Napi::Value GetConnAttr(const Napi::CallbackInfo& info);
     void Conn(const Napi::CallbackInfo& info);
