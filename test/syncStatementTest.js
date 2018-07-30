@@ -232,8 +232,41 @@ describe('exec sync version no-callback', () => {
 
 //if successful returns an array of length 0?. Why,even return it if size === 0?
 describe('execute sync version callback', () => {
+  before(function() {
+    let user = (process.env.USER).toUpperCase(),
+      sql = `CREATE SCHEMA ${user}`,
+      sql2 = `CREATE OR REPLACE PROCEDURE ${user}.BALMAX(OUT OUTPUT NUMERIC( 6,2 ))
+                  LANGUAGE SQL
+                  BEGIN
+                    DECLARE MAXBAL NUMERIC ( 6 , 2 );
+                    SELECT MAX ( BALDUE ) INTO MAXBAL FROM QIWS . QCUSTCDT;
+                    SET OUTPUT = MAXBAL;
+                  END`,
+      dbConn = new addon.dbconn(),
+      dbStmt;
+
+      // dbConn.debug(true);
+    dbConn.conn('*LOCAL');
+    dbStmt = new addon.dbstmt(dbConn);
+
+    dbStmt.execSync(sql, function(result, error){
+      if (error){
+        //if Schema already exsists will error but ignore
+        // console.log(util.inspect(error));
+      }
+
+      dbStmt.execSync(sql2, function(result, error){
+        if (error){
+          console.log(util.inspect(error));
+          throw error;
+        }
+      });
+    });
+  });
+
   it('retrieves results from execute function:', () => {
-    let sql = 'CALL AMUSSE.MAXBAL(?)',
+    let user = (process.env.USER).toUpperCase(),
+      sql = `CALL ${user}.BALMAX(?)`,
       dbConn = new addon.dbconn(),
       dbStmt,
       bal = 0;
@@ -265,8 +298,41 @@ describe('execute sync version callback', () => {
 });
 
 describe('execute sync version no-callback', () => {
+  before(function() {
+    let user = (process.env.USER).toUpperCase(),
+      sql = `CREATE SCHEMA ${user}`,
+      sql2 = `CREATE OR REPLACE PROCEDURE ${user}.BALMAX(OUT OUTPUT NUMERIC( 6,2 ))
+                  LANGUAGE SQL
+                  BEGIN
+                    DECLARE MAXBAL NUMERIC ( 6 , 2 );
+                    SELECT MAX ( BALDUE ) INTO MAXBAL FROM QIWS . QCUSTCDT;
+                    SET OUTPUT = MAXBAL;
+                  END`,
+      dbConn = new addon.dbconn(),
+      dbStmt;
+
+      // dbConn.debug(true);
+    dbConn.conn('*LOCAL');
+    dbStmt = new addon.dbstmt(dbConn);
+
+    dbStmt.execSync(sql, function(result, error){
+      if (error){
+        //if Schema already exsists will error but ignore
+        // console.log(util.inspect(error));
+      }
+
+      dbStmt.execSync(sql2, function(result, error){
+        if (error){
+          console.log(util.inspect(error));
+          throw error;
+        }
+      });
+    });
+  });
+
   it('retrieves results from execute function:', () => {
-    let sql = 'CALL AMUSSE.MAXBAL(?)',
+    let user = (process.env.USER).toUpperCase(),
+      sql = `CALL ${user}.BALMAX(?)`,
       dbConn = new addon.dbconn(),
       dbStmt,
       bal = 0;

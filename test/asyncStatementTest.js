@@ -3,10 +3,11 @@ const expect = require('chai').expect;
 const addon = require('bindings')('db2ia');
 const db2a = require('../lib/db2a');
 const util = require('util');
+const fs = require('fs');
 
 //Test Statement Class Async Methods
 
-// if successful returns undefined
+
 describe('prepare async version', () => {
   it('Prepares valid SQL and sends it to the DBMS, if the input SQL Statement cannot be prepared error is returned. ', (done) => {
     let sql = 'SELECT * FROM QIWS.QCUSTCDT',
@@ -114,10 +115,246 @@ describe('bindParams async version', () => {
   });
 });
 
-//if output paramters are avilable will return it.
+describe('bind parameters blob', () => {
+  before(function() {
+    let user = (process.env.USER).toUpperCase(),
+      sql = `CREATE SCHEMA ${user}`,
+      sql2 = `CREATE OR REPLACE TABLE ${user}.BLOBTEST(BLOB_COLUMN BLOB(512k))`,
+      dbConn = new addon.dbconn(),
+      dbStmt;
+
+      // dbConn.debug(true);
+    dbConn.conn('*LOCAL');
+    dbStmt = new addon.dbstmt(dbConn);
+
+    dbStmt.exec(sql, function(result, error){
+      if (error){
+        //if Schema already exsists will error but ignore
+        // console.log(util.inspect(error));
+      }
+
+      dbStmt.exec(sql2, function(result, error){
+        if (error){
+          console.log(util.inspect(error));
+          throw error;
+        }
+      });
+    });
+  });
+
+  it('runs SQLExecute and to bind blob', (done) => {
+
+    let user = (process.env.USER).toUpperCase(),
+      // Table which only contains one BLOB(512k) Field
+      sql = `INSERT INTO ${user}.BLOBTEST(BLOB_COLUMN) VALUES(?)`,
+      dbConn = new addon.dbconn(),
+      dbStmt;
+
+    fs.readFile(`${__dirname}/../README.md`, function(error, buffer){
+      if (error){
+        throw error;
+      }
+      console.log(util.inspect(buffer));
+
+      dbConn.debug(true);
+      dbConn.conn('*LOCAL');
+      dbStmt = new addon.dbstmt(dbConn);
+
+      dbStmt.prepare(sql, (error)=>{
+        if (error){
+          throw error;
+        }
+        dbStmt.bindParam([[buffer, db2a.SQL_PARAM_INPUT, db2a.SQL_BLOB]], (error)=>{
+          if (error){
+            throw error;
+          }
+          dbStmt.execute( (result, error) =>{
+            if (error){
+              console.log(util.inspect(error));
+              throw error;
+            }
+            expect(error).to.be.null;
+            done();
+          });
+        });
+      });
+    });
+  });
+});
+
+describe('bind parameters binary', () => {
+  //adds overhead to time taken by test once created comment out before() to see the diff.
+  before(function() {
+    let user = (process.env.USER).toUpperCase(),
+      sql = `CREATE SCHEMA ${user}`,
+      sql2 = `CREATE OR REPLACE TABLE ${user}.BINARYTEST(BINARY_COLUMN BINARY(3000))`,
+      dbConn = new addon.dbconn(),
+      dbStmt;
+
+    // dbConn.debug(true);
+    dbConn.conn('*LOCAL');
+    dbStmt = new addon.dbstmt(dbConn);
+
+    dbStmt.exec(sql, function(result, error){
+      if (error){
+        //if Schema already exsists will error but ignore
+        // console.log(util.inspect(error));
+      }
+
+      dbStmt.exec(sql2, function(result, error){
+        if (error){
+          console.log(util.inspect(error));
+          throw error;
+        }
+      });
+    });
+  });
+
+  it('runs SQLExecute and to bind binary', (done) => {
+
+    let user = (process.env.USER).toUpperCase(),
+      // Table which only contains one BLOB(10) Field
+      sql = `INSERT INTO ${user}.BINARYTEST(BINARY_COLUMN) VALUES(?)`,
+      dbConn = new addon.dbconn(),
+      dbStmt;
+
+    fs.readFile(`${__dirname}/../README.md`, function(error, buffer){
+      if (error){
+        throw error;
+      }
+      console.log(util.inspect(buffer));
+      dbConn.debug(true);
+      dbConn.conn('*LOCAL');
+      dbStmt = new addon.dbstmt(dbConn);
+
+      dbStmt.prepare(sql, (error)=>{
+        if (error){
+          throw error;
+        }
+        dbStmt.bindParam([[buffer, db2a.SQL_PARAM_INPUT, db2a.SQL_BINARY]], (error)=>{
+          if (error){
+            throw error;
+          }
+          dbStmt.execute( (result, error) =>{
+            if (error){
+              console.log(util.inspect(error));
+              throw error;
+            }
+            expect(error).to.be.null;
+            done();
+          });
+        });
+      });
+    });
+  });
+});
+
+describe('bind parameters varbinary', () => {
+  //adds overhead to time taken by test once created comment out before() to see the diff.
+  before(function() {
+    let user = (process.env.USER).toUpperCase(),
+      sql = `CREATE SCHEMA ${user}`,
+      sql2 = `CREATE OR REPLACE TABLE ${user}.VARBINARYTEST(VARBINARY_COLUMN VARBINARY(3000))`,
+      dbConn = new addon.dbconn(),
+      dbStmt;
+
+      // dbConn.debug(true);
+    dbConn.conn('*LOCAL');
+    dbStmt = new addon.dbstmt(dbConn);
+
+    dbStmt.exec(sql, function(result, error){
+      if (error){
+        //if Schema already exsists will error but ignore
+        // console.log(util.inspect(error));
+      }
+
+      dbStmt.exec(sql2, function(result, error){
+        if (error){
+          console.log(util.inspect(error));
+          throw error;
+        }
+      });
+    });
+  });
+
+  it('runs SQLExecute and to bind varbinary', (done) => {
+    let user = (process.env.USER).toUpperCase(),
+      // Table which only contains one VARBINARY(10) Field
+      sql = `INSERT INTO ${user}.VARBINARYTEST(VARBINARY_COLUMN) VALUES(?)`,
+      dbConn = new addon.dbconn(),
+      dbStmt;
+
+    fs.readFile(`${__dirname}/../README.md`, function(error, buffer){
+      if (error){
+        throw error;
+      }
+
+      console.log(util.inspect(buffer));
+
+      dbConn.debug(true);
+      dbConn.conn('*LOCAL');
+      dbStmt = new addon.dbstmt(dbConn);
+
+      dbStmt.prepare(sql, (error)=>{
+        if (error){
+          throw error;
+        }
+        dbStmt.bindParam([[buffer, db2a.SQL_PARAM_INPUT, db2a.SQL_BINARY]], (error)=>{
+          if (error){
+            throw error;
+          }
+          dbStmt.execute( (result, error) =>{
+            if (error){
+              console.log(util.inspect(error));
+              throw error;
+            }
+            expect(error).to.be.null;
+            done();
+          });
+        });
+      });
+    });
+  });
+});
+
+
 describe('execute async version', () => {
+  before(function() {
+    let user = (process.env.USER).toUpperCase(),
+      sql = `CREATE SCHEMA ${user}`,
+      sql2 = `CREATE OR REPLACE PROCEDURE ${user}.BALMAX(OUT OUTPUT NUMERIC( 6,2 ))
+                  LANGUAGE SQL
+                  BEGIN
+                    DECLARE MAXBAL NUMERIC ( 6 , 2 );
+                    SELECT MAX ( BALDUE ) INTO MAXBAL FROM QIWS . QCUSTCDT;
+                    SET OUTPUT = MAXBAL;
+                  END`,
+      dbConn = new addon.dbconn(),
+      dbStmt;
+
+      // dbConn.debug(true);
+    dbConn.conn('*LOCAL');
+    dbStmt = new addon.dbstmt(dbConn);
+
+    dbStmt.exec(sql, function(result, error){
+      if (error){
+        //if Schema already exsists will error but ignore
+        // console.log(util.inspect(error));
+      }
+
+      dbStmt.exec(sql2, function(result, error){
+        if (error){
+          console.log(util.inspect(error));
+          throw error;
+        }
+      });
+    });
+  });
+
   it('runs SQLExecute and retrieves output params from SP if available', (done) => {
-    let sql = 'CALL AMUSSE.MAXBAL(?)',
+    //SP which returns as an outparam the highest bal from QIWS.QCUSTCDT
+    let user = (process.env.USER).toUpperCase(),
+      sql = `CALL ${user}.BALMAX(?)`,
       dbConn = new addon.dbconn(),
       dbStmt,
       bal = 0;
@@ -211,10 +448,6 @@ describe('execute async version xmlservice call', () => {
   });
 });
 
-
-
-
-//if result set is available returns an array of objects
 describe('exec async version', () => {
   it('performs action of given SQL String', (done) => {
     let sql = 'SELECT * FROM QIWS.QCUSTCDT',
@@ -238,7 +471,84 @@ describe('exec async version', () => {
   });
 });
 
-//if successful returns an array of objects
+describe('exec async version read blob test', () => {
+  it('performs action of given SQL String', (done) => {
+    let sql = 'SELECT CAST(\'test\' AS BLOB(10k)) FROM SYSIBM.SYSDUMMY1',
+      dbConn = new addon.dbconn();
+
+    dbConn.debug(true);
+    dbConn.conn('*LOCAL');
+
+    let dbStmt = new addon.dbstmt(dbConn);
+
+    dbStmt.exec(sql, (result, error) => {
+      console.log(`Error is: ${error}`);
+      if (error){
+        console.log(util.inspect(error));
+        throw error;
+      }
+      console.log(util.inspect(result));
+      expect(error).to.be.null;
+      expect(result).to.be.an('array');
+      expect(result.length).to.be.greaterThan(0);
+      expect( Object.values(result[0])[0] ).to.be.instanceOf(Buffer);
+      done();
+    });
+  });
+});
+
+describe('exec async version read binary test', () => {
+  it('performs action of given SQL String', (done) => {
+    let sql = 'SELECT CAST(\'test\' AS BINARY(10)) FROM SYSIBM.SYSDUMMY1',
+      dbConn = new addon.dbconn();
+
+    dbConn.debug(true);
+    dbConn.conn('*LOCAL');
+
+    let dbStmt = new addon.dbstmt(dbConn);
+
+    dbStmt.exec(sql, (result, error) => {
+      console.log(`Error is: ${error}`);
+      if (error){
+        console.log(util.inspect(error));
+        throw error;
+      }
+      console.log(util.inspect(result));
+      expect(error).to.be.null;
+      expect(result).to.be.an('array');
+      expect(result.length).to.be.greaterThan(0);
+      expect( Object.values(result[0])[0] ).to.be.instanceOf(Buffer);
+      done();
+    });
+  });
+});
+
+describe('exec async version read varbinary test', () => {
+  it('performs action of given SQL String', (done) => {
+    let sql = 'SELECT CAST(\'test\' AS VARBINARY(10)) FROM SYSIBM.SYSDUMMY1',
+      dbConn = new addon.dbconn();
+
+    dbConn.debug(true);
+    dbConn.conn('*LOCAL');
+
+    let dbStmt = new addon.dbstmt(dbConn);
+
+    dbStmt.exec(sql, (result, error) => {
+      console.log(`Error is: ${error}`);
+      if (error){
+        console.log(util.inspect(error));
+        throw error;
+      }
+      console.log(util.inspect(result));
+      expect(error).to.be.null;
+      expect(result).to.be.an('array');
+      expect(result.length).to.be.greaterThan(0);
+      expect( Object.values(result[0])[0] ).to.be.instanceOf(Buffer);
+      done();
+    });
+  });
+});
+
 describe('fetchAll async version', () => {
   it('retrieves all rows from execute function:', (done) => {
     let sql = 'SELECT * FROM QIWS.QCUSTCDT',
@@ -272,7 +582,6 @@ describe('fetchAll async version', () => {
 });
 
 
-//if successful returns an Object of Row
 describe('fetch async version', () => {
   it('retrieves one row from execute function:', (done) => {
     let sql = 'SELECT * FROM QIWS.QCUSTCDT',
