@@ -248,8 +248,8 @@ class ExecAsyncWorker : public Napi::AsyncWorker {
     }
 
     void OnError(const Napi::Error& e){
-    // callback signature function(result, error)
-    Callback().MakeCallback(Receiver().Value(), std::initializer_list<napi_value>{ e.Env().Null(), e.Value() });
+      // callback signature function(result, error)
+      Callback().MakeCallback(Receiver().Value(), std::initializer_list<napi_value>{ e.Env().Null(), e.Value() });
     } 
 
     // Executed when the async work is complete
