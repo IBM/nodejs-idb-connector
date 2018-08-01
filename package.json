@@ -21,10 +21,24 @@
     "IBM i",
     "iSeries"
   ],
-  "author": "Xu Meng",
+  "author": "IBM",
   "license": "MIT",
   "gypfile": true,
   "homepage": "https://bitbucket.org/litmis/nodejs-idb-connector#readme",
+  "contributors": [
+    {
+      "name": "Xu Meng",
+      "email": "dmabupt@gmail.com"
+    },
+    {
+      "name": "Abdirahim Musse",
+      "email": "abdirahim.musse@ibm.com"
+    },
+    {
+      "name": "Aaron Bartell",
+      "email": "aaronbartell@gmail.com"
+    }
+  ],
   "dependencies": {
     "node-addon-api": "^1.2.0",
     "node-gyp": "^3.6.2",
