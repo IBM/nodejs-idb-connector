@@ -4,7 +4,8 @@
       'target_name': 'db2ia',
       'include_dirs': [
         'src/db2ia',
-        '/usr/include'
+        '/usr/include',
+        "<!@(node -p \"require('node-addon-api').include\")"
       ],
       'sources': [ 
         'src/db2ia/db2ia.cc', 
@@ -16,7 +17,9 @@
         '-Wno-unknown-pragmas',
         '-Wno-format',
         '-gxcoff',
-        '-O0'
+        '-O0',
+        '-DNAPI_DISABLE_CPP_EXCEPTIONS',
+        '-I/QOpenSys/pkgs/include'
       ],
       'conditions': [
         [ 'target_arch=="ppc"', {
