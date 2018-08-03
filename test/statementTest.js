@@ -411,7 +411,6 @@ describe('Statement Misc Test', () => {
 
       dbStmt.exec(sql, (result, error)=>{
         let isClose = dbStmt.close();
-        console.log(util.inspect(isClose));
         expect(isClose).to.be.true;
         done();
       });

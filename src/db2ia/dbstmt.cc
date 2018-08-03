@@ -222,8 +222,12 @@ class ExecAsyncWorker : public Napi::AsyncWorker {
       sqlReturnCode = SQLExecDirect(dbStatementObject->stmth, //SQLHSTMT hstmt -Statement handle 
                                               sqlStatement, //SQLCHAR* szSQLStr -SQL statement string
                                               SQL_NTS); //SQLINTEGER cbSQlStr -Length of szSQLStr
-      DEBUG(dbStatementObject, "SQLExecDirect(%d): %s\n", sqlReturnCode, sqlStatement);  
-      if(sqlReturnCode != SQL_SUCCESS) {
+      DEBUG(dbStatementObject, "SQLExecDirect(%d): %s\n", sqlReturnCode, sqlStatement); 
+      if(sqlReturnCode == SQL_SUCCESS_WITH_INFO) {  // TODO need to check SQLSTATE = 0100C and Error_Code = 466
+        // Stored Procedures with Result Sets
+        dbStatementObject->resultSetAvailable = true;
+      }
+      else if(sqlReturnCode != SQL_SUCCESS) {
         std::string errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
           SetError(errorMessage);
           return;
@@ -359,7 +363,7 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo& info) {
   SQLRETURN sqlReturnCode = SQLExecDirect(this->stmth, tmpSqlSt, SQL_NTS);
   DEBUG(this,"SQLExecDirect(%d): %s\n", sqlReturnCode, tmpSqlSt);
   //check if an error occured
-  if(sqlReturnCode != SQL_SUCCESS) {
+  if(sqlReturnCode != SQL_SUCCESS && sqlReturnCode != SQL_SUCCESS_WITH_INFO) {  // TODO need to check SQLSTATE = 0100C and Error_Code = 466
     if(length == 2){ // callback signature function(result , error)
       std::string errorMessage = this->returnErrMsg(SQL_HANDLE_STMT);
       Napi::Error error = Napi::Error::New(env, errorMessage);
@@ -746,7 +750,11 @@ class ExecuteAsyncWorker : public Napi::AsyncWorker {
       sqlReturnCode = SQLExecute(dbStatementObject->stmth); //SQLHSTMT hstmt -Statement Handle
       DEBUG(dbStatementObject, "SQLExecuteAsync(%d):\n", sqlReturnCode);
 
-      if(sqlReturnCode != SQL_SUCCESS) {
+      if(sqlReturnCode == SQL_SUCCESS_WITH_INFO) {  // TODO need to check SQLSTATE = 0100C and Error_Code = 466
+        // Stored Procedures with Result Sets
+        dbStatementObject->resultSetAvailable = true;
+      }
+      else if(sqlReturnCode != SQL_SUCCESS) {
         std::string errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
         if(errorMessage.length() != 0 ){
           SetError(errorMessage);
@@ -881,7 +889,7 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo& info) {
   sqlReturnCode = SQLExecute(this->stmth);
   DEBUG(this, "SQLExecute(%d):\n", sqlReturnCode);
   //Check if errors occured
-  if(sqlReturnCode != SQL_SUCCESS) {
+  if(sqlReturnCode != SQL_SUCCESS && sqlReturnCode != SQL_SUCCESS_WITH_INFO) {  // TODO need to check SQLSTATE = 0100C and Error_Code = 466
     if(length == 1){ // callback signature function(result , error)
       std::string errorMessage = this->returnErrMsg(SQL_HANDLE_STMT);
       Napi::Error error = Napi::Error::New(env, errorMessage);
