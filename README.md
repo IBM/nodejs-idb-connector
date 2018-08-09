@@ -1,9 +1,17 @@
 # Node.js iDB Connector
 The Node.js iDB Connector is a Node.js DB2 driver open source project from IBM. 
 
+# Build
+
+	git clone git@bitbucket.org:litmis/nodejs-idb-connector.git
+    cd nodejs-idb-connector
+    npm install --build-from-source
+	
+  Note: Gcc and python are required to compile the code.   
+  
 # Installation  
 
-	npm -g i idb-connector
+	npm i idb-connector
 	
   Then you can *require('idb-connector')* in your code.   
   

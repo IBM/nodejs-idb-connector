@@ -1,47 +1,50 @@
-/* The Source code for this program is not published  or otherwise  */
-/* divested of its trade secrets,  irrespective of what has been    */
-/* deposited with the U.S. Copyright Office.                        */
+/*  The Source code for this program is not published or otherwise  
+ *  divested of its trade secrets, irrespective of what has been
+ *  deposited with the U.S. Copyright Office.                        
+*/ 
 
 #include "dbconn.h"
 #include "dbstmt.h"
+#include <napi.h>
 
-using namespace v8;
+SQLHENV envh;
 
-void CreateConnObject(const ARGUMENTS& args) {
-  DbConn::NewInstance(args);
-}
-
-void CreateStmtObject(const ARGUMENTS& args) {
-  DbStmt::NewInstance(args);
-}
-
-void InitAll(Handle<Object> exports) {
-  SQLHENV envh;
+Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
   int param = SQL_TRUE;
-  char *attr = "DB2CCSID", *ccsid = NULL;
+  char *attr = (char *)"DB2CCSID", *ccsid = NULL;
   ccsid = getenv(attr);
   if (ccsid != NULL)
     SQLOverrideCCSID400(atoi(ccsid));  //CCSID customization.
   else
     SQLOverrideCCSID400(1208); // Run under CCSID 1208(UTF-8) by default.  
-  
-  SQLRETURN rc = SQLAllocEnv( &envh );
-  if(rc != SQL_SUCCESS) {
-    /* If SQL_ERROR is returned and phenv is equal to SQL_NULL_HENV, then SQLGetDiagRec() cannot be called */
-    /* because there is no handle with which to associate additional diagnostic information. */
-    /* If the return code is SQL_ERROR and the pointer to the environment handle is not equal to */
-    /* SQL_NULL_HENV, then the handle is a restricted handle. This means the handle can only be used in a call */
-    /* to SQLGetDiagRec() to obtain more error information, or to SQLFreeEnv(). */
-    if(envh != SQL_NULL_HENV)
-      SQLFreeEnv(envh);
-    return;
+
+  // Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnaenv.htm
+  // allocates an environment handle and associated resources.
+  // There can be only one active environment at any one time per application.
+  SQLRETURN sqlReturnCode = SQLAllocEnv( &envh );
+
+  if(sqlReturnCode != SQL_SUCCESS) {
+    /* If SQL_ERROR is returned and phenv is equal to SQL_NULL_HENV, then SQLGetDiagRec() cannot be called
+     * because there is no handle with which to associate additional diagnostic information.
+     * If the return code is SQL_ERROR and the pointer to the environment handle is not equal to
+     * SQL_NULL_HENV, then the handle is a restricted handle. This means the handle can only be used in a call
+     * to SQLGetDiagRec() to obtain more error information, or to SQLFreeEnv().
+     */
+    printf("ERROR: SQLALLOCENV(%d)", sqlReturnCode); 
+    if(envh != SQL_NULL_HENV){
+        SQLFreeEnv(envh);
+    }
   }
-  rc = SQLSetEnvAttr(envh, SQL_ATTR_SERVER_MODE, &param, 0); // Enable Server Mode by default.
+  // Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnsenva.htm
+  sqlReturnCode = SQLSetEnvAttr(envh, //SQLHENV Environment handle
+                     SQL_ATTR_SERVER_MODE,// SQLINTEGER Attribute - Enable Server Mode by default
+                     &param, // SQLPOINTER Value Appropriate value for Attribute
+                     0); //SQLINTEGER StringLength of Value in bytes if the attribute value is a character string
   
-  DbConn::Init(envh);
-  DbStmt::Init();
-  NODE_SET_METHOD(exports, "dbconn", CreateConnObject);
-  NODE_SET_METHOD(exports, "dbstmt", CreateStmtObject);
+  DbConn::Init(env, exports, envh);
+  DbStmt::Init(env, exports);
+  
+  return exports;
 }
 
-NODE_MODULE(db2ia, InitAll)
+NODE_API_MODULE(db2ia, InitAll)
