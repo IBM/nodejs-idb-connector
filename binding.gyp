@@ -21,15 +21,6 @@
         '-DNAPI_DISABLE_CPP_EXCEPTIONS',
         '-I/QOpenSys/pkgs/include'
       ],
-      'conditions': [
-        [ 'target_arch=="ppc"', {
-          'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
-        }],
-        [ 'target_arch=="ppc64"', {
-          'cflags': [ '-maix64' ],
-          'ldflags': [ '-maix64' ],
-        }],
-      ],
       'ldflags': [ 
         '-Wl,-bbigtoc', 
         '-Wl,-brtl', 
