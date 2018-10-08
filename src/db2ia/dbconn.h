@@ -87,6 +87,7 @@ class DbConn : public Napi::ObjectWrap<DbConn> {
         }
         sprintf((char *)errMsg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, msg);
       }
+      Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
     }
 
     void throwErrMsg(int code, const char* msg, Napi::Env env)
