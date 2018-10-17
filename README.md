@@ -1,27 +1,17 @@
 # Node.js iDB Connector
 The Node.js iDB Connector is a Node.js DB2 driver open source project from IBM. 
-
-# Build
-
-	git clone git@bitbucket.org:litmis/nodejs-idb-connector.git
-    cd nodejs-idb-connector
-    npm install --build-from-source
-	
-  Note: Gcc and python are required to compile the code.   
   
 # Installation  
 
 	npm i idb-connector
 	
-  Then you can *require('idb-connector')* in your code.   
+Then you can _require_ in your code, as shown below.
+
+
+```js
+    var db = require('idb-connector');
+```
   
-  If you encounter below error messega:  
-  
-  	Error: Cannot find module 'idb-connector'  
-	
-  you need to add the idb-connector path:  
-  
-	export NODE_PATH=/QOpenSys/pkgs/lib/nodejs8/lib/node_modules
 
 # Quick Example
 
@@ -91,7 +81,17 @@ The Node.js iDB Connector is a Node.js DB2 driver open source project from IBM.
 ```
 
 # API Reference
-https://www.ibm.com/developerworks/community/wikis/home?lang=en#!/wiki/IBM%20i%20Technology%20Updates/page/DB2%20for%20i%20Access%20APIs%20-%20New
+[DeveloperWorks](https://www.ibm.com/developerworks/community/wikis/home?lang=en#!/wiki/IBM%20i%20Technology%20Updates/page/DB2%20for%20i%20Access%20APIs%20-%20New)
+
+# Build
+Note that building isn't necessary for end users and is more for developers looking to compile the native Node.js extensions (C code).
+
+```sh
+    git clone git@bitbucket.org:litmis/nodejs-idb-connector.git
+    cd nodejs-idb-connector
+    npm install --build-from-source
+```	
+Note: Gcc and python are required to compile the code.   
 
 # License
 MIT.  View [`LICENSE`](https://bitbucket.org/litmis/nodejs-idb-connector/src/master/LICENSE) file.

@@ -262,8 +262,8 @@ void DbConn::Conn(const Napi::CallbackInfo& info) {
   this->connected = true;
   //when length is 2 or 4 need to Make Callbacks
   if (length == 2 || length == 4) {
-    Napi::Function cb = info[ length -1 ].As<Napi::Function>();
-    cb.MakeCallback(env.Null() , {});
+    Napi::Function cb = info[length - 1].As<Napi::Function>();
+    cb.MakeCallback(env.Global(), {env.Null()});
   }
 
 }
