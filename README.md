@@ -9,7 +9,7 @@ Then you can _require_ in your code, as shown below.
 
 
 ```js
-    var db = require('idb-connector');
+    const db = require('idb-connector');
 ```
   
 
@@ -17,60 +17,60 @@ Then you can _require_ in your code, as shown below.
 
 ## Example 1: Fectching data using the exec() API
 ```js
-	var db = require('idb-connector');
-	var sSql = 'SELECT STATE FROM QIWS.QCUSTCDT';
-	var dbconn = new db.dbconn();
-	dbconn.conn("*LOCAL");
-	var stmt = new db.dbstmt(dbconn);
+    const db = require('idb-connector');
+    const sSql = 'SELECT STATE FROM QIWS.QCUSTCDT';
+    const dbconn = new db.dbconn();
+    dbconn.conn("*LOCAL");
+    const stmt = new db.dbstmt(dbconn);
 
-	stmt.exec(sSql, (x) => {
-	  console.log("%s", JSON.stringify(x));
-	  stmt.close();
-	  dbconn.disconn();
-	  dbconn.close();
-	});
+    stmt.exec(sSql, (x) => {
+      console.log("%s", JSON.stringify(x));
+      stmt.close();
+      dbconn.disconn();
+      dbconn.close();
+    });
 ```
 
 ## Example 2: Fectching data using the fetchAll() API
 ```js
-	var db = require('idb-connector');
-	var sSql = 'SELECT STATE FROM QIWS.QCUSTCDT';
-	var dbconn = new db.dbconn();
-	dbconn.conn("*LOCAL");
-	var stmt = new db.dbstmt(dbconn);
+    const db = require('idb-connector');
+    const sSql = 'SELECT STATE FROM QIWS.QCUSTCDT';
+    const dbconn = new db.dbconn();
+    dbconn.conn("*LOCAL");
+    const stmt = new db.dbstmt(dbconn);
 
-	stmt.prepare(sSql, () => {
-	  stmt.executeSync(() => {
-		stmt.fetchAll((x) => { 
-		  console.log("%s", JSON.stringify(x));
-		  stmt.close();
-		});
-	  });
-	});
+    stmt.prepare(sSql, () => {
+      stmt.execute(() => {
+        stmt.fetchAll((x) => { 
+          console.log("%s", JSON.stringify(x));
+          stmt.close();
+        });
+      });
+    });
 ```
 
 ## Example 3: Call stored procedures
 ```js
-    var db = require('idb-connector');
-    var sql = "call QXMLSERV.iPLUG512K(?,?,?,?)";
-    var dbconn = new db.dbconn();
+    const db = require('idb-connector');
+    const sql = "CALL QXMLSERV.iPLUG512K(?,?,?,?)";
+    const dbconn = new db.dbconn();
     dbconn.conn("*LOCAL");
-    var stmt = new db.dbstmt(dbconn);
+    const stmt = new db.dbstmt(dbconn);
 
-    var ipc = "*NA";
-    var ctl = "*here";
-    var xmlIn = "<xmlservice><sh>system 'wrksbs'</sh></xmlservice>";
-    var xmlOut;
-
+    const ipc = "*NA";
+    const ctl = "*here";
+    const xmlIn = "<xmlservice><sh>system 'wrksbs'</sh></xmlservice>";
+    const xmlOut = "";
+    
     stmt.prepare(sql, () => {
       stmt.bindParam([
-        [ipc, db.SQL_PARAM_INPUT, 1], // 1 -- null-terminated string
-        [ctl, db.SQL_PARAM_INPUT, 1],
-        [xmlIn, db.SQL_PARAM_INPUT, 0], // 0 -- CLOB string
-        [xmlOut, db.SQL_PARAM_OUTPUT, 0],
-      ], function(){
+        [ipc, db.SQL_PARAM_INPUT, db.BIND_STRING],
+        [ctl, db.SQL_PARAM_INPUT, db.BIND_STRING],
+        [xmlIn, db.SQL_PARAM_INPUT, db.BIND_CLOB],
+        [xmlOut, db.SQL_PARAM_OUTPUT, db.BIND_CLOB]
+      ], () => {
         stmt.execute((out) => { // 'out' is an array of output params
-          for(var i = 0; i < out.length; i++)
+          for(let i = 0; i < out.length; i++)
             console.log(out[i]);
           stmt.close();
           dbconn.disconn();

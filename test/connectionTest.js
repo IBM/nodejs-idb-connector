@@ -19,6 +19,18 @@ describe('Connection Test', () => {
       
       result = connection.isConnected();
       expect(result).to.be.false;
+      
+      // Test the callback style
+      connection.conn("*LOCAL", () => {
+        result = connection.isConnected();
+        expect(result).to.be.true;
+        
+        result = connection.disconn();
+        expect(result).to.be.true;
+        
+        result = connection.isConnected();
+        expect(result).to.be.false;
+      });
     });
   });
 
@@ -100,11 +112,13 @@ describe('Connection Test', () => {
     });
     
     it('if the SQL is invalid, validStmt() should return null', () => {
-      let sql = 'SELECT * FORM QIWS.QCUSTCDT',
-        connection = new addon.dbconn(),
-        result = connection.validStmt(sql);
-        
-      expect(result).to.equal(null);
+      try{
+        let sql = 'SELECT * FORM QIWS.QCUSTCDT',
+          connection = new addon.dbconn(),
+          result = connection.validStmt(sql);
+          
+        expect(result).to.equal(null);
+      } catch(e) { console.error(e); }
     });
   });
 
