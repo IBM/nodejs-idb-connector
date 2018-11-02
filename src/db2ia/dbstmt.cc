@@ -79,6 +79,7 @@ Napi::Object DbStmt::Init(Napi::Env env, Napi::Object exports) {
       InstanceMethod("fieldNullable", &DbStmt::FieldNullable),
 
       InstanceMethod("stmtError", &DbStmt::StmtError),
+      InstanceMethod("getStmtDiag", &DbStmt::StmtError),
       InstanceMethod("close", &DbStmt::Close),
   });
 
