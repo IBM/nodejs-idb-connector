@@ -79,6 +79,7 @@ Napi::Object DbStmt::Init(Napi::Env env, Napi::Object exports) {
       InstanceMethod("fieldNullable", &DbStmt::FieldNullable),
 
       InstanceMethod("stmtError", &DbStmt::StmtError),
+      InstanceMethod("getStmtDiag", &DbStmt::StmtError),
       InstanceMethod("close", &DbStmt::Close),
   });
 
@@ -975,7 +976,8 @@ class FetchAsyncWorker : public Napi::AsyncWorker {
       if (originalArgumentsLength == 3) { 
         int retVal = 0;
         sqlReturnCode = SQLGetStmtAttr(dbStatementObject->stmth, SQL_ATTR_CURSOR_SCROLLABLE, &retVal, 0, 0);
-
+        DEBUG(dbStatementObject, "SQLGetStmtAttr(%d) Scrollable = %d.\n", sqlReturnCode, retVal);
+        
         if(retVal == SQL_TRUE) {
           //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfetchsc.htm
           sqlReturnCode = SQLFetchScroll(dbStatementObject->stmth, //SQLHSTMT hstmt -Statement handle
@@ -1124,7 +1126,7 @@ Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo& info) {
  
     int retVal = 0;
     sqlReturnCode = SQLGetStmtAttr(this->stmth, SQL_ATTR_CURSOR_SCROLLABLE, &retVal, 0, 0);
-    DEBUG(this, "SQLGetStmtAttr(%d) orient = %d, offset = %d.\n", sqlReturnCode, orient, offset);
+    DEBUG(this, "SQLGetStmtAttr(%d) Scrollable = %d.\n", sqlReturnCode, retVal);
 
     if(retVal == SQL_TRUE) {
       sqlReturnCode = SQLFetchScroll(this->stmth, orient, offset);
@@ -1922,14 +1924,14 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
         case SQL_WCHAR :
         case SQL_WVARCHAR :
         {
-          maxColLen = dbColumn[i].colPrecise << 2;
+          maxColLen = dbColumn[i].colPrecise * 4 + 1;
           rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
           sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
         }
         break;
-        default :
+        default : // SQL_CHAR / SQL_VARCHAR
         {
-          maxColLen = dbColumn[i].colPrecise + 1;
+          maxColLen = dbColumn[i].colPrecise * 4 + 1;
           rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
           sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
         }

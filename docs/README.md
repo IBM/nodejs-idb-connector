@@ -728,6 +728,11 @@ fetch(int Orient, int Offset, function Callback(Row, Error))
 
 - **Offset:** is the row offset for relative positioning.
 
+**Note:** To use orientation `SQL_FETCH_RELATIVE` with `Offset`, the cursor must be **dynamic**.
+```javascript
+stmt.setStmtAttr(db.SQL_ATTR_CURSOR_TYPE, db.SQL_CURSOR_DYNAMIC);
+```
+
 **DB2 CLI API:** SQLFetch or SQLFetchScroll
 
 **Valid Scope:** When the result set is available.
@@ -753,7 +758,6 @@ stmt.prepare("SELECT * FROM ...", function(){
       });
 });
 ```
-
 
 ## fetchSync
 
@@ -804,6 +808,11 @@ fetchSync(int Orient, int Offset, function Callback(Row))
           - Zero, do not move the cursor.
 
 - **Offset:** is the row offset for relative positioning.
+
+**Note:** To use orientation `SQL_FETCH_RELATIVE` with `Offset`, the cursor must be **dynamic**.
+```javascript
+stmt.setStmtAttr(db.SQL_ATTR_CURSOR_TYPE, db.SQL_CURSOR_DYNAMIC);
+```
 
 **DB2 CLI API:** SQLFetch or SQLFetchScroll
 
