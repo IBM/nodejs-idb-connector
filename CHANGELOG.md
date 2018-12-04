@@ -5,6 +5,7 @@
 - Refined docs and trace for scrollable cursor
 - Added a new API stmt.getStmtDiag() as alias of stmt.stmtError()
 - Added CHANGLOG.md
+- Made buffer bigger for some unicode characters
 
 ## 1.1.4
 
