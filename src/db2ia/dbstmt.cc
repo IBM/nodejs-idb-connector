@@ -1924,14 +1924,14 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
         case SQL_WCHAR :
         case SQL_WVARCHAR :
         {
-          maxColLen = dbColumn[i].colPrecise << 2;
+          maxColLen = dbColumn[i].colPrecise * 4 + 1;
           rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
           sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
         }
         break;
-        default :
+        default : // SQL_CHAR / SQL_VARCHAR
         {
-          maxColLen = dbColumn[i].colPrecise + 1;
+          maxColLen = dbColumn[i].colPrecise * 4 + 1;
           rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
           sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
         }
