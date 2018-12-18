@@ -798,10 +798,16 @@ class ExecuteAsyncWorker : public Napi::AsyncWorker {
 
         Napi::Array results = Napi::Array::New(env); 
         dbStatementObject->fetchSp(env, &results);
-        //side effect empty [] is passed when there are no output params
-        //callback signature function(result, error)
-        callbackArguments.push_back(results);
-        callbackArguments.push_back(env.Null());
+
+        if(results.Length() > 0){
+          //callback signature function(result, error)
+          callbackArguments.push_back(results);
+          callbackArguments.push_back(env.Null());
+        } else{ // no output params to return
+          //callback signature function(result, error)
+          callbackArguments.push_back(env.Null());
+          callbackArguments.push_back(env.Null());
+        }
       }
       else{ //Paramters were not bound
         //callback signature function(result, error)
@@ -926,14 +932,25 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo& info) {
     // FetchSp gets back output params from Stored Procedures.
     this->fetchSp(env, &array);
     if(length == 1){ //callback was defined
-      //callback signature function(outParams, error)
-      callbackArguments.push_back(array);
-      callbackArguments.push_back(env.Null());
+      if(array.Length() > 0){
+        //callback signature function(outParams, error)
+        callbackArguments.push_back(array);
+        callbackArguments.push_back(env.Null());
+      } else{
+        //callback signature function(outParams, error)
+        callbackArguments.push_back(env.Null());
+        callbackArguments.push_back(env.Null());
+      }
+
       cb.MakeCallback(env.Global(), callbackArguments);
       return env.Null();
     }
     else{ //callback was not defined
-      return array;
+      if(array.Length() > 0){
+        return array;
+      } else{
+        return env.Null();
+      }
     }
     
   }
