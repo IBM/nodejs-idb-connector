@@ -103,7 +103,7 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     void freeColumnData();
     void freeColumns();
     void freeSp();
-    int bindParams(Napi::Env env, Napi::Array *params);
+    int bindParams(Napi::Env env, Napi::Array *params, std::string& error);
     int fetchSp(Napi::Env env, Napi::Array *array);
     int fetch(Napi::Env env, Napi::Object* row);
     void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt);
