@@ -1,5 +1,12 @@
 # idb-connector changelog
 
+## 1.1.6
+
+- Added alias shorthands for use during bindParams()
+- Added Add checks for value, io type and bindIndicator during bindParams()
+- Return null instead of empty [] when output params are not present, during execute()
+- Updated examples, API reference and test cases 
+
 ## 1.1.5
 
 - Refined docs and trace for scrollable cursor

@@ -21,33 +21,33 @@ Then you can _require_ in your code, as shown below.
 
 ## Example 1: Fectching data using the exec() API
 ```js
-    const db = require('idb-connector');
+    const {dbconn, dbstmt} = require('idb-connector');
     const sSql = 'SELECT STATE FROM QIWS.QCUSTCDT';
-    const dbconn = new db.dbconn();
-    dbconn.conn("*LOCAL");
-    const stmt = new db.dbstmt(dbconn);
+    const connection = new dbconn();
+    connection.conn("*LOCAL");
+    const statement = new dbstmt(connection);
 
-    stmt.exec(sSql, (x) => {
+    statement.exec(sSql, (x) => {
       console.log("%s", JSON.stringify(x));
-      stmt.close();
-      dbconn.disconn();
-      dbconn.close();
+      statement.close();
+      connection.disconn();
+      connection.close();
     });
 ```
 
 ## Example 2: Fectching data using the fetchAll() API
 ```js
-    const db = require('idb-connector');
+    const {dbconn, dbstmt} = require('idb-connector');
     const sSql = 'SELECT STATE FROM QIWS.QCUSTCDT';
-    const dbconn = new db.dbconn();
-    dbconn.conn("*LOCAL");
-    const stmt = new db.dbstmt(dbconn);
+    const connection = new dbconn();
+    connection.conn("*LOCAL");
+    const statement = new dbstmt(connection);
 
-    stmt.prepare(sSql, () => {
-      stmt.execute(() => {
-        stmt.fetchAll((x) => { 
+    statement.prepare(sSql, () => {
+      statement.execute(() => {
+        statement.fetchAll((x) => { 
           console.log("%s", JSON.stringify(x));
-          stmt.close();
+          statement.close();
         });
       });
     });
@@ -55,30 +55,31 @@ Then you can _require_ in your code, as shown below.
 
 ## Example 3: Call stored procedures
 ```js
-    const db = require('idb-connector');
+    const idb = require('idb-connector'),
+      {dbconn, dbstmt, IN, OUT, CHAR, CLOB} = idb;
     const sql = "CALL QXMLSERV.iPLUG512K(?,?,?,?)";
-    const dbconn = new db.dbconn();
-    dbconn.conn("*LOCAL");
-    const stmt = new db.dbstmt(dbconn);
+    const connection = new dbconn();
+    connection.conn("*LOCAL");
+    const statement = new dbstmt(connection);
 
     const ipc = "*NA";
     const ctl = "*here";
     const xmlIn = "<xmlservice><sh>system 'wrksbs'</sh></xmlservice>";
     const xmlOut = "";
     
-    stmt.prepare(sql, () => {
-      stmt.bindParam([
-        [ipc, db.SQL_PARAM_INPUT, db.BIND_STRING],
-        [ctl, db.SQL_PARAM_INPUT, db.BIND_STRING],
-        [xmlIn, db.SQL_PARAM_INPUT, db.BIND_CLOB],
-        [xmlOut, db.SQL_PARAM_OUTPUT, db.BIND_CLOB]
+    statement.prepare(sql, () => {
+      statement.bindParam([
+        [ipc, IN, CHAR],
+        [ctl, IN, CHAR],
+        [xmlIn, IN, CLOB],
+        [xmlOut, OUT, CLOB]
       ], () => {
-        stmt.execute((out) => { // 'out' is an array of output params
+        statement.execute((out) => { // 'out' is an array of output params
           for(let i = 0; i < out.length; i++)
             console.log(out[i]);
-          stmt.close();
-          dbconn.disconn();
-          dbconn.close();
+          statement.close();
+          connection.disconn();
+          connection.close();
         });
       });
     });
