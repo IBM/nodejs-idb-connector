@@ -611,12 +611,13 @@ class BindParamAsyncWorker : public Napi::AsyncWorker {
       Napi::HandleScope scope(Env());
       Napi::Array array = this->parametersToBind.Value();
       std::vector<napi_value> callbackArguments;
+      std::string error;
 
-      int returnCode = dbStatementObject->bindParams(env, &array);
+      int returnCode = dbStatementObject->bindParams(env, &array, error);
       //check if errors Occured.
       if(returnCode != 0){
         //callback signature function(error)
-        callbackArguments.push_back(Napi::Error::New(env, "Failed To Bind Parameters").Value());
+        callbackArguments.push_back(Napi::Error::New(env, error).Value());
         Callback().Call(callbackArguments);
         return;
       }
@@ -690,6 +691,7 @@ void DbStmt::BindParamSync(const Napi::CallbackInfo& info) {
   int length = info.Length();
   Napi::Function cb;
   std::vector<napi_value> callbackArguments;
+  std::string errorMsg;
   
   DEBUG(this, "BindParamSync().\n");
 
@@ -703,12 +705,11 @@ void DbStmt::BindParamSync(const Napi::CallbackInfo& info) {
 
   Napi::Array parametersToBind = info[0].As<Napi::Array>();
   // Errors are checked for and thrown in this->bindParams
-  int returnCode = this->bindParams(env, &parametersToBind);
+  int returnCode = this->bindParams(env, &parametersToBind, errorMsg);
   DEBUG(this, "bindParams(%d)\n" , returnCode);
   //check if an error occured while binding
   if(returnCode != 0){
-    DEBUG(this, "Error During BindSync.\n");
-    Napi::Error error = Napi::Error::New(env, "Failed To Bind Parameters");
+    Napi::Error error = Napi::Error::New(env, errorMsg);
     if(length == 2){
       //callback signature function(error)
       callbackArguments.push_back(error.Value());
@@ -798,10 +799,16 @@ class ExecuteAsyncWorker : public Napi::AsyncWorker {
 
         Napi::Array results = Napi::Array::New(env); 
         dbStatementObject->fetchSp(env, &results);
-        //side effect empty [] is passed when there are no output params
-        //callback signature function(result, error)
-        callbackArguments.push_back(results);
-        callbackArguments.push_back(env.Null());
+
+        if(results.Length() > 0){
+          //callback signature function(result, error)
+          callbackArguments.push_back(results);
+          callbackArguments.push_back(env.Null());
+        } else{ // no output params to return
+          //callback signature function(result, error)
+          callbackArguments.push_back(env.Null());
+          callbackArguments.push_back(env.Null());
+        }
       }
       else{ //Paramters were not bound
         //callback signature function(result, error)
@@ -926,14 +933,25 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo& info) {
     // FetchSp gets back output params from Stored Procedures.
     this->fetchSp(env, &array);
     if(length == 1){ //callback was defined
-      //callback signature function(outParams, error)
-      callbackArguments.push_back(array);
-      callbackArguments.push_back(env.Null());
+      if(array.Length() > 0){
+        //callback signature function(outParams, error)
+        callbackArguments.push_back(array);
+        callbackArguments.push_back(env.Null());
+      } else{
+        //callback signature function(outParams, error)
+        callbackArguments.push_back(env.Null());
+        callbackArguments.push_back(env.Null());
+      }
+
       cb.MakeCallback(env.Global(), callbackArguments);
       return env.Null();
     }
     else{ //callback was not defined
-      return array;
+      if(array.Length() > 0){
+        return array;
+      } else{
+        return env.Null();
+      }
     }
     
   }
@@ -2038,11 +2056,12 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
     }
   }
 
-  int DbStmt::bindParams(Napi::Env env, Napi::Array *params) {
+  int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string& error) {
 
     Napi::Array object;
-    int bindIndicator;
+    int bindIndicator, io;
     SQLRETURN sqlReturnCode;
+    Napi::Value ioValue, bindValue;
     freeSp();
     
     paramCount = params->Length();
@@ -2051,10 +2070,31 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
     for(SQLSMALLINT i = 0; i < paramCount; i++) {
 
       object = params->Get(i).As<Napi::Array>();  //Get a  ? parameter from the array.
-      
-      param[i].io = object.Get(1).ToNumber().Int32Value();  //Get the parameter In/Out type. // MI these were all -> before
-      bindIndicator = object.Get(2).ToNumber().Int32Value();  //Get the indicator(str/int). // MI these were all -> before
-      
+      ioValue = object.Get(1);
+      bindValue = object.Get(2);
+
+      //validate io
+      if(! ioValue.IsNumber()){
+        error =  "IO TYPE OF PARAMETER " + std::to_string(i+1) + " IS INVALID";
+        return -1;
+      }
+
+      io = ioValue.ToNumber().Int32Value();  //convert from Napi::Value to an int
+
+      if(io != SQL_PARAM_INPUT && io != SQL_PARAM_OUTPUT && io != SQL_PARAM_INPUT_OUTPUT){
+        error =  "IO TYPE OF PARAMETER " + std::to_string(i+1) + " IS INVALID. SHOULD EQUAL PARAM INPUT, OUTPUT, OR INPUT_OUTPUT";
+        return -1;
+      }
+
+      //validate bindIndicator
+      if(! bindValue.IsNumber()){
+        error =  "BIND INDICATOR TYPE OF PARAMETER " + std::to_string(i+1) + " IS INVALID\n";
+        return -1;
+      }
+
+      param[i].io = io;
+      bindIndicator = bindValue.ToNumber().Int32Value();  //convert from Napi::Value to an int
+
       //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfndescprm.htm
       sqlReturnCode = SQLDescribeParam(
                           stmth, //SQLHSTMT StatementHandle 
@@ -2066,11 +2106,18 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
 
       if (sqlReturnCode != SQL_SUCCESS){
         DEBUG(this,"SQLDescribeParam(%d)\n", sqlReturnCode)
+        error = "SQLDescribeParm FAILED\n" + this->returnErrMsg(SQL_HANDLE_STMT);
         return -1;
       }    
       Napi::Value value = object.Get((uint32_t)0); // have to cast otherwise it complains about ambiguity
       
-      if(bindIndicator == 0 || bindIndicator == 1) { //Parameter is string 
+      //validate the value is not undefined
+      if(value.IsUndefined()){ // if value is undefined convert it to null
+        error =  "VALUE OF PARAMETER " + std::to_string(i+1) + " IS UNDEFINED\n";
+        return -1;
+      }
+
+      if(bindIndicator == 0 || bindIndicator == 1) { //Parameter is string or clob
         std::string string = value.ToString().Utf8Value();
         const char* cString = string.c_str();
         param[i].valueType = SQL_C_CHAR;
@@ -2103,11 +2150,11 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
         param[i].buf = number;
         param[i].ind = 0;
       }
-      else if(bindIndicator == 3) { //Parameter is NULL
+      else if(bindIndicator == 3 || value.IsNull()) { //Parameter is NULL
         param[i].valueType = SQL_C_DEFAULT;
         param[i].ind = SQL_NULL_DATA;
       }
-      else if(value.IsNumber() || bindIndicator == 4) { //Parameter is Decimal
+      else if(bindIndicator == 4 || value.IsNumber()) { //Parameter is Decimal
         double *number = (double*)malloc(sizeof(double));
         *number = value.ToNumber();
         param[i].valueType = SQL_C_DOUBLE;
@@ -2116,15 +2163,14 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
         param[i].decDigits = 7;
         param[i].paramSize = sizeof(double);
       }
-      else if(value.IsBoolean() || bindIndicator == 5) { //Parameter is Boolean
+      else if(bindIndicator == 5 || value.IsBoolean()) { //Parameter is Boolean
         bool *boolean = (bool*)malloc(sizeof(bool));
         *boolean = value.ToBoolean();
         param[i].valueType = SQL_C_BIT;
         param[i].buf = boolean;
         param[i].ind = 0;
       }
-      
-      else if(value.IsBuffer() || bindIndicator == SQL_BINARY || bindIndicator == SQL_BLOB){ //Parameter is blob/binary
+      else if(bindIndicator == SQL_BINARY || bindIndicator == SQL_BLOB || value.IsBuffer()){ //Parameter is blob/binary
         //convert into Napi::Buffer
         Napi::Buffer<char> buffer = value.As<Napi::Buffer<char>>();
         int bufferLength = buffer.Length();
@@ -2133,6 +2179,10 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
         char* bufferPtr = buffer.Data();
         param[i].buf = bufferPtr;
         param[i].ind = bufferLength;  
+      }
+      else{ //bindIndicator did not match any cases
+        error =  "BIND INDICATOR FOR PARAMETER " + std::to_string(i+1) + "IS INVALID\n";
+        return -1;
       }
       //link to doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnbndpm.htm
       sqlReturnCode = SQLBindParameter(
@@ -2150,6 +2200,7 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
       DEBUG(this,"SQLBindParameter(%d) TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d] INDEX[%i]\n", sqlReturnCode, param[i].paramType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind, i)
       
       if (sqlReturnCode != SQL_SUCCESS){
+        error = "SQLBindParmeter FAILED\n" + this->returnErrMsg(SQL_HANDLE_STMT);
         return -1;
       }
         
