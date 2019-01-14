@@ -1,5 +1,10 @@
 # idb-connector changelog
 
+## 1.1.7
+
+- Fixed the connection failure(#52) with user/password provided
+- Updated some test cases
+
 ## 1.1.6
 
 - Added alias shorthands for use during bindParams()
