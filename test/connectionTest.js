@@ -1,6 +1,8 @@
 const expect = require('chai').expect;
 const db2a = require('../lib/db2a');
 const {dbconn} = db2a;
+const username = process.env.DBNAME;
+const password = process.env.DBPWD;
 
 // Test connection Class
 describe('Connection Test', () => {
@@ -31,6 +33,33 @@ describe('Connection Test', () => {
         expect(result).to.be.false;
       });
     });
+    if(username && password) {
+      it('disconnects an exsisting connection to the datbase with user/pwd.', () => {
+        // Test with username/password
+        let connection = new dbconn(),
+          result = connection.conn("*LOCAL", username, password);
+        result = connection.isConnected();
+        expect(result).to.be.true;
+
+        result = connection.disconn();
+        expect(result).to.be.true;
+
+        result = connection.isConnected();
+        expect(result).to.be.false;
+
+        // Test the callback style
+        connection.conn("*LOCAL", username, password, () => {
+          result = connection.isConnected();
+          expect(result).to.be.true;
+
+          result = connection.disconn();
+          expect(result).to.be.true;
+
+          result = connection.isConnected();
+          expect(result).to.be.false;
+        });
+      });
+    }
   });
 
   //if successful returns String or Int depending on attribute
@@ -116,7 +145,7 @@ describe('Connection Test', () => {
           result = connection.validStmt(sql);
 
         expect(result).to.equal(null);
-      } catch (e) { console.error(e); }
+      } catch (e) { }
     });
   });
 
