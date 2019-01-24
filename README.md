@@ -86,20 +86,20 @@ Then you can _require_ in your code, as shown below.
 ```
 
 # API Reference
-[DB2 for i Access APIs](https://bitbucket.org/litmis/nodejs-idb-connector/src/master/docs/README.md)
+[DB2 for i Access APIs](https://github.com/IBM/nodejs-idb-connector/blob/master/docs/README.md)
 
 # Change Log
-View [`CHANGELOG.md`](https://bitbucket.org/litmis/nodejs-idb-connector/src/master/CHANGELOG.md) file.
+View [`CHANGELOG.md`](https://github.com/IBM/nodejs-idb-connector/blob/master/CHANGELOG.md) file.
 
 # Build
 Note that building isn't necessary for end users and is more for developers looking to compile the native Node.js extensions (C code).
 
 ```sh
-    git clone git@bitbucket.org:litmis/nodejs-idb-connector.git
+    git clone git@github.com:IBM/nodejs-idb-connector.git
     cd nodejs-idb-connector
     npm install --build-from-source
 ```	
 Note: Gcc and python are required to compile the code.   
 
 # License
-MIT.  View [`LICENSE`](https://bitbucket.org/litmis/nodejs-idb-connector/src/master/LICENSE) file.
+MIT.  View [`LICENSE`](https://github.com/IBM/nodejs-idb-connector/blob/master/LICENSE) file.
