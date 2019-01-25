@@ -1,8 +1,56 @@
 # DB2 for i Access APIs - idb-connector
 
-
-[//]: # (TOC built in macro on BB makes table of contents)
-[TOC]
+- [DB2 for i Access APIs - idb-connector](#db2-for-i-access-apis---idb-connector)
+- [Introduction](#introduction)
+  - [Install](#install)
+- [Examples](#examples)
+    - [Async Exec](#async-exec)
+    - [Sync Exec](#sync-exec)
+    - [Async Prepare Bind Execute](#async-prepare-bind-execute)
+    - [Sync Prepare Bind Execute](#sync-prepare-bind-execute)
+    - [Async Fetch](#async-fetch)
+    - [Sync Fetch](#sync-fetch)
+    - [Async FetchAll](#async-fetchall)
+    - [Sync FetchAll](#sync-fetchall)
+- [Class: dbconn](#class-dbconn)
+  - [Contructor: dbconn()](#contructor-dbconn)
+  - [dbconn.setConnAttr(attribute, value)](#dbconnsetconnattrattribute-value)
+  - [dbconn.getConnAttr(attribute)](#dbconngetconnattrattribute)
+  - [dbconn.conn(database)](#dbconnconndatabase)
+  - [dbconn.disconn()](#dbconndisconn)
+  - [dbconn.close()](#dbconnclose)
+  - [dbconn.debug(flag)](#dbconndebugflag)
+  - [dbconn.validStmt(sql)](#dbconnvalidstmtsql)
+- [Class dbstmt](#class-dbstmt)
+  - [Constructor: dbstmt(connection)](#constructor-dbstmtconnection)
+  - [dbstmt.setStmtAttr(attribute, value)](#dbstmtsetstmtattrattribute-value)
+  - [dbstmt.getStmtAttr()](#dbstmtgetstmtattr)
+  - [dbstmt.exec(sql, callback)](#dbstmtexecsql-callback)
+  - [dbstmt.execSync(sql [, callback])](#dbstmtexecsyncsql--callback)
+  - [dbstmt.prepare(sql, callback)](#dbstmtpreparesql-callback)
+  - [dbstmt.prepareSync(sql [, callback])](#dbstmtpreparesyncsql--callback)
+  - [dbstmt.bindParam(params, callback)](#dbstmtbindparamparams-callback)
+  - [dbstmt.bindParamSync(params [, callback])](#dbstmtbindparamsyncparams--callback)
+  - [dbstmt.execute(callback)](#dbstmtexecutecallback)
+  - [dbstmt.executeSync([callback])](#dbstmtexecutesynccallback)
+  - [dbstmt.nextResult()](#dbstmtnextresult)
+  - [dbstmt.commit()](#dbstmtcommit)
+  - [dbstmt.rollback()](#dbstmtrollback)
+  - [dbstmt.closeCursor()](#dbstmtclosecursor)
+  - [dbstmt.close()](#dbstmtclose)
+  - [dbstmt.fetch([orient,] [offset,] callback)](#dbstmtfetchorient-offset-callback)
+  - [dbstmt.fetchSync()](#dbstmtfetchsync)
+  - [dbstmt.fetchAll(callback)](#dbstmtfetchallcallback)
+  - [dbstmt.fetchAllSync([callback])](#dbstmtfetchallsynccallback)
+  - [dbstmt.numFields()](#dbstmtnumfields)
+  - [dbstmt.numRows()](#dbstmtnumrows)
+  - [dbstmt.fieldType(index)](#dbstmtfieldtypeindex)
+  - [dbstmt.fieldWidth(index)](#dbstmtfieldwidthindex)
+  - [dbstmt.fieldNullable(index)](#dbstmtfieldnullableindex)
+  - [dbstmt.fieldName(index)](#dbstmtfieldnameindex)
+  - [dbstmt.fieldPrecise(index)](#dbstmtfieldpreciseindex)
+  - [dbstmt.fieldScale(index)](#dbstmtfieldscaleindex)
+  - [dbstmt.stmtError(callback)](#dbstmtstmterrorcallback)
 ___
 # Introduction
 
@@ -18,14 +66,12 @@ ___
 
 Build from source
 
-- `git clone https://bitbucket.org/litmis/nodejs-idb-connector.git`
+- `git clone https://github.com/IBM/nodejs-idb-connector.git`
 - `cd nodejs-idb-connector`
 - `npm install --build-from-source`
 ___
 # Examples
-[//]: # (On BB headers are prefixed by #markdown-header)
-[//]: # (Also the title of the header are made lower case)
-[//]: # (So to link to Async Exec header: #markdown-header-async-exec)
+
 ### Async Exec
 
 
@@ -553,7 +599,7 @@ setStmtAttr(attribute, value)
 **Valid Scope:** After allocating the statement handler.
 ___
 
-## dbstmt.getStmtAttr
+## dbstmt.getStmtAttr()
 
 **Description:**
 
@@ -602,7 +648,7 @@ exec(sql,callback)
 
 **Valid Scope:** After calling the `conn` function.
 
-**Example:** [Here](#markdown-header-async-exec)
+**Example:** [Here](#async-exec)
 
 ___
 
@@ -648,7 +694,7 @@ execSync(sql, callback(resultSet, error))
 
 **Valid Scope:** After calling the conn() function.
 
-**Example:** [Here](#markdown-header-sync-exec)
+**Example:** [Here](#sync-exec)
 
 ___
 
@@ -684,7 +730,7 @@ If the statement handler has been used with a SELECT statement,
 
 - Before calling the execute() or bindParam() function.
 
-**Example:** [Here](#markdown-header-async-prepare-bind-execute)
+**Example:** [Here](#async-prepare-bind-execute)
 ___
 
 ## dbstmt.prepareSync(sql [, callback])
@@ -730,7 +776,7 @@ If the statement handler has been used with a SELECT statement
 
 - Before calling the `executeSync` or `bindParamSync` function.
 
-**Example:** [Here](#markdown-header-sync-prepare-bind-execute)
+**Example:** [Here](#sync-prepare-bind-execute)
 
 ___
 
@@ -787,7 +833,7 @@ bindParam(params, callback)
 
 **Valid Scope:** In the callback function of the `prepare` function.
 
-**Example:** [Here](#markdown-header-async-prepare-bind-execute)
+**Example:** [Here](#async-prepare-bind-execute)
 
 ___
 
@@ -803,7 +849,7 @@ bindParamSync(params)
 
 **Parmeters:**
 
-- **params**: as described in [bindParam](#dbstmt.bindParam())
+- **params**: as described in [bindParam](#dbstmtbindparamparams-callback)
 
 **Returns:**
 
@@ -815,14 +861,14 @@ bindParamSync(params, callback)
 
 **Parameters**
 
-- **params**: as described in [bindParam()](#dbstmt.bindParam())
+- **params**: as described in [bindParam](#dbstmtbindparamparams-callback)
 
 
 - **callback(error)**: `function` to process after `bindParamSync` is complete.
      - **error**: `Error object` when `bindParamSync` is unsuccessful. Otherwise `error` is set to `null`.
 
 
-**Example:** [Here](#markdown-header-sync-prepare-bind-execute)
+**Example:** [Here](#sync-prepare-bind-execute)
 
 **DB2 CLI API:** SQLBindParameter
 
@@ -856,7 +902,7 @@ execute(callback(outputParams, error))
 
 **Valid Scope:** In the callback function of the `prepare` or `bindParam` function.
 
-**Example:** [Here](#markdown-header-async-prepare-bind-execute)
+**Example:** [Here](#async-prepare-bind-execute)
 
 ___
 
@@ -894,7 +940,7 @@ If the statement also returns a result set, user can issue the `fetch` function 
 
 **Valid Scope:** After calling the prepareSync() function.
 
-**Example:** [Here](#markdown-header-sync-prepare-bind-execute)
+**Example:** [Here](#sync-prepare-bind-execute)
 ___
 
 ## dbstmt.nextResult()
@@ -1059,7 +1105,7 @@ fetch(orient, offset, callback)
 
 **Valid Scope:** When the result set is available.
 
-**Example:** [Here](#markdown-header-async-fetch)
+**Example:** [Here](#async-fetch)
 
 ___
 
@@ -1100,7 +1146,7 @@ fetchSync(int Orient, int Offset, function Callback(Row))
 
 **Valid Scope:** When the result set is available.
 
-**Example:** [Here](#markdown-header-sync-fetch)
+**Example:** [Here](#sync-fetch)
 
 ## dbstmt.fetchAll(callback)
 
@@ -1124,7 +1170,7 @@ fetchAll(callback)
 
 **Valid Scope:** When the result set is available.
 
-**Example:** [Here](#markdown-header-async-fetchAll)
+**Example:** [Here](#async-fetchAll)
 ___
 
 ## dbstmt.fetchAllSync([callback])
@@ -1154,7 +1200,7 @@ fetchAllSync(callback)
      
      - **error**: `Error object` when `fetchAllSync` is unsuccessful. Otherwise `error` is set to `null`.
 
-**Example:** [Here](#markdown-header-sync-fetchAll)
+**Example:** [Here](#sync-fetchAll)
 
 
 **DB2 CLI API:** SQLFetch

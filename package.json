@@ -1,7 +1,10 @@
 {
   "name": "idb-connector",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "A Node.js DB2 driver for IBM i",
+  "os": [
+    "aix"
+  ],
   "main": "lib/db2a.js",
   "directories": {
     "lib": "lib",
@@ -13,7 +16,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@bitbucket.org/litmis/nodejs-idb-connector.git"
+    "url": "git+ssh://git@github.com/IBM/nodejs-idb-connector.git"
   },
   "keywords": [
     "DB2",
@@ -24,7 +27,7 @@
   "author": "IBM",
   "license": "MIT",
   "gypfile": true,
-  "homepage": "https://bitbucket.org/litmis/nodejs-idb-connector#readme",
+  "homepage": "https://github.com/IBM/nodejs-idb-connector",
   "contributors": [
     {
       "name": "Xu Meng",
@@ -54,8 +57,8 @@
   "binary": {
     "module_name": "db2ia",
     "module_path": "./lib/binding/{configuration}/{node_abi}-ibmi-{arch}/",
-    "remote_path": ".",
+    "remote_path": "./{version}/",
     "package_name": "{module_name}-v{version}-{node_abi}-ibmi-{arch}.tar.gz",
-    "host": "https://bitbucket.org/litmis/nodejs-idb-connector/downloads"
+    "host": "https://github.com/IBM/nodejs-idb-connector/releases/download"
   }
 }

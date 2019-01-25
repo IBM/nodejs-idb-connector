@@ -1,5 +1,10 @@
 # idb-connector changelog
 
+## 1.1.8
+
+- Skip build unless installing on IBM i(#54)
+- Moved the repository to GitHub
+
 ## 1.1.7
 
 - Fixed the connection failure(#52) with user/password provided
