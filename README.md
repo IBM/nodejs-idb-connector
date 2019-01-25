@@ -19,7 +19,7 @@ Then you can _require_ in your code, as shown below.
 
 # Quick Example
 
-## Example 1: Fectching data using the exec() API
+## Example 1: Fetching data using the exec() API
 ```js
     const {dbconn, dbstmt} = require('idb-connector');
     const sSql = 'SELECT STATE FROM QIWS.QCUSTCDT';
@@ -35,7 +35,7 @@ Then you can _require_ in your code, as shown below.
     });
 ```
 
-## Example 2: Fectching data using the fetchAll() API
+## Example 2: Fetching data using the fetchAll() API
 ```js
     const {dbconn, dbstmt} = require('idb-connector');
     const sSql = 'SELECT STATE FROM QIWS.QCUSTCDT';
