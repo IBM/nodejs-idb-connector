@@ -1,6 +1,6 @@
-# Node.js iDB Connector
+# Node.js iDB Connector for IBM i
 
-#### The Node.js iDB Connector is a Node.js DB2 driver open source project from IBM. 
+#### The Node.js iDB Connector is an IBM i Node.js DB2 driver open source project from IBM. 
 
 [![NPM](https://nodei.co/npm/idb-connector.png?downloads=true&downloadRank=true)](https://nodei.co/npm/idb-connector/)
 
