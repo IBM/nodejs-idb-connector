@@ -9,6 +9,8 @@
 ```sh
     npm i idb-connector
 ```
+**NOTE** This package only installs on IBM i systems.
+
 Then you can _require_ in your code, as shown below.
 
 
