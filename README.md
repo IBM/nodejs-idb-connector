@@ -1,6 +1,6 @@
 # Node.js iDB Connector for IBM i
 
-#### The Node.js iDB Connector is an IBM i Node.js DB2 driver open source project from IBM. 
+#### The Node.js iDB Connector is an IBM i Node.js Db2 driver open source project from IBM. 
 
 [![NPM](https://nodei.co/npm/idb-connector.png?downloads=true&downloadRank=true)](https://nodei.co/npm/idb-connector/)
 
@@ -86,7 +86,7 @@ Then you can _require_ in your code, as shown below.
 ```
 
 # API Reference
-[DB2 for i Access APIs](https://github.com/IBM/nodejs-idb-connector/blob/master/docs/README.md)
+[Db2 for i Access APIs](https://github.com/IBM/nodejs-idb-connector/blob/master/docs/README.md)
 
 # Change Log
 View [`CHANGELOG.md`](https://github.com/IBM/nodejs-idb-connector/blob/master/CHANGELOG.md) file.
