@@ -9,6 +9,7 @@
             },
             'conditions': [
               [ '"<(os_name)"=="OS400"', {
+                # Here we know we are really on IBM i
                 'include_dirs': [
                   'src/db2ia',
                   '/usr/include',
@@ -43,6 +44,12 @@
             ]
         }],
       ],
+      # When not on IBM i the following builds the dummy package
+      # os: property in package.json should prevent us from building this dummy
+      # unless when really on AIX or os is being ignored by npm bug
+      # https://github.com/silverwind/default-gateway/issues/10
+      # https://npm.community/t/npm-ci-ignores-the-os-field-of-package-json/5607
+
       'include_dirs': [
         'src/db2ia',
         "<!@(node -p \"require('node-addon-api').include\")"
