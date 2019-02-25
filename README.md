@@ -104,4 +104,7 @@ Note that building isn't necessary for end users and is more for developers look
 Note: Gcc and python are required to compile the code.   
 
 # License
-MIT.  View [`LICENSE`](https://github.com/IBM/nodejs-idb-connector/blob/master/LICENSE) file.
+[`MIT`](https://github.com/IBM/nodejs-idb-connector/blob/master/LICENSE)
+
+# **Contributing**
+Please read the [contribution guidelines](https://github.com/IBM/nodejs-idb-pconnector/blob/master/CONTRIBUTING.md).
