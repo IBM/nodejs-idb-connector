@@ -1,5 +1,10 @@
 # idb-connector changelog
 
+## 1.1.9
+
+- Guard bindings.gyp and build dummy when not on IBM i(#58)
+- Clearly state it is not usable on any platform except IBM i(#57)
+
 ## 1.1.8
 
 - Skip build unless installing on IBM i(#54)
