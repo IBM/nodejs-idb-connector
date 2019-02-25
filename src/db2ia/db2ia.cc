@@ -3,13 +3,19 @@
  *  deposited with the U.S. Copyright Office.                        
 */ 
 
-#include "dbconn.h"
-#include "dbstmt.h"
 #include <napi.h>
 
+#ifdef __PASE__
+
+#include "dbconn.h"
+#include "dbstmt.h"
 SQLHENV envh;
 
+#endif
+
+
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
+  #ifdef __PASE__
   int param = SQL_TRUE;
   char *attr = (char *)"DB2CCSID", *ccsid = NULL;
   ccsid = getenv(attr);
@@ -43,7 +49,9 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
   
   DbConn::Init(env, exports, envh);
   DbStmt::Init(env, exports);
+  #endif
   
+  // when not on PASE return a dummy object
   return exports;
 }
 

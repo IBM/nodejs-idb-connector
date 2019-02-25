@@ -1,6 +1,6 @@
-# Node.js iDB Connector
+# Node.js iDB Connector for IBM i
 
-#### The Node.js iDB Connector is a Node.js DB2 driver open source project from IBM. 
+#### The Node.js iDB Connector is an IBM i Node.js Db2 driver open source project from IBM. 
 
 [![NPM](https://nodei.co/npm/idb-connector.png?downloads=true&downloadRank=true)](https://nodei.co/npm/idb-connector/)
 
@@ -9,6 +9,8 @@
 ```sh
     npm i idb-connector
 ```
+**NOTE** This package only installs on IBM i systems.
+
 Then you can _require_ in your code, as shown below.
 
 
@@ -19,7 +21,7 @@ Then you can _require_ in your code, as shown below.
 
 # Quick Example
 
-## Example 1: Fectching data using the exec() API
+## Example 1: Fetching data using the exec() API
 ```js
     const {dbconn, dbstmt} = require('idb-connector');
     const sSql = 'SELECT STATE FROM QIWS.QCUSTCDT';
@@ -35,7 +37,7 @@ Then you can _require_ in your code, as shown below.
     });
 ```
 
-## Example 2: Fectching data using the fetchAll() API
+## Example 2: Fetching data using the fetchAll() API
 ```js
     const {dbconn, dbstmt} = require('idb-connector');
     const sSql = 'SELECT STATE FROM QIWS.QCUSTCDT';
@@ -86,7 +88,7 @@ Then you can _require_ in your code, as shown below.
 ```
 
 # API Reference
-[DB2 for i Access APIs](https://github.com/IBM/nodejs-idb-connector/blob/master/docs/README.md)
+[Db2 for i Access APIs](https://github.com/IBM/nodejs-idb-connector/blob/master/docs/README.md)
 
 # Change Log
 View [`CHANGELOG.md`](https://github.com/IBM/nodejs-idb-connector/blob/master/CHANGELOG.md) file.
