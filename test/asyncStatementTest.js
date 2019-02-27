@@ -1,17 +1,17 @@
-const expect = require('chai').expect;
+const {expect} = require('chai');
 const db2a = require('../lib/db2a');
-const {OUT, IN, CHAR, CLOB, NUMERIC, dbstmt, dbconn} = db2a;
 
-//Test Statement Class Async Methods
+const {
+  OUT, IN, CHAR, CLOB, NUMERIC, dbstmt, dbconn,
+} = db2a;
+// Test Statement Class Async Methods
 describe('Statement Async Test', () => {
   describe('async prepare', () => {
     it('Prepares valid SQL and sends it to the DBMS, if fail, error is returned. ', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn(),
-        dbStmt;
-
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
       dbConn.conn('*LOCAL');
-      dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepare(sql, (error) => {
         if (error) {
@@ -25,30 +25,28 @@ describe('Statement Async Test', () => {
 
   describe('async bindParams', () => {
     it('associate parameter markers in an SQL statement to app variables', (done) => {
-      let sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ',
-        dbConn = new dbconn(),
-        dbConn2 = new dbconn(),
-        dbStmt,
-        dbStmt2;
+      const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
+      const dbConn = new dbconn();
+      const dbConn2 = new dbconn();
 
       dbConn.conn('*LOCAL');
       dbConn2.conn('*LOCAL');
 
-      dbStmt = new dbstmt(dbConn),
-      dbStmt2 = new dbstmt(dbConn2);
+      let dbStmt = new dbstmt(dbConn);
+      const dbStmt2 = new dbstmt(dbConn2);
 
-      let params = [
-        [9997, IN, NUMERIC], //CUSNUM
-        ['Doe', IN, CHAR], //LASTNAME
-        ['J D', IN, CHAR], //INITIAL
-        ['123 Broadway', IN, CHAR], //ADDRESS
-        ['Hope', IN, CHAR], //CITY
-        ['WA', IN, CHAR], //STATE
-        [98101, IN, NUMERIC], //ZIP
-        [2000, IN, NUMERIC], //CREDIT LIMIT
+      const params = [
+        [9997, IN, NUMERIC], // CUSNUM
+        ['Doe', IN, CHAR], // LASTNAME
+        ['J D', IN, CHAR], // INITIAL
+        ['123 Broadway', IN, CHAR], // ADDRESS
+        ['Hope', IN, CHAR], // CITY
+        ['WA', IN, CHAR], // STATE
+        [98101, IN, NUMERIC], // ZIP
+        [2000, IN, NUMERIC], // CREDIT LIMIT
         [1, IN, NUMERIC], // change
-        [250, IN, NUMERIC], //BAL DUE
-        [0.00, IN, NUMERIC] //CREDIT DUE
+        [250, IN, NUMERIC], // BAL DUE
+        [0.00, IN, NUMERIC], // CREDIT DUE
       ];
 
       dbStmt.exec('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT', (result, error) => {
@@ -75,16 +73,17 @@ describe('Statement Async Test', () => {
               expect(error).to.be.null;
               dbStmt2.close();
               dbStmt = new dbstmt(dbConn);
-              dbStmt.exec('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT', (result, error) => {
-                if (error) {
-                  throw error;
-                }
-                let rowsAfter = result[0]['00001'];
-                rowsAfter = Number(rowsAfter);
-                dbStmt.close();
-                expect(rowsAfter).to.equal(rowsBefore + 1);
-                done();
-              });
+              dbStmt.exec('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT',
+                (result, error) => {
+                  if (error) {
+                    throw error;
+                  }
+                  let rowsAfter = result[0]['00001'];
+                  rowsAfter = Number(rowsAfter);
+                  dbStmt.close();
+                  expect(rowsAfter).to.equal(rowsBefore + 1);
+                  done();
+                });
             });
           });
         });
@@ -94,23 +93,22 @@ describe('Statement Async Test', () => {
 
     describe('async execute', () => {
       it('retrieves output params from stored proc', (done) => {
-        let sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)',
-          dbConn = new dbconn(),
-          dbStmt;
+        const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
+        const dbConn = new dbconn();
 
         dbConn.conn('*LOCAL');
-        dbStmt = new dbstmt(dbConn);
+        const dbStmt = new dbstmt(dbConn);
 
-        let ipc = '*NA',
-          ctl = '*here',
-          xmlIn = '<xmlservice><sh>system "wrksbs"<\/sh><\/xmlservice>',
-          xmlOut = '',
-          params = [
-            [ipc, IN, CHAR],
-            [ctl, IN, CHAR],
-            [xmlIn, IN, CLOB],
-            [xmlOut, OUT, CLOB],
-          ];
+        const ipc = '*NA';
+        const ctl = '*here';
+        const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
+        const xmlOut = '';
+        const params = [
+          [ipc, IN, CHAR],
+          [ctl, IN, CHAR],
+          [xmlIn, IN, CLOB],
+          [xmlOut, OUT, CLOB],
+        ];
 
         dbStmt.prepare(sql, (error) => {
           if (error) {
@@ -134,15 +132,14 @@ describe('Statement Async Test', () => {
       });
 
       it('executes prepared statement returns null because no output params are available', (done) => {
-        let sql = 'SELECT * FROM QIWS.QCUSTCDT WHERE BALDUE > ?',
-          dbConn = new dbconn(),
-          dbStmt,
-          params = [
-            [10.00, IN, NUMERIC],
-          ];
+        const sql = 'SELECT * FROM QIWS.QCUSTCDT WHERE BALDUE > ?';
+        const dbConn = new dbconn();
+        const params = [
+          [10.00, IN, NUMERIC],
+        ];
 
         dbConn.conn('*LOCAL');
-        dbStmt = new dbstmt(dbConn);
+        const dbStmt = new dbstmt(dbConn);
 
         dbStmt.prepare(sql, (error) => {
           if (error) {
@@ -167,11 +164,11 @@ describe('Statement Async Test', () => {
 
     describe('async exec', () => {
       it('performs action of given SQL String', (done) => {
-        let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-          dbConn = new dbconn();
+        const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+        const dbConn = new dbconn();
 
         dbConn.conn('*LOCAL');
-        let dbStmt = new dbstmt(dbConn);
+        const dbStmt = new dbstmt(dbConn);
 
         dbStmt.exec(sql, (result, error) => {
           if (error) {
@@ -187,11 +184,11 @@ describe('Statement Async Test', () => {
 
     describe('async fetchAll', () => {
       it('retrieves all rows from execute function:', (done) => {
-        let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-          dbConn = new dbconn();
+        const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+        const dbConn = new dbconn();
 
         dbConn.conn('*LOCAL');
-        let dbStmt = new dbstmt(dbConn);
+        const dbStmt = new dbstmt(dbConn);
 
         dbStmt.prepare(sql, (error) => {
           if (error) {
@@ -218,11 +215,11 @@ describe('Statement Async Test', () => {
 
     describe('async fetch', () => {
       it('retrieves one row from result set:', (done) => {
-        let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-          dbConn = new dbconn();
+        const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+        const dbConn = new dbconn();
 
         dbConn.conn('*LOCAL');
-        let dbStmt = new dbstmt(dbConn);
+        const dbStmt = new dbstmt(dbConn);
 
         dbStmt.prepare(sql, (error) => {
           if (error) {
@@ -233,7 +230,7 @@ describe('Statement Async Test', () => {
               throw error;
             }
             dbStmt.fetch((row, returnCode) => {
-              if (returnCode !== 0) { //SQL_SUCCESS
+              if (returnCode !== 0) { // SQL_SUCCESS
                 throw new Error('Rreturn Code was Not SQL SUCESS');
               }
               expect(returnCode).to.equal(0);
