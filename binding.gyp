@@ -27,7 +27,8 @@
                   '-gxcoff',
                   '-O0',
                   '-DNAPI_DISABLE_CPP_EXCEPTIONS',
-                  '-I/QOpenSys/pkgs/include'
+                  '-I/QOpenSys/pkgs/include',
+                  '-I/QOpenSys/pkgs/include/cli'
                 ],
                 'ldflags': [ 
                   '-Wl,-bbigtoc', 
