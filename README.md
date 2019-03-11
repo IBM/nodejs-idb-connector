@@ -112,6 +112,7 @@ Note that building isn't necessary for end users and is more for developers look
 
 ```sh
     git clone git@github.com:IBM/nodejs-idb-connector.git
+    yum install sqlcli-devel
     cd nodejs-idb-connector
     npm install --build-from-source
 ```
