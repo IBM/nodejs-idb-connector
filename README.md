@@ -112,12 +112,17 @@ Note that building isn't necessary for end users and is more for developers look
 
 ```sh
     git clone git@github.com:IBM/nodejs-idb-connector.git
-    yum install sqlcli-devel
     cd nodejs-idb-connector
     npm install --build-from-source
 ```
+## Build Dependencies
+Note: sqlcli header files, gcc, and python are required to compile the code.
 
-Note: Gcc and python are required to compile the code.
+```sh
+    yum install sqlcli-devel
+    yum group install 'Development tools' 
+    yum install python2
+```
 
 ## License
 
