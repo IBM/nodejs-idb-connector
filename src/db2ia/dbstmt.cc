@@ -1160,7 +1160,7 @@ Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo& info) {
   sqlReturnCode = SQLFetch(this->stmth);
   DEBUG(this, "SQLFetch(%d).\n", sqlReturnCode);
 
-  if(sqlReturnCode == SQL_SUCCESS)
+  if(sqlReturnCode == SQL_SUCCESS || sqlReturnCode == SQL_SUCCESS_WITH_INFO)
   {
     Napi::Object row = Napi::Object::New(env);
     this->fetch(env, &row);
@@ -1971,8 +1971,11 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
   
     SQLRETURN sqlReturnCode;
     // Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnfetch.htm
-    while(( sqlReturnCode = SQLFetch(stmth)) == SQL_SUCCESS) 
+    while(true) 
     {
+      sqlReturnCode = SQLFetch(stmth);
+      if(sqlReturnCode != SQL_SUCCESS && sqlReturnCode != SQL_SUCCESS_WITH_INFO)
+        break;
       result_item* row = (result_item*)calloc(colCount, sizeof(result_item)); 
       for(int i = 0; i < colCount; i++)
       {
