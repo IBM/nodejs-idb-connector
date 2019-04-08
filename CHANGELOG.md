@@ -1,5 +1,11 @@
 # idb-connector changelog
 
+## 1.1.10
+
+- Retrieve data when SQLFetch return SQL_SUCCESS_WITH_INFO(#71)
+- Add the SQLCLI dependencies for developement build(#69)
+- Update example code for eslint(#60)
+
 ## 1.1.9
 
 - Guard bindings.gyp and build dummy when not on IBM i(#58)

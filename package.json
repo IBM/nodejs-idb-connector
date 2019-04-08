@@ -1,6 +1,6 @@
 {
   "name": "idb-connector",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "description": "A Node.js DB2 driver for IBM i",
   "os": [
     "aix"
