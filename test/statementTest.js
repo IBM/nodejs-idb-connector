@@ -1,18 +1,21 @@
-const expect = require('chai').expect;
+const {expect} = require('chai');
 const db2a = require('../lib/db2a');
-const {IN, CHAR, NUMERIC, dbstmt, dbconn} = db2a;
+
+const {
+  IN, CHAR, NUMERIC, dbstmt, dbconn,
+} = db2a;
 
 // Test Statement Misc
 describe('Statement Misc Test', () => {
   describe('setStmtAttr & getStmtAttr', () => {
     it('setStmtAttr(attribute, value) then getStmtAttr(attribute) should equal value', () => {
-      let attr = db2a.SQL_ATTR_FOR_FETCH_ONLY,
-        value = db2a.SQL_TRUE,
-        dbConn = new dbconn();
+      const attr = db2a.SQL_ATTR_FOR_FETCH_ONLY;
+      let value = db2a.SQL_TRUE;
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn),
-        result = dbStmt.setStmtAttr(attr, value);
+      const dbStmt = new dbstmt(dbConn);
+      let result = dbStmt.setStmtAttr(attr, value);
 
       expect(result).to.be.true;
 
@@ -32,36 +35,36 @@ describe('Statement Misc Test', () => {
   TODO create pssing unit test for nextResult()
 
   describe('nextResult', () => {
-  	it('Determines whether there is more information available on the statement', () => {
-  		let sql = "SELECT * FROM QIWS.QCUSTCDT";
-       let dbConn = new dbconn();
-        dbConn.conn("*LOCAL");
-       let dbStmt = new dbstmt(dbConn);
-  		 dbStmt.prepare(sql);
-  		 dbStmt.execute();
-  		let result = dbStmt.nextResult();
-  		expect(result).to.be.a('object');
-  	});
+    it('Determines whether there is more information available on the statement', () => {
+      let sql = 'SELECT * FROM QIWS.QCUSTCDT';
+        let dbConn = new dbconn();
+        dbConn.conn('*LOCAL');
+        let dbStmt = new dbstmt(dbConn);
+        dbStmt.prepare(sql);
+        dbStmt.execute();
+      let result = dbStmt.nextResult();
+      expect(result).to.be.a('object');
+    });
   })
 */
 
   describe('rollback', () => {
     it('Rollback all changes to the database that have been made on the connection', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn();
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
 
-      dbStmt.prepare(sql, (error) =>{
-        if (error){
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
           throw error;
         }
-        dbStmt.execute( (out, error) =>{
-          if (error){
+        dbStmt.execute((out, error) => {
+          if (error) {
             throw error;
           }
-          let result = dbStmt.rollback();
+          const result = dbStmt.rollback();
           expect(result).to.be.true;
           done();
         });
@@ -72,38 +75,38 @@ describe('Statement Misc Test', () => {
 
   describe('commit', () => {
     it('adds all changes to the database that have been made on the connection since connect time ', (done) => {
-      let sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ',
-        dbConn = new dbconn();
+      const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
+      const dbConn = new dbconn();
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
 
-      let params = [
-        [9997, IN, NUMERIC], //CUSNUM
-        ['Johnson', IN, CHAR], //LASTNAME
-        ['A J', IN, CHAR], //INITIAL
-        ['453 Example', IN, CHAR], //ADDRESS
-        ['Fort', IN, CHAR], //CITY
-        ['TN', IN, CHAR], //STATE
-        [37211, IN, NUMERIC], //ZIP
-        [1000, IN, NUMERIC], //CREDIT LIMIT
+      const params = [
+        [9997, IN, NUMERIC], // CUSNUM
+        ['Johnson', IN, CHAR], // LASTNAME
+        ['A J', IN, CHAR], // INITIAL
+        ['453 Example', IN, CHAR], // ADDRESS
+        ['Fort', IN, CHAR], // CITY
+        ['TN', IN, CHAR], // STATE
+        [37211, IN, NUMERIC], // ZIP
+        [1000, IN, NUMERIC], // CREDIT LIMIT
         [1, IN, NUMERIC], // change
-        [150, IN, NUMERIC], //BAL DUE
-        [0.00, IN, NUMERIC] //CREDIT DUE
+        [150, IN, NUMERIC], // BAL DUE
+        [0.00, IN, NUMERIC], // CREDIT DUE
       ];
 
-      dbStmt.prepare(sql, (error)=>{
-        if (error){
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
           throw error;
         }
-        dbStmt.bindParam(params, (error) =>{
-          if (error){
+        dbStmt.bindParam(params, (error) => {
+          if (error) {
             throw error;
           }
-          dbStmt.execute((out, error) =>{
-            if (error){
+          dbStmt.execute((out, error) => {
+            if (error) {
               throw error;
             }
-            let result = dbStmt.commit();
+            const result = dbStmt.commit();
             expect(result).to.be.true;
             done();
           });
@@ -115,21 +118,21 @@ describe('Statement Misc Test', () => {
 
   describe('numFields', () => {
     it('retrieves number of fields contained in result', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn();
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
 
-      dbStmt.prepare(sql, (error)=>{
-        if (error){
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
           throw error;
         }
-        dbStmt.execute( (out, error) => {
-          if (error){
+        dbStmt.execute((out, error) => {
+          if (error) {
             throw error;
           }
-          let fields = dbStmt.numFields();
+          const fields = dbStmt.numFields();
           expect(fields).to.be.a('number');
           done();
         });
@@ -140,21 +143,21 @@ describe('Statement Misc Test', () => {
 
   describe('numRows', () => {
     it('retrieves number of rows that were effected by a Querry', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn();
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
 
-      dbStmt.prepare(sql, (error)=>{
-        if (error){
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
           throw error;
         }
-        dbStmt.execute( (out, error) =>{
-          if (error){
+        dbStmt.execute((out, error) => {
+          if (error) {
             throw error;
           }
-          let rows = dbStmt.numRows();
+          const rows = dbStmt.numRows();
           expect(rows).to.be.a('number');
           done();
         });
@@ -165,21 +168,21 @@ describe('Statement Misc Test', () => {
 
   describe('fieldType', () => {
     it('requires an int index parameter, returns the data type of the indicated column', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn();
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
-      dbStmt.prepare(sql, (error) =>{
-        if (error){
+      const dbStmt = new dbstmt(dbConn);
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
           throw error;
         }
-        dbStmt.execute((out, error)=>{
-          if (error){
+        dbStmt.execute((out, error) => {
+          if (error) {
             throw error;
           }
-          let col1 = dbStmt.fieldType(0),
-            col2 = dbStmt.fieldType(1);
+          const col1 = dbStmt.fieldType(0);
+          const col2 = dbStmt.fieldType(1);
 
           expect(col1).to.be.a('number');
           expect(col2).to.be.a('number');
@@ -192,21 +195,21 @@ describe('Statement Misc Test', () => {
 
   describe('fieldWidth', () => {
     it('requires an int index parameter, returns the field width of the indicated column', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn();
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
-      dbStmt.prepare(sql, (error) =>{
-        if (error){
+      const dbStmt = new dbstmt(dbConn);
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
           throw error;
         }
-        dbStmt.execute((out, error) =>{
-          if (error){
+        dbStmt.execute((out, error) => {
+          if (error) {
             throw error;
           }
-          let col1 = dbStmt.fieldWidth(0),
-            col2 = dbStmt.fieldWidth(1);
+          const col1 = dbStmt.fieldWidth(0);
+          const col2 = dbStmt.fieldWidth(1);
 
           expect(col1).to.be.a('number');
           expect(col2).to.be.a('number');
@@ -219,22 +222,22 @@ describe('Statement Misc Test', () => {
 
   describe('fieldNullable', () => {
     it('requires an int index parameter, returns t/f if the indicated column can be Null', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn();
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
 
-      dbStmt.prepare(sql, (error) =>{
-        if (error){
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
           throw error;
         }
-        dbStmt.execute((out, error) =>{
-          if (error){
+        dbStmt.execute((out, error) => {
+          if (error) {
             throw error;
           }
-          let col1 = dbStmt.fieldNullable(0),
-            col2 = dbStmt.fieldNullable(1);
+          const col1 = dbStmt.fieldNullable(0);
+          const col2 = dbStmt.fieldNullable(1);
 
           expect(col1).to.equal(false);
           expect(col2).to.equal(false);
@@ -247,22 +250,22 @@ describe('Statement Misc Test', () => {
 
   describe('fieldName', () => {
     it('requires an int index parameter,returns name of the indicated column ', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn();
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
 
-      dbStmt.prepare(sql, (error)=>{
-        if (error){
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
           throw error;
         }
-        dbStmt.execute((out, error)=>{
-          if (error){
+        dbStmt.execute((out, error) => {
+          if (error) {
             throw error;
           }
-          let col1 = dbStmt.fieldName(0),
-            col2 = dbStmt.fieldName(1);
+          const col1 = dbStmt.fieldName(0);
+          const col2 = dbStmt.fieldName(1);
 
           expect(col1).to.be.a('string');
           expect(col2).to.be.a('string');
@@ -275,22 +278,22 @@ describe('Statement Misc Test', () => {
 
   describe('fieldPrecise', () => {
     it('requires an int index parameter, returns the precision of the indicated column', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn();
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepare(sql, (error) => {
-        if (error){
+        if (error) {
           throw error();
         }
-        dbStmt.execute((out, error) =>{
-          if (error){
+        dbStmt.execute((out, error) => {
+          if (error) {
             throw error;
           }
-          let col1 = dbStmt.fieldPrecise(0),
-            col2 = dbStmt.fieldPrecise(1);
+          const col1 = dbStmt.fieldPrecise(0);
+          const col2 = dbStmt.fieldPrecise(1);
 
           expect(col1).to.be.a('number');
           expect(col2).to.be.a('number');
@@ -303,22 +306,22 @@ describe('Statement Misc Test', () => {
 
   describe('fieldScale', () => {
     it('requires an int index parameter, returns the scale of the indicated column', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn();
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepare(sql, (error) => {
-        if (error){
+        if (error) {
           throw error;
         }
-        dbStmt.executeSync((out, error) =>{
-          if (error){
+        dbStmt.executeSync((out, error) => {
+          if (error) {
             throw error;
           }
-          let col1 = dbStmt.fieldScale(0),
-            col2 = dbStmt.fieldScale(1);
+          const col1 = dbStmt.fieldScale(0);
+          const col2 = dbStmt.fieldScale(1);
 
           expect(col1).to.be.a('number');
           expect(col2).to.be.a('number');
@@ -330,13 +333,13 @@ describe('Statement Misc Test', () => {
 
 
   describe('stmtError', () => {
-    it('Returns the diagnostic information ', (done) =>{
-      let sql = 'SELECT * FROM NOT.THERE',
-        expectedError = "SQLSTATE=42704 SQLCODE=-204",
-        dbConn = new dbconn();
+    it('Returns the diagnostic information ', (done) => {
+      const sql = 'SELECT * FROM NOT.THERE';
+      const expectedError = 'SQLSTATE=42704 SQLCODE=-204';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
       dbStmt.exec(sql, (out, error) => {
         dbStmt.stmtError(db2a.SQL_HANDLE_STMT, 1, (rs) => {
           expect(rs).to.include(expectedError);
@@ -349,14 +352,14 @@ describe('Statement Misc Test', () => {
 
   describe('closeCursor', () => {
     it('closes any cursor associated with the dbstmt object and discards any pending results. ', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn();
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
 
-      dbStmt.exec(sql, ()=>{
-        let result = dbStmt.closeCursor();
+      dbStmt.exec(sql, () => {
+        const result = dbStmt.closeCursor();
         expect(result).to.be.true;
         done();
       });
@@ -366,14 +369,14 @@ describe('Statement Misc Test', () => {
 
   describe('reset', () => {
     it('Reset the dbstmt object. ', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn();
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
 
-      dbStmt.exec(sql, ()=>{
-        let result = dbStmt.reset();
+      dbStmt.exec(sql, () => {
+        const result = dbStmt.reset();
         expect(result).to.be.undefined;
         done();
       });
@@ -383,14 +386,14 @@ describe('Statement Misc Test', () => {
 
   describe('close', () => {
     it('frees the statement object. ', (done) => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        dbConn = new dbconn();
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
       dbConn.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
+      const dbStmt = new dbstmt(dbConn);
 
-      dbStmt.exec(sql, (result, error)=>{
-        let isClose = dbStmt.close();
+      dbStmt.exec(sql, (result, error) => {
+        const isClose = dbStmt.close();
         expect(isClose).to.be.true;
         done();
       });

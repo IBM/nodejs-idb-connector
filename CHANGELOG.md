@@ -1,5 +1,11 @@
 # idb-connector changelog
 
+## 1.1.10
+
+- Retrieve data when SQLFetch return SQL_SUCCESS_WITH_INFO(#71)
+- Add the SQLCLI dependencies for developement build(#69)
+- Update example code for eslint(#60)
+
 ## 1.1.9
 
 - Guard bindings.gyp and build dummy when not on IBM i(#58)
@@ -20,7 +26,7 @@
 - Added alias shorthands for use during bindParams()
 - Added Add checks for value, io type and bindIndicator during bindParams()
 - Return null instead of empty [] when output params are not present, during execute()
-- Updated examples, API reference and test cases 
+- Updated examples, API reference and test cases
 
 ## 1.1.5
 
@@ -33,16 +39,16 @@
 
 - Added test cases for the callback in dbconn.conn()
 - Updated examples with ES6 syntax
-- Required dep "node-pre-gyp" 0.11.0 and above
+- Required dep 'node-pre-gyp' 0.11.0 and above
 
 ## 1.1.3
 
 - Fixed the NAPI callback error in DbConn::Conn()
-- Ported and refined the API manual from "developerWorks"
+- Ported and refined the API manual from 'developerWorks'
 
 ## 1.1.2
 
-- Removed "node-gyp" from dependency list
+- Removed 'node-gyp' from dependency list
 - Exposed data types symbols for params binding
 
 ## 1.1.1

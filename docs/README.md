@@ -4,14 +4,14 @@
 - [Introduction](#introduction)
   - [Install](#install)
 - [Examples](#examples)
-    - [Async Exec](#async-exec)
-    - [Sync Exec](#sync-exec)
-    - [Async Prepare Bind Execute](#async-prepare-bind-execute)
-    - [Sync Prepare Bind Execute](#sync-prepare-bind-execute)
-    - [Async Fetch](#async-fetch)
-    - [Sync Fetch](#sync-fetch)
-    - [Async FetchAll](#async-fetchall)
-    - [Sync FetchAll](#sync-fetchall)
+  - [Async Exec](#async-exec)
+  - [Sync Exec](#sync-exec)
+  - [Async Prepare Bind Execute](#async-prepare-bind-execute)
+  - [Sync Prepare Bind Execute](#sync-prepare-bind-execute)
+  - [Async Fetch](#async-fetch)
+  - [Sync Fetch](#sync-fetch)
+  - [Async FetchAll](#async-fetchall)
+  - [Sync FetchAll](#sync-fetchall)
 - [Class: dbconn](#class-dbconn)
   - [Contructor: dbconn()](#contructor-dbconn)
   - [dbconn.setConnAttr(attribute, value)](#dbconnsetconnattrattribute-value)
@@ -51,14 +51,16 @@
   - [dbstmt.fieldPrecise(index)](#dbstmtfieldpreciseindex)
   - [dbstmt.fieldScale(index)](#dbstmtfieldscaleindex)
   - [dbstmt.stmtError(callback)](#dbstmtstmterrorcallback)
-___
-# Introduction
 
-- `idb-connector` provides connectivity to DB2 from Node.js. 
+___
+
+## Introduction
+
+- `idb-connector` provides connectivity to DB2 from Node.js.
 
 - `idb-connector` uses DB2 CLI API to access DB2 subsequently this module is only supported for `IBM i` systems.
 
-## Install
+### Install
 
  Available on npm
 
@@ -69,58 +71,61 @@ Build from source
 - `git clone https://github.com/IBM/nodejs-idb-connector.git`
 - `cd nodejs-idb-connector`
 - `npm install --build-from-source`
+
 ___
-# Examples
+
+## Examples
 
 ### Async Exec
-
 
 ```javascript
 
 const {dbconn, dbstmt} = require('idb-connector');
 
-let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-    connection = new dbconn(); // Create a connection object.
+const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+const connection = new dbconn(); // Create a connection object.
 
 connection.conn('*LOCAL'); // Connect to a database.
 
-let statement = new dbstmt(dbconn); // Create a statement object of the connection.
+const statement = new dbstmt(dbconn); // Create a statement object of the connection.
 
 statement.exec(sql, (result, error) => {
-      if (error){
-        throw error;
-      }
-      console.log('Result Set:\n', JSON.stringify(result));
+  if (error) {
+    throw error;
+  }
+  console.log(`Result Set: ${JSON.stringify(result)}`);
 
-      statement.close(); // Clean up the statement object.
-      connection.disconn(); // Disconnect from the database.
-      connection.close(); // Clean up the connection object.
+  statement.close(); // Clean up the statement object.
+  connection.disconn(); // Disconnect from the database.
+  connection.close(); // Clean up the connection object.
 });
 
 ```
+
 ___
 
 ### Sync Exec
 
-
 ```javascript
 
 const {dbconn, dbstmt} = require('idb-connector');
 
-let sql = 'SELECT STATE FROM QIWS.QCUSTCDT',
-    connection = new dbconn(); // Create a connection object.
+const sql = 'SELECT STATE FROM QIWS.QCUSTCDT';
+const connection = new dbconn(); // Create a connection object.
 
 connection.conn('*LOCAL'); // Connect to the database.
 
-let statement = new dbstmt(connection); // Create a statement object.
+const statement = new dbstmt(connection); // Create a statement object.
 
-result = statement.execSync(sql);
-console.log('Result Set:\n', JSON.stringify(result));
+const result = statement.execSync(sql);
+console.log(`Result Set: ${JSON.stringify(result)}`);
 
 statement.close(); // Clean up the statement object.
 connection.disconn(); // Disconnect from the database.
 connection.close(); // Clean up the connection object.
+
 ```
+
 ___
 
 ### Async Prepare Bind Execute
@@ -129,81 +134,86 @@ Calling a Stored Procedure
 
 ```javascript
 
-const idb = require('idb-connector'),
-      {dbconn, dbstmt, IN, OUT, CHAR, CLOB} = idb;
+const {
+  dbconn, dbstmt, IN, OUT, CHAR, CLOB,
+} = require('idb-connector');
 
-let sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)',
-    connection = new dbconn(),
-    ipc = '*NA',
-    ctl = '*here',
-    xmlIn ='<xmlservice><sh>system wrksbs</sh></xmlservice>',
-    xmlOut = '',
-    params = [[ipc, IN, CHAR],
-               [ctl, IN, CHAR],
-               [xmlIn, IN, CLOB],
-               [xmlOut, OUT, CLOB]
-             ];
+const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
+const connection = new dbconn();
+const ipc = '*NA';
+const ctl = '*here';
+const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
+const xmlOut = '';
+const params = [[ipc, IN, CHAR],
+  [ctl, IN, CHAR],
+  [xmlIn, IN, CLOB],
+  [xmlOut, OUT, CLOB],
+];
 
 connection.conn('*LOCAL');
-let statement = new dbstmt(connection);
+const statement = new dbstmt(connection);
 
 statement.prepare(sql, (error) => {
-      if (error){
+  if (error) {
+    throw error;
+  }
+  statement.bindParam(params, (error) => {
+    if (error) {
+      throw error;
+    }
+    statement.execute((out, error) => {
+      if (error) {
         throw error;
       }
-       statement.bindParam(params, (error) => {
-              if (error){
-                throw error;
-              }
-              statement.execute((out, error) => {
-                 if (error){
-                  throw error;
-                 }
-                 console.log('Output Params:\n', out);
-                 statement.close();
-                 connection.disconn();
-                 connection.close();
-           });
-      });
+      console.log(`Output Params:${out}\n`);
+      statement.close();
+      connection.disconn();
+      connection.close();
+    });
+  });
 });
 
 ```
+
 ___
 
 ### Sync Prepare Bind Execute
 
-
 ```javascript
 
-const {dbconn, dbstmt, IN, OUT, CLOB, CHAR} = require('idb-connector');
+const {
+  dbconn, dbstmt, IN, OUT, CLOB, CHAR,
+} = require('idb-connector');
 
-let sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)',
-    connection = new dbconn(),
-    ipc = '*NA',
-    ctl = '*here',
-    xmlIn ='<xmlservice><sh>system wrksbs</sh></xmlservice>',
-    xmlOut = '',
-    params = [[ipc, IN, CHAR],
-               [ctl, IN, CHAR],
-               [xmlIn, IN, CLOB],
-               [xmlOut, OUT, CLOB]
-     ];
+const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
+const connection = new dbconn();
+const ipc = '*NA';
+const ctl = '*here';
+const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
+const xmlOut = '';
+const params = [[ipc, IN, CHAR],
+  [ctl, IN, CHAR],
+  [xmlIn, IN, CLOB],
+  [xmlOut, OUT, CLOB],
+];
 
 connection.conn('*LOCAL');
 
-let statement = new dbstmt(connection),
+const statement = new dbstmt(connection);
 
 statement.prepareSync(sql);
 statement.bindParamSync(params);
 
-let out = statement.executeSync();
+const out = statement.executeSync();
 
-console.log('Output Params:\n', JSON.stringify(out));
+console.log(`Output Params:${out}\n`);
 
 statement.close();
 connection.disconn();
 connection.close();
+
 ```
+
 ___
 
 ### Async Fetch
@@ -211,36 +221,39 @@ ___
 Asynchronously retrieve one row from the result set
 
 ```javascript
+
 const {dbconn, dbstmt} = require('idb-connector');
 
-let connection = new dbconn();
+const connection = new dbconn();
 
 connection.conn('*LOCAL');
 
-let statement = new dbstmt(connection);
+const statement = new dbstmt(connection);
 
 statement.prepare('SELECT * FROM QIWS.QCUSTCDT', (error) => {
-      if (error){
-        throw error;
+  if (error) {
+    throw error;
+  }
+  statement.execute((error) => {
+    if (error) {
+      throw error;
+    }
+
+    statement.fetch((row, rc) => {
+      if (rc instanceof Error) {
+        throw rc;
       }
-      statement.execute((error) => {
-            if (error){
-              throw error;
-            }
+      console.log(`Row: ${JSON.stringify(row)}\n`);
 
-            statement.fetch((row, rc) => {
-                if (rc instanceof Error){
-                    throw rc;
-                }
-                console.log('Row: \n', JSON.stringify(row));
-
-                statement.close();
-                connection.disconn();
-                connection.close();
-            });
-      });
+      statement.close();
+      connection.disconn();
+      connection.close();
+    });
+  });
 });
+
 ```
+
 ___
 
 ### Sync Fetch
@@ -251,24 +264,25 @@ Synchronously retrieve one row from the result set
 
 const {dbconn, dbstmt} = require('idb-connector');
 
-let connection = new dbconn();
+const connection = new dbconn();
 
 connection.conn('*LOCAL');
 
-let statement = new dbstmt(connection);
+const statement = new dbstmt(connection);
 
 statement.prepareSync('SELECT * FROM QIWS.QCUSTCDT');
 statement.executeSync();
 
-let row = statement.fetchSync();
+const row = statement.fetchSync();
 
-console.log('Row:\n', JSON.stringify(row));
+console.log(`Row:${JSON.stringify(row)}\n`);
 
 statement.close();
 connection.disconn();
 connection.close();
 
 ```
+
 ___
 
 ### Async FetchAll
@@ -279,32 +293,34 @@ Asynchronously retrieve all rows from the result set
 
 const {dbstmt, dbconn} = require('idb-connector');
 
-let connection = new dbconn();
+const connection = new dbconn();
 
-connection.connect('*LOCAL');
+connection.conn('*LOCAL');
 
-let staement = new dbstmt(connection);
+const statement = new dbstmt(connection);
 
-statement.prepare('SELECT * FROM QWIS.QCUSTCDT', (error) => {
-      if (error){
+statement.prepare('SELECT * FROM QIWS.QCUSTCDT', (error) => {
+  if (error) {
+    throw error;
+  }
+  statement.execute((error) => {
+    if (error) {
+      throw error;
+    }
+    statement.fetchAll((result, error) => {
+      if (error) {
         throw error;
       }
-       statement.execute((error) => {
-             if (error){
-               throw error;
-             }
-              statement.fetchAll(function(result, error){
-                    if (error){
-                       throw error;
-                    }
-                    console.log('Result Set:\n', JSON.stringify(result));
-                    statement.close();
-                    connection.disconn();
-                    connection.close();
-              });
-       });
+      console.log(`Result Set:${JSON.stringify(result)}\n`);
+      statement.close();
+      connection.disconn();
+      connection.close();
+    });
+  });
 });
+
 ```
+
 ___
 
 ### Sync FetchAll
@@ -315,25 +331,27 @@ Synchronously retrieve all rows from the result set
 
 const {dbconn, dbstmt} = require('idb-connector');
 
-let connection = new dbconn();
+const connection = new dbconn();
 
 connection.conn('*LOCAL');
 
-let statement = new dbstmt(connection);
+const statement = new dbstmt(connection);
 
-statement.prepareSync("SELECT * FROM SCHEMA.MYTABLE");
+statement.prepareSync('SELECT * FROM SCHEMA.MYTABLE');
 statement.executeSync();
 
-let result = statement.fetchAllSync();
+const result = statement.fetchAllSync();
 
-console.log('Result Set:\n', JSON.stringify(result));
+console.log(`Result Set:${JSON.stringify(result)}`);
 
 statement.close();
 connection.disconn();
 connection.close();
+
 ```
 
-# Class: dbconn
+## Class: dbconn
+
 The dbconn class is used to create a connection object.
 
 Once the idb-connector is installed you can gain access with:
@@ -342,13 +360,13 @@ Once the idb-connector is installed you can gain access with:
 
 use the new operator to instantiate it
 
-`let conn = new dbconn();`
+`const conn = new dbconn();`
 
 Once instantiated the methods documented below can be performed.
 
 Make sure to call `disconn` and `close` when finished.
 
-## Contructor: dbconn()
+### Contructor: dbconn()
 
 **Description:**
 
@@ -356,7 +374,7 @@ Allocates a new connection handle, ensure `conn` function is called to connect t
 
 ___
 
-## dbconn.setConnAttr(attribute, value)
+### dbconn.setConnAttr(attribute, value)
 
 **Description:**
 
@@ -371,7 +389,7 @@ setConnAttr(attribute, value)
 - **attribute:** `number(integer)` is the connection attribute to set.
 - **value:** `string | number(integer)` the value to set the specified attribute to.
 
-**Returns:** 
+**Returns:**
 
 `boolean(true)` upon success otherwise an error is thrown.
 
@@ -379,7 +397,7 @@ setConnAttr(attribute, value)
 
 **Valid Scope:** Before connecting to a database.
 
-**Comments:** 
+**Comments:**
 
 Auto Commit attribute is automatically enabled.
 
@@ -387,7 +405,7 @@ Refer to this [table](https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_71/c
 
 ___
 
-## dbconn.getConnAttr(attribute)
+### dbconn.getConnAttr(attribute)
 
 **Description:**
 
@@ -396,12 +414,12 @@ Returns the current settings for the specified connection attribute.
 **Syntax:**
 
 getConnAttr(attribute)
-            
-**Parameters:** 
+
+**Parameters:**
 
 - **attribute:** `number(integer)` the connection attribute to set.
 
-**Returns:** 
+**Returns:**
 
 `string | number(integer)` depending on the attribute.
 
@@ -409,12 +427,12 @@ getConnAttr(attribute)
 
 **Valid Scope:** After instantiated the connection object.
 
-**Comments:** 
+**Comments:**
 
 Refer to this [table](https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_71/cli/rzadpfngcona.htm) for more details.
 ___
 
-## dbconn.conn(database)
+### dbconn.conn(database)
 
 **Description:**
 
@@ -434,7 +452,7 @@ conn(database, user, password)
 **Syntax 4:**
 conn(database, user, password, callback)
 
-**Parameters:** 
+**Parameters:**
 
 - **database:** `string` is the name or alias name of the database.
 
@@ -444,17 +462,16 @@ conn(database, user, password, callback)
 
 - **callback:** `function` is a callback function running after the `conn` is complete
 
-
 **DB2 CLI API:** SQLConnect
 
 **Valid Scope:** Before calling the dbstmt.exec() or dbstmt.prepare() function.
 ___
 
-## dbconn.disconn()
+### dbconn.disconn()
 
 **Description:**
 
-Ends the connection associated with the database connection handle. 
+Ends the connection associated with the database connection handle.
 
 After calling this function, either call `conn` to connect to another database or `close`.
 
@@ -466,13 +483,13 @@ disconn()
 
 **Valid Scope:** After calling the conn() function.
 
-**Returns:** 
+**Returns:**
 
 `boolean(true)` upon success otherwise an error is thrown.
 
 ___
 
-## dbconn.close()
+### dbconn.close()
 
 **Description:**
 
@@ -488,13 +505,13 @@ close()
 
 **Valid Scope:** After calling the disconn() function.
 
-**Returns:** 
+**Returns:**
 
 `boolean(true)` upon success otherwise an error is thrown.
 
 ___
 
-## dbconn.debug(flag)
+### dbconn.debug(flag)
 
 **Description:**
 
@@ -508,7 +525,7 @@ debug(flag)
 
 - **flag:** `boolean` to turn debug mode on or off. Default value is `false`.
 
-**Returns:** 
+**Returns:**
 
 `boolean` the current state of the debug flag otherwise an error is thrown.
 
@@ -516,11 +533,11 @@ debug(flag)
 
 ___
 
-## dbconn.validStmt(sql)
+### dbconn.validStmt(sql)
 
 **Description:**
 
-Checks if the SQL string is valid and interprets vendor escape clauses. 
+Checks if the SQL string is valid and interprets vendor escape clauses.
 
 If the original SQL string that is passed by the application contains vendor escape clause sequences,
 
@@ -534,7 +551,7 @@ validStmt(sql)
 
 - **sql:** `string` that needs to be checked and escaped.
 
-**Returns:** 
+**Returns:**
 
 `string` the transformed sql string upon success, otherwise an error is thrown.
 
@@ -544,7 +561,7 @@ validStmt(sql)
 
 ___
 
-# Class dbstmt
+## Class dbstmt
 
 Once the idb-connector is installed you can gain access with:
 
@@ -555,31 +572,33 @@ A connected `dbconn` object is required to create a new `dbstmt` object from.
 ```javascript
 const {dbconn, dbstmt} = require('idb-connector');
 
-let connection = new dbconn();
+const connection = new dbconn();
 
 connection.conn('*LOCAL');
 
 let statement = new dbstmt(dbconn);
 
 ```
+
 Once instantiated the methods documented below can be performed.
 
 Make sure to call `close` when finished with the statement object.
 
-## Constructor: dbstmt(connection)
+### Constructor: dbstmt(connection)
 
 **Parameters:**
 
 - **dbconn:** `dbconn object` the connection object to create the statement from.
 
 - Ensure `connection` has connected to the database first with `conn` function.
+
 ___
 
-## dbstmt.setStmtAttr(attribute, value)
+### dbstmt.setStmtAttr(attribute, value)
 
 **Description:**
 
-Set an attribute of a specific statement handle. 
+Set an attribute of a specific statement handle.
 
 To set an option for all statement handles associated with a connection handle `setConnAttr` can be used.
 
@@ -593,13 +612,12 @@ setStmtAttr(attribute, value)
 
 - **value:** `string | number (integer)` the value to set the specified attribute to.
 
-
 **DB2 CLI API:** SQLSetStmtAttr
 
 **Valid Scope:** After allocating the statement handler.
 ___
 
-## dbstmt.getStmtAttr()
+### dbstmt.getStmtAttr()
 
 **Description:**
 
@@ -623,13 +641,13 @@ getStmtAttr(int Attribute)
 
 ___
 
-## dbstmt.exec(sql, callback)
+### dbstmt.exec(sql, callback)
 
 **Description:**
 
 Asynchronously runs the specified SQL statement.
 
-**NOTE** use the `execute` function to call stored procedures 
+**NOTE** use the `execute` function to call stored procedures
 
 **Syntax:**
 
@@ -640,7 +658,7 @@ exec(sql,callback)
 - **sql:** `string` is the sql statement to execute.
 
 - **callback(resultSet, error):** `function` to process after `exec` is complete.
-     - **resultSet:** `array` of `objects` each object represents a row of data. 
+     - **resultSet:** `array` of `objects` each object represents a row of data.
      - If an error occurred or there is no `resultSet` it is set to `null`.
      - **error:** `Error object` when `execSync` is unsuccessful. Otherwise `error` is set to `null`.
 
@@ -652,7 +670,7 @@ exec(sql,callback)
 
 ___
 
-## dbstmt.execSync(sql [, callback])
+### dbstmt.execSync(sql [, callback])
 
 **Description:**
 
@@ -668,7 +686,7 @@ execSync(sql)
 
 **Returns:**
 
-- **resultSet:** `array` of `objects` each object represents a row of data. 
+- **resultSet:** `array` of `objects` each object represents a row of data.
 - If an error occurred or there is no `resultSet` , `null` will be returned.
 
 **Syntax 2:**
@@ -679,7 +697,6 @@ execSync(sql, callback(resultSet, error))
 
 - **sql:** `string` is the sql statement to execute.
 
-
 - **callback(resultSet, error):** `function` to process after `execSync` is complete.
      - **resultSet:** `array` of `objects` each object represents a row of data. If an error occurred or there is no `resultSet` it is set to `null`.
   
@@ -687,9 +704,9 @@ execSync(sql, callback(resultSet, error))
 
 **Comments:**
 
-- It is recommended to invoke the `numFields`, `numRows`, `fieldName` and other result set related functions in this callback function, because they rely on the temporal result set in memory. 
+- It is recommended to invoke the `numFields`, `numRows`, `fieldName` and other result set related functions in this callback function, because they rely on the temporal result set in memory.
 - After running `execSync` the result set will be destroyed and cleaned up.
- 
+
 **DB2 CLI API:** SQLExecDirect
 
 **Valid Scope:** After calling the conn() function.
@@ -698,12 +715,11 @@ execSync(sql, callback(resultSet, error))
 
 ___
 
-## dbstmt.prepare(sql, callback)
+### dbstmt.prepare(sql, callback)
 
 **Description:**
 
 Asynchronously associates an SQL statement with the input statement handle and sends the statement to the DBMS to be prepared.
-
 
 **Syntax:**
 
@@ -716,9 +732,9 @@ prepare(sql, callback)
 - **callback(error)**: `function` to process after `prepare` is complete.
      - **error**: `Error object` when `prepare` is unsuccessful. Otherwise `error` is set to `null`.
 
-**Comments:** 
+**Comments:**
 
-If the statement handler has been used with a SELECT statement, 
+If the statement handler has been used with a SELECT statement,
 
 `closeCursor` must be called to close the cursor, before calling `prepare` again.
 
@@ -733,12 +749,11 @@ If the statement handler has been used with a SELECT statement,
 **Example:** [Here](#async-prepare-bind-execute)
 ___
 
-## dbstmt.prepareSync(sql [, callback])
+### dbstmt.prepareSync(sql [, callback])
 
 **Description:**
 
 Synchronous version of `prepare`.
-
 
 **Syntax 1:**
 
@@ -748,7 +763,7 @@ prepareSync(sql)
 
 - **sql:** `string` the sql statement to prepare.
 
-**Returns:** 
+**Returns:**
 
 `void` no return type, if an error occurred it will be thrown.
 
@@ -763,7 +778,7 @@ prepareSync(sql, callback)
 - **callback(error)**: `function` to process after `prepareSync` is complete.
      - **error**: `Error object` when `prepareSync` is unsuccessful. Otherwise `error` is set to `null`.
 
-**Comments:** 
+**Comments:**
 
 If the statement handler has been used with a SELECT statement
 `closeCursor` must be called first before calling `prepareSync` again.
@@ -780,18 +795,17 @@ If the statement handler has been used with a SELECT statement
 
 ___
 
-## dbstmt.bindParam(params, callback)
+### dbstmt.bindParam(params, callback)
 
 **Description:**
 
 Asynchronously associate (bind) parameter markers in an SQL statement to application variables.
 
-Data is transferred from the application to the Database Management System (DBMS) when `execute` function is called. 
+Data is transferred from the application to the Database Management System (DBMS) when `execute` function is called.
 
 Data conversion might occur when the data is transferred.
 
 This function must also be used to bind to a parameter of a stored procedure where the parameter can be: input, output, or both
-
 
 **Syntax:**
 
@@ -805,7 +819,7 @@ bindParam(params, callback)
     - `io` specifies whether the parameter is for input, output, or both.
       - `io` can be:
          -  SQL_PARAM_INPUT
-         -  SQL_PARAM_OUTPUT 
+         -  SQL_PARAM_OUTPUT
          -  SQL_PARAM_INPUT_OUTPUT
          -  Shorthand equivleants are:
             -  IN
@@ -822,7 +836,7 @@ bindParam(params, callback)
           - BOOLEAN
           - NULL
 
-      These values are constants which are attached to object returned when you `const idb = require('idb-connector')`. 
+      These values are constants which are attached to object returned when you `const idb = require('idb-connector')`.
 
       You can access the constants like: `idb.IN`.
 
@@ -837,7 +851,7 @@ bindParam(params, callback)
 
 ___
 
-## dbstmt.bindParamSync(params [, callback])
+### dbstmt.bindParamSync(params [, callback])
 
 **Description:**
 
@@ -863,10 +877,8 @@ bindParamSync(params, callback)
 
 - **params**: as described in [bindParam](#dbstmtbindparamparams-callback)
 
-
 - **callback(error)**: `function` to process after `bindParamSync` is complete.
      - **error**: `Error object` when `bindParamSync` is unsuccessful. Otherwise `error` is set to `null`.
-
 
 **Example:** [Here](#sync-prepare-bind-execute)
 
@@ -879,7 +891,7 @@ bindParamSync(params, callback)
 
 ___
 
-## dbstmt.execute(callback)
+### dbstmt.execute(callback)
 
 **Description:**
 
@@ -906,7 +918,7 @@ execute(callback(outputParams, error))
 
 ___
 
-## dbstmt.executeSync([callback])
+### dbstmt.executeSync([callback])
 
 **Description:**
 
@@ -917,7 +929,8 @@ The synchronized version of `execute`.
 executeSync()
 
 **Returns:**  
-  - **outputParams**: an `array` of output parameters. If an error occured it is thrown.
+
+- **outputParams**: an `array` of output parameters. If an error occured it is thrown.
 - If no output parameters are available `null` is returned.
 
 **Syntax 2:**
@@ -931,8 +944,7 @@ executeSync(callback)
   
      - **error**: `Error object` when `executeSync` is unsuccessful. Otherwise `error` is set to `null`.
 
-
-**Comments:** 
+**Comments:**
 
 If the statement also returns a result set, user can issue the `fetch` function to retrieve the data row by row.
 
@@ -943,7 +955,7 @@ If the statement also returns a result set, user can issue the `fetch` function 
 **Example:** [Here](#sync-prepare-bind-execute)
 ___
 
-## dbstmt.nextResult()
+### dbstmt.nextResult()
 
 **Description:**
 
@@ -953,9 +965,9 @@ Determines whether there is more information available on the statement handle t
 
 nextResult()
 
-**Comments:** 
+**Comments:**
 
-After completely processing the first result set, the application can call `nextResult` to determine if another result set is available. 
+After completely processing the first result set, the application can call `nextResult` to determine if another result set is available.
 
 If the current result set has unfetched rows, `nextResult` discards them by closing the cursor.
 
@@ -965,7 +977,7 @@ If the current result set has unfetched rows, `nextResult` discards them by clos
 
 ___
 
-## dbstmt.commit()
+### dbstmt.commit()
 
 **Description:**
 
@@ -985,7 +997,7 @@ Auto commit is enabled by default.
 
 ___
 
-## dbstmt.rollback()
+### dbstmt.rollback()
 
 **Description:**
 
@@ -1001,13 +1013,13 @@ rollback()
 
 ___
 
-## dbstmt.closeCursor()
+### dbstmt.closeCursor()
 
 **Description:**
 
-Calling `closeCursor` closes any cursor associated with the dbstmt object and discards any pending results. 
+Calling `closeCursor` closes any cursor associated with the dbstmt object and discards any pending results.
 
-If no open cursor is associated with the dbstmt object, the function has no effect. 
+If no open cursor is associated with the dbstmt object, the function has no effect.
 
 If the dbstmt object references a stored procedure that has multiple result sets, `closeCursor` closes only the current result set. Any additional result sets remain open and usable.
 
@@ -1023,7 +1035,7 @@ closeCursor()
 
 ___
 
-## dbstmt.close()
+### dbstmt.close()
 
 **Description:**
 
@@ -1041,11 +1053,11 @@ close()
 
 ___
 
-## dbstmt.fetch([orient,] [offset,] callback)
+### dbstmt.fetch([orient,] [offset,] callback)
 
 **Description:**
 
-Asynchronously advances the cursor to the next row of the result set, and retrieves any bound columns. 
+Asynchronously advances the cursor to the next row of the result set, and retrieves any bound columns.
 
 Or positions the cursor based on the requested orientation and then retrieves any bound columns.
 
@@ -1091,15 +1103,12 @@ fetch(orient, offset, callback)
 
 **Note:** To use orientation `SQL_FETCH_RELATIVE` with `Offset`, the cursor must be **dynamic**.
 
-
 `stmt.setStmtAttr(idb.SQL_ATTR_CURSOR_TYPE, idb.SQL_CURSOR_DYNAMIC);`
 
 - **callback(row, rc):** `function` to process after `fetch` is complete.
      - **row**: `object` representing a row of data. If an error occured or there is nothing to fetch `row` is set to `null`.
   
      - **rc**: `Error object` when `fetch` is unsuccessful. Otherwise `rc` is set to the return code from `SQLFETCH`. When error = `SQL_NO_DATA` the end of the result set has been reached.
-
-
 
 **DB2 CLI API:** SQLFetch or SQLFetchScroll
 
@@ -1109,7 +1118,7 @@ fetch(orient, offset, callback)
 
 ___
 
-## dbstmt.fetchSync()
+### dbstmt.fetchSync()
 
 **Description:**
 
@@ -1148,7 +1157,7 @@ fetchSync(int Orient, int Offset, function Callback(Row))
 
 **Example:** [Here](#sync-fetch)
 
-## dbstmt.fetchAll(callback)
+### dbstmt.fetchAll(callback)
 
 **Description:**
 
@@ -1161,7 +1170,7 @@ fetchAll(callback)
 **Parameters**
 
 - **callback(resultSet, error):** `function` to process after `fetchAll` is complete.
-     - **resultSet**: an `array` of `objects` each object represents a row of data. 
+     - **resultSet**: an `array` of `objects` each object represents a row of data.
      - If an error occured or there is no `resultSet` it is set to `null`
   
      - **error**: `Error object` when `fetchAll` is unsuccessful. Otherwise `error` is set to `null`.
@@ -1173,7 +1182,7 @@ fetchAll(callback)
 **Example:** [Here](#async-fetchAll)
 ___
 
-## dbstmt.fetchAllSync([callback])
+### dbstmt.fetchAllSync([callback])
 
 **Description:**
 
@@ -1184,9 +1193,9 @@ fetchAllSync()
 
 **Returns**
 
- - **resultSet**: an `array` of `objects` each object represents a row of data. 
- - If there is no result set `null` is returned.
- - If an error occurs it will be thrown.
+- **resultSet**: an `array` of `objects` each object represents a row of data.
+- If there is no result set `null` is returned.
+- If an error occurs it will be thrown.
 
 **Syntax 2:**
 
@@ -1195,13 +1204,11 @@ fetchAllSync(callback)
 **Parameters**
 
 - **callback(resultSet, error):** `function` to process after `fetchAll` is complete.
-     - **resultSet**: an `array` of `objects` each object represents a row of data. 
+     - **resultSet**: an `array` of `objects` each object represents a row of data.
      - If an error occured `resultSet` is set to `null`
-     
      - **error**: `Error object` when `fetchAllSync` is unsuccessful. Otherwise `error` is set to `null`.
 
 **Example:** [Here](#sync-fetchAll)
-
 
 **DB2 CLI API:** SQLFetch
 
@@ -1209,7 +1216,7 @@ fetchAllSync(callback)
 
 ___
 
-## dbstmt.numFields()
+### dbstmt.numFields()
 
 **Description:**
 
@@ -1219,7 +1226,7 @@ Retrieves number of fields contained in the result set if available.
 
 numFields()
 
-**Returns:** 
+**Returns:**
 
 `number(integer)` indicating number of fields in the result set.
 
@@ -1228,7 +1235,7 @@ numFields()
 **Valid Scope:** When the result set is available.
 ___
 
-## dbstmt.numRows()
+### dbstmt.numRows()
 
 **Description:**
 
@@ -1238,7 +1245,7 @@ Returns the number of rows in a table affected by the last executed sql statemen
 
 numRows()
 
-**Returns:** 
+**Returns:**
 
 `number(integer)` indicating number of rows affected by the operation.
 
@@ -1247,7 +1254,7 @@ numRows()
 **Valid Scope:** When the result set is available.
 ___
 
-## dbstmt.fieldType(index)
+### dbstmt.fieldType(index)
 
 **Description:**
 
@@ -1261,7 +1268,7 @@ fieldType(index)
 
 - **index:** `number(integer)` the column number in a result set, ordered sequentially left to right, starting at 0.
 
-**Returns:** 
+**Returns:**
 
 `number(integer)` indicating the data type of the specified column in the result set.
 
@@ -1270,7 +1277,7 @@ fieldType(index)
 **Valid Scope:** When the result set is available.
 ___
 
-## dbstmt.fieldWidth(index)
+### dbstmt.fieldWidth(index)
 **Description:**
 
 If a valid index is provided, `fieldWidth` returns the field width of the indicated field.
@@ -1283,7 +1290,7 @@ fieldWidth(index)
 
 - **index:** `number(integer)` the column number in a result set, ordered sequentially left to right, starting at 0.
 
-**Returns:** 
+**Returns:**
 
 `number(integer)` indicating the width of the specified column in the result set.
 
@@ -1292,7 +1299,7 @@ fieldWidth(index)
 **Valid Scope:** When the result set is available.
 ___
 
-## dbstmt.fieldNullable(index)
+### dbstmt.fieldNullable(index)
 
 **Description:**
 
@@ -1306,7 +1313,7 @@ fieldNullable(index)
 
 - **index:** `number(integer)` the column number in a result set, ordered sequentially left to right, starting at 0.
 
-**Returns:** 
+**Returns:**
 
 `boolean` indicating if the column can be set to NULL.
 
@@ -1315,7 +1322,8 @@ fieldNullable(index)
 **Valid Scope:** When the result set is available.
 
 ___
-## dbstmt.fieldName(index)
+
+### dbstmt.fieldName(index)
 
 **Description:**
 
@@ -1329,7 +1337,7 @@ fieldName(index)
 
 - **index:** `number(integer)` the column number in a result set, ordered sequentially left to right, starting at 0.
 
-**Returns:** 
+**Returns:**
 
 `string` indicating the name of the specified column in the result set.
 
@@ -1338,7 +1346,8 @@ fieldName(index)
 **Valid Scope:** When the result set is available.
 ___
 
-## dbstmt.fieldPrecise(index)
+### dbstmt.fieldPrecise(index)
+
 **Description:**
 
 If a valid index is provided, `fieldPrecise` returns the precision of the indicated field.
@@ -1351,7 +1360,7 @@ fieldPrecise(index)
 
 - **index:** `number(integer)` the column number in a result set, ordered sequentially left to right, starting at 0.
 
-**Returns:** 
+**Returns:**
 
 `number(integer)` indicating the precision of the specified column in the result set.
 
@@ -1360,7 +1369,7 @@ fieldPrecise(index)
 **Valid Scope:** When the result set is available.
 ___
 
-## dbstmt.fieldScale(index)
+### dbstmt.fieldScale(index)
 **Description:**
 
 If a valid index is provided, `fieldScale` returns the scale of the indicated column.
@@ -1373,7 +1382,7 @@ fieldScale(index)
 
 - **index:** `number(integer)` the column number in a result set, ordered sequentially left to right, starting at 0.
 
-**Returns:** 
+**Returns:**
 
 `number(integer)` indicating the scale of the specified column in the result set.
 
@@ -1382,7 +1391,8 @@ fieldScale(index)
 **Valid Scope:** When the result set is available.
 ___
 
-## dbstmt.stmtError(callback)
+### dbstmt.stmtError(callback)
+
 **Description:**
 
 Returns the diagnostic information associated with the most recently called function for a particular statement, connection, or environment handler.
@@ -1394,7 +1404,7 @@ stmtError(hType, recno, callback)
 **Parameters**
 
 - **hType:** `number(integer)` indicates the handler type of diagnostic information. It can be following values:
-      
+
     - `SQL_HANDLE_ENV`: Retrieve the environment diagnostic information
 
     - `SQL_HANDLE_DBC`: Retrieve the connection diagnostic information
@@ -1411,7 +1421,6 @@ stmtError(hType, recno, callback)
 **Valid Scope:** After calling conn() function
 
 ***Diagnostics***
-
 
 | Error Code | Meaning|
 |---|---|

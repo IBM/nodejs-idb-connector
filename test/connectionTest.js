@@ -1,17 +1,17 @@
-const expect = require('chai').expect;
+const {expect} = require('chai');
 const db2a = require('../lib/db2a');
+
 const {dbconn} = db2a;
 const username = process.env.DBNAME;
 const password = process.env.DBPWD;
 
 // Test connection Class
 describe('Connection Test', () => {
-
-  //if successful returns undefined
+  // if successful returns undefined
   describe('conn & disconn & isConnected', () => {
     it('disconnects an exsisting connection to the datbase.', () => {
-      let connection = new dbconn(),
-        result = connection.conn("*LOCAL");
+      const connection = new dbconn();
+      let result = connection.conn('*LOCAL');
       result = connection.isConnected();
       expect(result).to.be.true;
 
@@ -22,7 +22,7 @@ describe('Connection Test', () => {
       expect(result).to.be.false;
 
       // Test the callback style
-      connection.conn("*LOCAL", () => {
+      connection.conn('*LOCAL', () => {
         result = connection.isConnected();
         expect(result).to.be.true;
 
@@ -33,11 +33,11 @@ describe('Connection Test', () => {
         expect(result).to.be.false;
       });
     });
-    if(username && password) {
+    if (username && password) {
       it('disconnects an exsisting connection to the datbase with user/pwd.', () => {
         // Test with username/password
-        let connection = new dbconn(),
-          result = connection.conn("*LOCAL", username, password);
+        const connection = new dbconn();
+        let result = connection.conn('*LOCAL', username, password);
         result = connection.isConnected();
         expect(result).to.be.true;
 
@@ -48,7 +48,7 @@ describe('Connection Test', () => {
         expect(result).to.be.false;
 
         // Test the callback style
-        connection.conn("*LOCAL", username, password, () => {
+        connection.conn('*LOCAL', username, password, () => {
           result = connection.isConnected();
           expect(result).to.be.true;
 
@@ -62,33 +62,33 @@ describe('Connection Test', () => {
     }
   });
 
-  //if successful returns String or Int depending on attribute
+  // if successful returns String or Int depending on attribute
   describe('getConnAttr', () => {
     it('getConnAttr(SQL_ATTR_AUTOCOMMIT) should return type Int', () => {
-      let attr = db2a.SQL_ATTR_AUTOCOMMIT,
-        connection = new dbconn(),
-        result = connection.getConnAttr(attr);
+      const attr = db2a.SQL_ATTR_AUTOCOMMIT;
+      const connection = new dbconn();
+      const result = connection.getConnAttr(attr);
 
       expect(result).to.be.a('number');
     });
 
     it('getConnAttr(SQL_ATTR_DBC_DEFAULT_LIB) should return type String', () => {
-      let attr = db2a.SQL_ATTR_DBC_DEFAULT_LIB,
-        connection = new dbconn(),
-        result = connection.getConnAttr(attr);
+      const attr = db2a.SQL_ATTR_DBC_DEFAULT_LIB;
+      const connection = new dbconn();
+      const result = connection.getConnAttr(attr);
 
       expect(result).to.be.a('string');
     });
   });
 
 
-  //if successful returns undefined
+  // if successful returns undefined
   describe('setConnAttr', () => {
     it('setConnAttr(SQL_ATTR_AUTOCOMMIT, SQL_TRUE) should return true', () => {
-      let attr = db2a.SQL_ATTR_AUTOCOMMIT,
-        value = db2a.SQL_TRUE,
-        connection = new dbconn(),
-        result = connection.setConnAttr(attr, value);
+      const attr = db2a.SQL_ATTR_AUTOCOMMIT;
+      let value = db2a.SQL_TRUE;
+      const connection = new dbconn();
+      let result = connection.setConnAttr(attr, value);
 
       expect(result).to.be.true;
 
@@ -104,21 +104,21 @@ describe('Connection Test', () => {
     });
 
     it('setConnAttr(SQL_ATTR_INFO_APPLNAME, "NODEJSTEST") should return true', () => {
-      let attr = db2a.SQL_ATTR_INFO_APPLNAME,
-        value = "NODEJSTEST",
-        connection = new dbconn(),
-        result = connection.setConnAttr(attr, value);
+      const attr = db2a.SQL_ATTR_INFO_APPLNAME;
+      const value = 'NODEJSTEST';
+      const connection = new dbconn();
+      const result = connection.setConnAttr(attr, value);
 
       expect(result).to.be.true;
     });
   });
 
-  //if successful returns undefined
+  // if successful returns undefined
   describe('debug', () => {
     it('prints more detailed info if choice = true. Turned off by setting choice = false.', () => {
-      let choice = true,
-        connection = new dbconn(),
-        result = connection.debug(choice);
+      let choice = true;
+      const connection = new dbconn();
+      let result = connection.debug(choice);
 
       expect(result).to.equal(choice);
       choice = !choice;
@@ -128,35 +128,34 @@ describe('Connection Test', () => {
     });
   });
 
-  //if successful returns String
+  // if successful returns String
   describe('validStmt', () => {
     it('if the SQL is valid, validStmt() should return the SQL', () => {
-      let sql = 'SELECT * FROM QIWS.QCUSTCDT',
-        connection = new dbconn(),
-        result = connection.validStmt(sql);
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const connection = new dbconn();
+      const result = connection.validStmt(sql);
 
       expect(result).to.equal(sql);
     });
 
     it('if the SQL is invalid, validStmt() should return null', () => {
       try {
-        let sql = 'SELECT * FORM QIWS.QCUSTCDT',
-          connection = new dbconn(),
-          result = connection.validStmt(sql);
+        const sql = 'SELECT * FORM QIWS.QCUSTCDT';
+        const connection = new dbconn();
+        const result = connection.validStmt(sql);
 
         expect(result).to.equal(null);
       } catch (e) { }
     });
   });
 
-  //if successful returns undefined
+  // if successful returns undefined
   describe('close', () => {
     it('frees the connection object. ', () => {
-      let connection = new dbconn(),
-        result = connection.close();
+      const connection = new dbconn();
+      const result = connection.close();
 
       expect(result).to.be.true;
     });
   });
-
 });

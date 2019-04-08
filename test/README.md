@@ -1,4 +1,5 @@
-# How to Test 
+# How to Test
+
  Mocha & Chai were used to create unit tests. Both are part of dev-deps within the package.json so be sure to run `npm install` first.
 
  Specific Tests can be run by `npm test path_to_test`.  
