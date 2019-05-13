@@ -2156,6 +2156,8 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
       else if(bindIndicator == 3 || value.IsNull()) { //Parameter is NULL
         param[i].valueType = SQL_C_DEFAULT;
         param[i].ind = SQL_NULL_DATA;
+        void *dummy = nullptr;
+        param[i].buf = &dummy;
       }
       else if(bindIndicator == 4 || value.IsNumber()) { //Parameter is Decimal
         double *number = (double*)malloc(sizeof(double));
