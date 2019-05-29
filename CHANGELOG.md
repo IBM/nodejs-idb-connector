@@ -1,5 +1,11 @@
 # idb-connector changelog
 
+## 1.2.0
+- Use N-API versions for build (one binary for all Node.js)
+- Patch to allow binding null values (#75)
+- Add Node.js v12 support
+- Remove Node.js v6 support
+
 ## 1.1.10
 
 - Retrieve data when SQLFetch return SQL_SUCCESS_WITH_INFO(#71)
