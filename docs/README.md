@@ -51,6 +51,7 @@
   - [dbstmt.fieldPrecise(index)](#dbstmtfieldpreciseindex)
   - [dbstmt.fieldScale(index)](#dbstmtfieldscaleindex)
   - [dbstmt.stmtError(callback)](#dbstmtstmterrorcallback)
+  - [dbstmt.asNumber(flag)](#dbstmtasnumberflag)
 
 ___
 
@@ -1423,6 +1424,31 @@ stmtError(hType, recno, callback)
 **DB2 CLI API:** SQLGetDiagRec
 
 **Valid Scope:** After calling conn() function
+___
+
+### dbstmt.asNumber(flag)
+
+**Description:**
+
+Enables or disables automatic numeric conversion.
+
+**Syntax:**
+
+asNumber(flag)
+
+**Parameters:**
+
+- **flag:** `boolean` to turn automatic data conversion mode on or off. Default value is `false`.
+
+    - `true`: The result data is returned as its original type. Due to the data type difference between SQL and Javascript, the data may be truncated.
+
+    - `false`: The result data is returned as strings.
+    
+**Returns:**
+
+`boolean` the current state of the asNumber flag otherwise an error is thrown.
+
+**Valid Scope:** After allocating the statement handler.
 
 ***Diagnostics***
 

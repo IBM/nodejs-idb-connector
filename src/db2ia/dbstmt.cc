@@ -81,6 +81,8 @@ Napi::Object DbStmt::Init(Napi::Env env, Napi::Object exports) {
       InstanceMethod("stmtError", &DbStmt::StmtError),
       InstanceMethod("getStmtDiag", &DbStmt::StmtError),
       InstanceMethod("close", &DbStmt::Close),
+      
+      InstanceMethod("asNumber", &DbStmt::AsNumber),
   });
 
   constructor = Napi::Persistent(constructorFunc);
@@ -88,6 +90,30 @@ Napi::Object DbStmt::Init(Napi::Env env, Napi::Object exports) {
 
   exports.Set("dbstmt" , constructorFunc);
   return exports;
+}
+
+/*
+ *  DbStmt::AsNumber
+ *    Description: Turn on or off automatic numberic data convertion:
+ *    Parameters:
+ *      const Napi::CallbackInfo& info:
+ *        The information passed by Napi from the JavaScript call, including
+ *        arguments from the JavaScript function. In JavaScript, the exported
+ *        function takes 1 argument.
+ *        info[0] (Boolean): true for ON false for OFF.
+ *    Returns: boolean true/false indicating the state of the debug switch.
+ * 
+ */
+Napi::Value DbStmt::AsNumber(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env);
+  int length = info.Length();
+  //validation
+  CHECK_WITH_RETURN(length != 1, INVALID_PARAM_NUM, "asNumber() Expected One Parameter", env, env.Null())
+  CHECK_WITH_RETURN(!info[0].IsBoolean(), INVALID_PARAM_TYPE, "asNumber() Expected 1st Parameter to be a Boolean ", env, env.Null())
+
+  this->asNumber = Napi::Boolean(env , info[0]).Value();
+  return Napi::Boolean(env , info[0]);
 }
 
 /*
@@ -2024,6 +2050,7 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
       for(int j = 0; j < colCount; j++)
       {
         Napi::Value value;
+        Napi::Value nvalue;
         if(result[i][j].rlength == SQL_NULL_DATA)
           value = env.Null();
         else {
@@ -2033,6 +2060,20 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
             case SQL_BLOB :
               value = Napi::Buffer<char>::New(env, result[i][j].data, result[i][j].rlength);
               break;
+            case SQL_SMALLINT :
+            case SQL_INTEGER :
+              if(asNumber == true){
+                nvalue = Napi::String::New(env, result[i][j].data);
+                value = Napi::Number::New(env, nvalue.ToNumber());            
+                break;
+              }
+            case SQL_DECIMAL :
+            case SQL_NUMERIC :
+              if(asNumber == true && dbColumn[j].colPrecise <= 15){
+                nvalue = Napi::String::New(env, result[i][j].data);
+                value = Napi::Number::New(env, nvalue.ToNumber());            
+                break;
+              }
             default : 
               value = Napi::String::New(env, result[i][j].data);
               break;
