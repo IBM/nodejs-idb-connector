@@ -1890,40 +1890,45 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
     rowData = (SQLCHAR**)calloc(colCount, sizeof(SQLCHAR*)); 
     for(int i = 0; i < colCount; i++) {
       switch(dbColumn[i].sqlType) {
-          case SQL_SMALLINT :
-          {
-            maxColLen = 7;
-            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-            //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnbindc.htm
-            sqlReturnCode = SQLBindCol(stmth, //SQLHSTMT hstmt -Statement Handle
-                                       i + 1, //SQLSMALLINT icol -# identifying the column
-                                       SQL_C_CHAR, //SQLSMALLINT fCtype -App Data type for icol 
-                                       (SQLPOINTER)rowData[i], //SQLPOINTER rgbValue -Pointer to buffer to store col data (Output) 
-                                       maxColLen, //SQLINTEGER cbValueMax -Size of rgbValue buffer in bytes avail to store col data
-                                       &dbColumn[i].rlength); //SQLINTEGER* pcbValue -Pointer to value for # bytes avail to return in rgbValue buffer (Output)
-          } break;
-          case SQL_INTEGER :
-          {
-            maxColLen = 12;
-            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-            sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
-          } break;
-          case SQL_BIGINT :
-          {
-            maxColLen = 21;
-            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-            sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
-          } break;
-          case SQL_DECIMAL :
-          case SQL_NUMERIC :
-          case SQL_FLOAT :
-          case SQL_REAL :
-          case SQL_DOUBLE :
-          {
-            maxColLen = dbColumn[i].colPrecise + dbColumn[i].colScale + 3;
-            rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-            sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
-          } break;
+        case SQL_SMALLINT :
+        {
+          maxColLen = 7;
+          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnbindc.htm
+          sqlReturnCode = SQLBindCol(stmth, //SQLHSTMT hstmt -Statement Handle
+                                     i + 1, //SQLSMALLINT icol -# identifying the column
+                                     SQL_C_CHAR, //SQLSMALLINT fCtype -App Data type for icol 
+                                     (SQLPOINTER)rowData[i], //SQLPOINTER rgbValue -Pointer to buffer to store col data (Output) 
+                                     maxColLen, //SQLINTEGER cbValueMax -Size of rgbValue buffer in bytes avail to store col data
+                                     &dbColumn[i].rlength); //SQLINTEGER* pcbValue -Pointer to value for # bytes avail to return in rgbValue buffer (Output)
+        } break;
+        case SQL_INTEGER :
+        {
+          maxColLen = 12;
+          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+        } break;
+        case SQL_BIGINT :
+        {
+          maxColLen = 21;
+          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+        } break;
+        case SQL_DECIMAL :
+        case SQL_NUMERIC :
+        case SQL_FLOAT :
+        case SQL_DOUBLE :
+        {
+          maxColLen = dbColumn[i].colPrecise + dbColumn[i].colScale + 3;
+          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+        } break;
+        case SQL_REAL :
+        {
+          maxColLen = 30;  // The ISO synonym for real is float(24).
+          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+        } break;
         case SQL_VARBINARY :
         case SQL_BINARY :
         {
