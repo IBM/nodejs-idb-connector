@@ -90,6 +90,8 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     Napi::Value FieldPrecise(const Napi::CallbackInfo& info);
     Napi::Value FieldScale(const Napi::CallbackInfo& info);
     Napi::Value FieldNullable(const Napi::CallbackInfo& info);
+    
+    Napi::Value AsNumber(const Napi::CallbackInfo& info);
 
     
     void StmtError(const Napi::CallbackInfo& info);
@@ -118,6 +120,7 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     bool colDataAllocated = false;
     
     bool isDebug = false;
+    bool asNumber = false;
     
     static SQLHENV envh;
     SQLHDBC connh;
