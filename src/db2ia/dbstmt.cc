@@ -1944,6 +1944,13 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
           sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_BLOB, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
         }
         break;
+        case SQL_CLOB :
+        {
+          maxColLen = dbColumn[i].colPrecise * 4 + 1;
+          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CLOB, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+        }
+        break;
         case SQL_WCHAR :
         case SQL_WVARCHAR :
         {
