@@ -438,7 +438,11 @@ ___
 
 Establishes a connection to the target database.
 
-**NOTE** '*LOCAL' can be provided as the `database` when connecting to a local database, allowing `user` & `password` to be optionally passed.
+**NOTE** 
+
+- `*LOCAL` can be provided as the `database` when connecting to a local database, allowing `user` & `password` to be optionally passed.
+
+- To access SQL functions and stored procedures without fully qualifying them, ensure that the CURRENT PATH is set correctly using the SET PATH SQL statement. See [here](https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_74/db2/rbafzsetpath.htm) for more info.
 
 **Syntax 1:**
 conn(database)
