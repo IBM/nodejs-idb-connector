@@ -99,7 +99,7 @@ Napi::Object DbStmt::Init(Napi::Env env, Napi::Object exports) {
  *      const Napi::CallbackInfo& info:
  *        The information passed by Napi from the JavaScript call, including
  *        arguments from the JavaScript function. In JavaScript, the exported
- *        function takes 1 argument.
+ *        function takes 0 or 1 argument.
  *        info[0] (Boolean): true for ON false for OFF.
  *    Returns: boolean true/false indicating the state of the debug switch.
  * 
@@ -109,11 +109,13 @@ Napi::Value DbStmt::AsNumber(const Napi::CallbackInfo& info) {
   Napi::HandleScope scope(env);
   int length = info.Length();
   //validation
-  CHECK_WITH_RETURN(length != 1, INVALID_PARAM_NUM, "asNumber() Expected One Parameter", env, env.Null())
-  CHECK_WITH_RETURN(!info[0].IsBoolean(), INVALID_PARAM_TYPE, "asNumber() Expected 1st Parameter to be a Boolean ", env, env.Null())
+  CHECK_WITH_RETURN(length != 0 && length != 1, INVALID_PARAM_NUM, "asNumber() Expected 0 or 1 Parameter", env, env.Null())
+  if(length == 1) {
+    CHECK_WITH_RETURN(!info[0].IsBoolean(), INVALID_PARAM_TYPE, "asNumber() Expected 1st Parameter to be a Boolean ", env, env.Null())
+    this->asNumber = Napi::Boolean(env , info[0]).Value();
+  }
 
-  this->asNumber = Napi::Boolean(env , info[0]).Value();
-  return Napi::Boolean(env , info[0]);
+  return Napi::Boolean::New(env , this->asNumber);
 }
 
 /*
