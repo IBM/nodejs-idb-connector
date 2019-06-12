@@ -1431,8 +1431,11 @@ ___
 **Description:**
 
 Enables or disables automatic numeric conversion.
+**Syntax 1:**
 
-**Syntax:**
+asNumber()
+
+**Syntax 2:**
 
 asNumber(flag)
 
