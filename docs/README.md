@@ -1402,6 +1402,8 @@ ___
 
 Returns the diagnostic information associated with the most recently called function for a particular statement, connection, or environment handler.
 
+**NOTE** `dbstmt.stmtError` may not work properly when using with `dbconn.debug(true)`
+
 **Syntax:**
 
 stmtError(hType, recno, callback)
