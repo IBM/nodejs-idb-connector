@@ -1,6 +1,6 @@
 {
   "name": "idb-connector",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A Node.js DB2 driver for IBM i",
   "os": [
     "aix"
@@ -63,6 +63,8 @@
     "remote_path": "./{version}/",
     "package_name": "{module_name}-v{version}-napi{napi_build_version}-ibmi-{arch}.tar.gz",
     "host": "https://github.com/IBM/nodejs-idb-connector/releases/download",
-    "napi_versions": [3]
+    "napi_versions": [
+      3
+    ]
   }
 }
