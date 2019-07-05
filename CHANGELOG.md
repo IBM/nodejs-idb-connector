@@ -1,5 +1,12 @@
 # idb-connector changelog
 
+## 1.2.1
+- [dbstmt] support returning numeric SQL data (#77)
+- [dbstmt] support binding to CLOB for long text (#78)
+- [dbstmt] fix the truncated issue for data type REAL (#64)
+- [doc] add SET PATH details (#74)
+- [doc] stmtError() conflicts with dbconn.debug(true) (#81)
+
 ## 1.2.0
 - Use N-API versions for build (one binary for all Node.js)
 - Patch to allow binding null values (#75)
