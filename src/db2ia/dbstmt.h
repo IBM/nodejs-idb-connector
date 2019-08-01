@@ -18,6 +18,7 @@ struct db2_column {
   SQLSMALLINT colScale;
   SQLSMALLINT colNull;
   SQLINTEGER  rlength;
+  SQLINTEGER  clobLoc;
 };
 
 struct db2_param {

@@ -1974,9 +1974,7 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
         break;
         case SQL_CLOB :
         {
-          maxColLen = dbColumn[i].colPrecise * 4 + 1;
-          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CLOB, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CLOB_LOCATOR, &dbColumn[i].clobLoc, 0, &dbColumn[i].rlength);
         }
         break;
         case SQL_WCHAR :
@@ -2020,7 +2018,27 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
       for(int i = 0; i < colCount; i++)
       {
         int colLen = 0;
-        if(dbColumn[i].rlength == SQL_NTS) {
+        int ind = 0;
+        if(dbColumn[i].sqlType == SQL_CLOB) {
+          SQLHANDLE stmtLoc, stmtLocFree;
+          
+          sqlReturnCode = SQLAllocStmt(connh, &stmtLoc);
+          sqlReturnCode = SQLAllocStmt(connh, &stmtLocFree);
+
+          sqlReturnCode = SQLGetLength(stmtLoc, SQL_C_CLOB_LOCATOR, dbColumn[i].clobLoc, &colLen, &ind);
+
+          row[i].data = (SQLCHAR*)calloc(colLen * 2 + 1, sizeof(SQLCHAR));
+          row[i].rlength = colLen;
+          sqlReturnCode = SQLGetCol(stmth, i + 1, SQL_C_CLOB, row[i].data, colLen, &ind);
+
+          SQLCHAR *freeLocStmt = (SQLCHAR *)"FREE LOCATOR ?";
+          sqlReturnCode = SQLSetParam(stmtLocFree, 1, SQL_C_CLOB_LOCATOR, SQL_CLOB_LOCATOR, 0, 0, &dbColumn[i].clobLoc, NULL);
+          sqlReturnCode = SQLExecDirect(stmtLocFree, freeLocStmt, SQL_NTS);
+
+          sqlReturnCode = SQLFreeStmt(stmtLoc, SQL_DROP);
+          sqlReturnCode = SQLFreeStmt(stmtLocFree, SQL_DROP);
+        }
+        else if(dbColumn[i].rlength == SQL_NTS) {
           colLen = strlen(rowData[i]);
           row[i].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
           memcpy(row[i].data, rowData[i], colLen * sizeof(SQLCHAR));
@@ -2031,12 +2049,12 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
           row[i].rlength = SQL_NULL_DATA;
         }
         else {
-            colLen = dbColumn[i].rlength;
-            row[i].data = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
-            memcpy(row[i].data, rowData[i], colLen * sizeof(SQLCHAR));
-            row[i].rlength = colLen;
-          }
+          colLen = dbColumn[i].rlength;
+          row[i].data = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
+          memcpy(row[i].data, rowData[i], colLen * sizeof(SQLCHAR));
+          row[i].rlength = colLen;
         }
+      }
       result.push_back(row);
     }
     if(sqlReturnCode == SQL_ERROR){
