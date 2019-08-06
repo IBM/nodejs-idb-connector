@@ -2081,7 +2081,7 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
             {
               SQLCHAR *binaryData = new SQLCHAR[result[i][j].rlength]; // have to save the data on the heap
               memcpy((SQLCHAR *) binaryData, result[i][j].data, result[i][j].rlength);
-              value = Napi::Buffer::New(env, binaryData, result[i][j].rlength, [](Napi::Env env, void* finalizeData) {
+              value = Napi::Buffer<char>::New(env, binaryData, result[i][j].rlength, [](Napi::Env env, void* finalizeData) {
                 delete[] (SQLCHAR*)finalizeData;
               });
               break;
