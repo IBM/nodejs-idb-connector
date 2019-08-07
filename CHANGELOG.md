@@ -1,5 +1,9 @@
 # idb-connector changelog
 
+## 1.2.2
+- [dbstmt] get accurate CLOB data length (#78)
+- [dbstmt] finalize buffer of binary data (#86)
+
 ## 1.2.1
 - [dbstmt] support returning numeric SQL data (#77)
 - [dbstmt] support binding to CLOB for long text (#78)

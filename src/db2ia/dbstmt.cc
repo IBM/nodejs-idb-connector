@@ -2027,7 +2027,7 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
 
           sqlReturnCode = SQLGetLength(stmtLoc, SQL_C_CLOB_LOCATOR, dbColumn[i].clobLoc, &colLen, &ind);
 
-          row[i].data = (SQLCHAR*)calloc(colLen * 2 + 1, sizeof(SQLCHAR));
+          row[i].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
           row[i].rlength = colLen;
           sqlReturnCode = SQLGetCol(stmth, i + 1, SQL_C_CLOB, row[i].data, colLen, &ind);
 
