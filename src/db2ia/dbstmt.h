@@ -10,7 +10,7 @@
 
 #define LOG(a) if((a)) { this->printErrorToLog(); return; }
 
-struct db2_column {
+struct db2ColumnDescription {
   SQLCHAR*    name;
   SQLSMALLINT nameLength;
   SQLSMALLINT sqlType;
@@ -21,7 +21,7 @@ struct db2_column {
   SQLINTEGER  clobLoc;
 };
 
-struct db2_param {
+struct db2ParameterDescription {
   SQLSMALLINT valueType;
   SQLSMALLINT paramType;
   SQLINTEGER  paramSize;
@@ -32,7 +32,7 @@ struct db2_param {
   void*       buf;
 };
 
-struct result_item {
+struct resultSetItem {
   SQLCHAR*    data;
   SQLINTEGER  rlength;
 };
@@ -102,8 +102,8 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     void freeColumnDescriptions();
     int bindColData(Napi::Env env);
     int fetchData();
-    int fetchColData(Napi::Env env, Napi::Array *array);
-    void freeColumnData();
+    int buildJsObject(Napi::Env env, Napi::Array *array);
+    void freeBindingRow();
     void freeColumns();
     void freeSp();
     int bindParams(Napi::Env env, Napi::Array *params, std::string& error);
@@ -118,7 +118,7 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     bool stmtAllocated = false;
     bool resultSetAvailable = false;
     bool colDescAllocated = false;
-    bool colDataAllocated = false;
+    bool bindingRowAllocated = false;
     
     bool isDebug = false;
     bool asNumber = false;
@@ -140,11 +140,11 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     int spOutNumCount;
     
     SQLSMALLINT colCount = 0;
-    db2_column* dbColumn;
-    SQLCHAR** rowData;
-    std::vector<result_item*> result;
+    db2ColumnDescription* dbColumn;
+    SQLCHAR** bindingRowInC;
+    std::vector<resultSetItem*> resultSetInC;
 
-    db2_param* param = NULL;
+    db2ParameterDescription* param = NULL;
     int paramCount = 0;
 
     char msg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];

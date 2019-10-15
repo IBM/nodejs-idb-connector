@@ -301,9 +301,9 @@ class ExecAsyncWorker : public Napi::AsyncWorker {
           Callback().Call(callbackArguments);
           return;
         } 
-      //TODO: Handle if an Error Occurs from fetchColData
-      //Currently fetchColData() will always return 0
-      dbStatementObject->fetchColData(env, &results);
+      //TODO: Handle if an Error Occurs from buildJsObject
+      //Currently buildJsObject() will always return 0
+      dbStatementObject->buildJsObject(env, &results);
 
       //callback signature function(result, error)
       callbackArguments.push_back(results);
@@ -384,7 +384,7 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo& info) {
     CHECK_WITH_RETURN(!info[1].IsFunction(), INVALID_PARAM_TYPE, "Argument 2 Must be a Function", env, env.Null())
     cb = info[1].As<Napi::Function>();
   }
-  sqlString = Napi::String(env , info[0]).Utf8Value();
+  sqlString = Napi::String(env, info[0]).Utf8Value();
   std::vector<char> sqlStringVec(sqlString.begin(), sqlString.end());
   sqlStringVec.push_back('\0');
   SQLCHAR* tmpSqlSt = &sqlStringVec[0];
@@ -430,9 +430,9 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo& info) {
     return env.Null();
   }
   this->fetchData();
-  //TODO: Handle if an Error Occurs from fetchColData
-  //Currently fetchColData() will always return 0
-  this->fetchColData(env, &results);
+  //TODO: Handle if an Error Occurs from buildJsObject
+  //Currently buildJsObject() will always return 0
+  this->buildJsObject(env, &results);
   
   //callback signature function(results, error)
   if (length == 2) {
@@ -1259,7 +1259,7 @@ class FetchAllAsyncWorker : public Napi::AsyncWorker {
       std::vector<napi_value> callbackArguments;
       Napi::Array results = Napi::Array::New(env); 
       //load up the array with data
-      dbStatementObject->fetchColData(env, &results);
+      dbStatementObject->buildJsObject(env, &results);
       
       callbackArguments.push_back(results);
       callbackArguments.push_back(env.Null());
@@ -1348,8 +1348,8 @@ Napi::Value DbStmt::FetchAllSync(const Napi::CallbackInfo& info) {
     this->throwErrMsg(SQL_HANDLE_DBC, env);
   }
 
-  if(this->fetchColData(env, &results) < 0) {
-    DEBUG(this, "fetchColData < 0\n")
+  if(this->buildJsObject(env, &results) < 0) {
+    DEBUG(this, "buildJsObject < 0\n")
     return env.Null();
   } 
   //callback signature function(row)
@@ -1866,25 +1866,25 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
     }
     
     SQLRETURN sqlReturnCode;
-    dbColumn = (db2_column*)calloc(colCount, sizeof(db2_column));
+    dbColumn = (db2ColumnDescription*)calloc(colCount, sizeof(db2ColumnDescription));
 
-    for(int i = 0; i < colCount; i++) {
-      dbColumn[i].name = (SQLCHAR*)calloc(MAX_COLNAME_WIDTH, sizeof(SQLCHAR));
+    for(int col = 0; col < colCount; col++) {
+      dbColumn[col].name = (SQLCHAR*)calloc(MAX_COLNAME_WIDTH, sizeof(SQLCHAR));
       //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfndecol.htm
       sqlReturnCode = SQLDescribeCol(stmth, //SQLHSTMT hstmt -Statement handle
-                                     i + 1, //SQLSMALLINT icol -Column # to be described
-                                     dbColumn[i].name, //SQLCHAR* szColName -Pointer to column name buffer
+                                     col + 1, //SQLSMALLINT icol -Column # to be described
+                                     dbColumn[col].name, //SQLCHAR* szColName -Pointer to column name buffer
                                      MAX_COLNAME_WIDTH, //SQLSMALLINT cbColNameMax -Size of szColName buffer
-                                     &dbColumn[i].nameLength, //SQLSMALLINT* pcbColName -Bytes avail to return for szColName (Output)
-                                     &dbColumn[i].sqlType, //SQLSMALLINT* pfSqlType -SQL data type of column (Output)
-                                     &dbColumn[i].colPrecise, //SQLINTEGER* pcbColDef -Precision of column as defined in db2 (Output)
-                                     &dbColumn[i].colScale, //SQLSMALLINT* pibScale -Scale of column as defined in db2 (Output)
-                                     &dbColumn[i].colNull); //SQLSMALLINT* pfNullable -Indactes whether null is allowed (Output)
+                                     &dbColumn[col].nameLength, //SQLSMALLINT* pcbColName -Bytes avail to return for szColName (Output)
+                                     &dbColumn[col].sqlType, //SQLSMALLINT* pfSqlType -SQL data type of column (Output)
+                                     &dbColumn[col].colPrecise, //SQLINTEGER* pcbColDef -Precision of column as defined in db2 (Output)
+                                     &dbColumn[col].colScale, //SQLSMALLINT* pibScale -Scale of column as defined in db2 (Output)
+                                     &dbColumn[col].colNull); //SQLSMALLINT* pfNullable -Indactes whether null is allowed (Output)
 
-      DEBUG(this,"SQLDescribeCol(%d)\tindex[%d]\tsqlType[%d]\tcolScale[%d]\tcolPrecise[%d]\n",sqlReturnCode, i, dbColumn[i].sqlType, dbColumn[i].colScale, dbColumn[i].colPrecise )  
+      DEBUG(this,"SQLDescribeCol(%d)\tindex[%d]\tsqlType[%d]\tcolScale[%d]\tcolPrecise[%d]\n",sqlReturnCode, col, dbColumn[col].sqlType, dbColumn[col].colScale, dbColumn[col].colPrecise )  
      
       if (sqlReturnCode != SQL_SUCCESS) {
-        freeColumnDescriptions(); // this never gets run. colDescAllocated isnt set to true until after this call
+        freeColumnDescriptions();
         if(env != NULL)
           throwErrMsg(SQL_ERROR, "SQLDescribeCol() failed.", env);
         else printErrorToLog();
@@ -1896,17 +1896,15 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
   }
   
   void DbStmt::freeColumnDescriptions() {
-    if(colDescAllocated == true) { 
-      for(int i = 0; i < colCount && dbColumn[i].name; i++)
-        free(dbColumn[i].name); 
-      free(dbColumn); 
-      colDescAllocated = false; 
-    }
+    for(int col = 0; col < colCount && dbColumn[col].name; col++)
+      free(dbColumn[col].name); 
+    free(dbColumn); 
+    colDescAllocated = false;
   }
   
   int DbStmt::bindColData(Napi::Env env) {
-    if(colDataAllocated == true) 
-      freeColumnData();
+    if(bindingRowAllocated == true) 
+      freeBindingRow();
     
     if(colDescAllocated != true)
       if(populateColumnDescriptions(env) < 0)
@@ -1914,94 +1912,94 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
     
     SQLRETURN sqlReturnCode;
     SQLINTEGER maxColLen = 0;
-    //rowData defined in dbstmt.h as type SQLCHAR**
-    rowData = (SQLCHAR**)calloc(colCount, sizeof(SQLCHAR*)); 
-    for(int i = 0; i < colCount; i++) {
-      switch(dbColumn[i].sqlType) {
+    //bindingRowInC defined in dbstmt.h as type SQLCHAR**
+    bindingRowInC = (SQLCHAR**)calloc(colCount, sizeof(SQLCHAR*)); 
+    for(int col = 0; col < colCount; col++) {
+      switch(dbColumn[col].sqlType) {
         case SQL_SMALLINT :
         {
           maxColLen = 7;
-          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
           //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnbindc.htm
           sqlReturnCode = SQLBindCol(stmth, //SQLHSTMT hstmt -Statement Handle
-                                     i + 1, //SQLSMALLINT icol -# identifying the column
+                                     col + 1, //SQLSMALLINT icol -# identifying the column
                                      SQL_C_CHAR, //SQLSMALLINT fCtype -App Data type for icol 
-                                     (SQLPOINTER)rowData[i], //SQLPOINTER rgbValue -Pointer to buffer to store col data (Output) 
+                                     (SQLPOINTER)bindingRowInC[col], //SQLPOINTER rgbValue -Pointer to buffer to store col data (Output) 
                                      maxColLen, //SQLINTEGER cbValueMax -Size of rgbValue buffer in bytes avail to store col data
-                                     &dbColumn[i].rlength); //SQLINTEGER* pcbValue -Pointer to value for # bytes avail to return in rgbValue buffer (Output)
+                                     &dbColumn[col].rlength); //SQLINTEGER* pcbValue -Pointer to value for # bytes avail to return in rgbValue buffer (Output)
         } break;
         case SQL_INTEGER :
         {
           maxColLen = 12;
-          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
         } break;
         case SQL_BIGINT :
         {
           maxColLen = 21;
-          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
         } break;
         case SQL_DECIMAL :
         case SQL_NUMERIC :
         case SQL_FLOAT :
         case SQL_DOUBLE :
         {
-          maxColLen = dbColumn[i].colPrecise + dbColumn[i].colScale + 3;
-          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          maxColLen = dbColumn[col].colPrecise + dbColumn[col].colScale + 3;
+          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
         } break;
         case SQL_REAL :
         {
           maxColLen = 30;  // The ISO synonym for real is float(24).
-          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
         } break;
         case SQL_VARBINARY :
         case SQL_BINARY :
         {
-          maxColLen = dbColumn[i].colPrecise;
-          rowData[i] = (SQLCHAR*)malloc(maxColLen * sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_BINARY, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          maxColLen = dbColumn[col].colPrecise;
+          bindingRowInC[col] = (SQLCHAR*)malloc(maxColLen * sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_BINARY, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
         }
         break;
         case SQL_BLOB :
         {
-          maxColLen = dbColumn[i].colPrecise;
-          rowData[i] = (SQLCHAR*)malloc(maxColLen * sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_BLOB, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          maxColLen = dbColumn[col].colPrecise;
+          bindingRowInC[col] = (SQLCHAR*)malloc(maxColLen * sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_BLOB, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
         }
         break;
         case SQL_CLOB :
         {
-          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CLOB_LOCATOR, &dbColumn[i].clobLoc, 0, &dbColumn[i].rlength);
+          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CLOB_LOCATOR, &dbColumn[col].clobLoc, 0, &dbColumn[col].rlength);
         }
         break;
         case SQL_WCHAR :
         case SQL_WVARCHAR :
         {
-          maxColLen = dbColumn[i].colPrecise * 4 + 1;
-          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          maxColLen = dbColumn[col].colPrecise * 4 + 1;
+          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
         }
         break;
         default : // SQL_CHAR / SQL_VARCHAR
         {
-          maxColLen = dbColumn[i].colPrecise * 4 + 1;
-          rowData[i] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, i + 1, SQL_C_CHAR, (SQLPOINTER)rowData[i], maxColLen, &dbColumn[i].rlength);
+          maxColLen = dbColumn[col].colPrecise * 4 + 1;
+          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
         }
         break;
       }
       if (sqlReturnCode != SQL_SUCCESS) {
-        freeColumnData();
+        freeBindingRow();
         if(env != NULL)
           throwErrMsg(SQL_ERROR, "SQLBindCol() failed.", env);
         else printErrorToLog();
         return -1;
       }
     }
-    colDataAllocated = true;
+    bindingRowAllocated = true;
     return 0;
   }
   
@@ -2014,48 +2012,48 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
       sqlReturnCode = SQLFetch(stmth);
       if(sqlReturnCode != SQL_SUCCESS && sqlReturnCode != SQL_SUCCESS_WITH_INFO)
         break;
-      result_item* row = (result_item*)calloc(colCount, sizeof(result_item)); 
-      for(int i = 0; i < colCount; i++)
+      resultSetItem* rowOfResultSetInC = (resultSetItem*)calloc(colCount, sizeof(resultSetItem)); 
+      for(int col = 0; col < colCount; col++)
       {
         int colLen = 0;
         int ind = 0;
-        if(dbColumn[i].sqlType == SQL_CLOB) {
+        if(dbColumn[col].sqlType == SQL_CLOB) {
           SQLHANDLE stmtLoc, stmtLocFree;
           
           sqlReturnCode = SQLAllocStmt(connh, &stmtLoc);
           sqlReturnCode = SQLAllocStmt(connh, &stmtLocFree);
 
-          sqlReturnCode = SQLGetLength(stmtLoc, SQL_C_CLOB_LOCATOR, dbColumn[i].clobLoc, &colLen, &ind);
+          sqlReturnCode = SQLGetLength(stmtLoc, SQL_C_CLOB_LOCATOR, dbColumn[col].clobLoc, &colLen, &ind);
 
-          row[i].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
-          row[i].rlength = colLen;
-          sqlReturnCode = SQLGetCol(stmth, i + 1, SQL_C_CLOB, row[i].data, colLen, &ind);
+          rowOfResultSetInC[col].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
+          rowOfResultSetInC[col].rlength = colLen;
+          sqlReturnCode = SQLGetCol(stmth, col + 1, SQL_C_CLOB, rowOfResultSetInC[col].data, colLen, &ind);
 
           SQLCHAR *freeLocStmt = (SQLCHAR *)"FREE LOCATOR ?";
-          sqlReturnCode = SQLSetParam(stmtLocFree, 1, SQL_C_CLOB_LOCATOR, SQL_CLOB_LOCATOR, 0, 0, &dbColumn[i].clobLoc, NULL);
+          sqlReturnCode = SQLSetParam(stmtLocFree, 1, SQL_C_CLOB_LOCATOR, SQL_CLOB_LOCATOR, 0, 0, &dbColumn[col].clobLoc, NULL);
           sqlReturnCode = SQLExecDirect(stmtLocFree, freeLocStmt, SQL_NTS);
 
           sqlReturnCode = SQLFreeStmt(stmtLoc, SQL_DROP);
           sqlReturnCode = SQLFreeStmt(stmtLocFree, SQL_DROP);
         }
-        else if(dbColumn[i].rlength == SQL_NTS) {
-          colLen = strlen(rowData[i]);
-          row[i].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
-          memcpy(row[i].data, rowData[i], colLen * sizeof(SQLCHAR));
-          row[i].rlength = SQL_NTS;
+        else if(dbColumn[col].rlength == SQL_NTS) {
+          colLen = strlen(bindingRowInC[col]);
+          rowOfResultSetInC[col].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
+          memcpy(rowOfResultSetInC[col].data, bindingRowInC[col], colLen * sizeof(SQLCHAR));
+          rowOfResultSetInC[col].rlength = SQL_NTS;
         }
-        else if(dbColumn[i].rlength == SQL_NULL_DATA) {
-          row[i].data = NULL;
-          row[i].rlength = SQL_NULL_DATA;
+        else if(dbColumn[col].rlength == SQL_NULL_DATA) {
+          rowOfResultSetInC[col].data = NULL;
+          rowOfResultSetInC[col].rlength = SQL_NULL_DATA;
         }
         else {
-          colLen = dbColumn[i].rlength;
-          row[i].data = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
-          memcpy(row[i].data, rowData[i], colLen * sizeof(SQLCHAR));
-          row[i].rlength = colLen;
+          colLen = dbColumn[col].rlength;
+          rowOfResultSetInC[col].data = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
+          memcpy(rowOfResultSetInC[col].data, bindingRowInC[col], colLen * sizeof(SQLCHAR));
+          rowOfResultSetInC[col].rlength = colLen;
         }
       }
-      result.push_back(row);
+      resultSetInC.push_back(rowOfResultSetInC);
     }
     if(sqlReturnCode == SQL_ERROR){
       return -1;
@@ -2063,25 +2061,25 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
     return 0;
   }
   
-  int DbStmt::fetchColData(Napi::Env env, Napi::Array *array) {
-    for(std::size_t i = 0; i < result.size(); i++)
+  int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array) {
+    for(std::size_t row = 0; row < resultSetInC.size(); row++)
     {
-      Napi::Object row = Napi::Object::New(env);
-      for(int j = 0; j < colCount; j++)
+      Napi::Object rowInJs = Napi::Object::New(env);
+      for(int col = 0; col < colCount; col++)
       {
         Napi::Value value;
         Napi::Value nvalue;
-        if(result[i][j].rlength == SQL_NULL_DATA)
+        if(resultSetInC[row][col].rlength == SQL_NULL_DATA)
           value = env.Null();
         else {
-          switch(dbColumn[j].sqlType) {
+          switch(dbColumn[col].sqlType) {
             case SQL_VARBINARY :
             case SQL_BINARY : 
             case SQL_BLOB :
             {
-              SQLCHAR *binaryData = new SQLCHAR[result[i][j].rlength]; // have to save the data on the heap
-              memcpy((SQLCHAR *) binaryData, result[i][j].data, result[i][j].rlength);
-              value = Napi::Buffer<SQLCHAR>::New(env, binaryData, result[i][j].rlength, [](Napi::Env env, void* finalizeData) {
+              SQLCHAR *binaryData = new SQLCHAR[resultSetInC[row][col].rlength]; // have to save the data on the heap
+              memcpy((SQLCHAR *) binaryData, resultSetInC[row][col].data, resultSetInC[row][col].rlength);
+              value = Napi::Buffer<SQLCHAR>::New(env, binaryData, resultSetInC[row][col].rlength, [](Napi::Env env, void* finalizeData) {
                 delete[] (SQLCHAR*)finalizeData;
               });
               break;
@@ -2089,44 +2087,44 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
             case SQL_SMALLINT :
             case SQL_INTEGER :
               if(asNumber == true){
-                nvalue = Napi::String::New(env, result[i][j].data);
+                nvalue = Napi::String::New(env, resultSetInC[row][col].data);
                 value = Napi::Number::New(env, nvalue.ToNumber());            
                 break;
               }
             case SQL_DECIMAL :
             case SQL_NUMERIC :
-              if(asNumber == true && dbColumn[j].colPrecise <= 15){
-                nvalue = Napi::String::New(env, result[i][j].data);
+              if(asNumber == true && dbColumn[col].colPrecise <= 15){
+                nvalue = Napi::String::New(env, resultSetInC[row][col].data);
                 value = Napi::Number::New(env, nvalue.ToNumber());            
                 break;
               }
             default : 
-              value = Napi::String::New(env, result[i][j].data);
+              value = Napi::String::New(env, resultSetInC[row][col].data);
               break;
           }
         }
-        row.Set(Napi::String::New(env, (char const*)dbColumn[j].name), value);
+        rowInJs.Set(Napi::String::New(env, (char const*)dbColumn[col].name), value);  //Build a JS row
+        free(resultSetInC[row][col].data);  //Free current column field of the row
       }
-      array->Set(i, row);  //Build the JSON data
-      free(result[i]);
-      free(result[i]->data);
+      array->Set(row, rowInJs);  //Build the JS object of the result set
+      free(resultSetInC[row]);  //Free current row of the C array of the result set
     }
-    result.clear();
+    resultSetInC.clear();  //Free the C array of the result set
     return 0;
   }
  
   void DbStmt::freeColumns() {
-    freeColumnDescriptions();
-    freeColumnData();
+    if(colDescAllocated == true)
+      freeColumnDescriptions();
+    if(bindingRowAllocated == true) 
+      freeBindingRow();
   }
 
-  void DbStmt::freeColumnData() {
-    if(colDataAllocated == true) { 
-      for(int i = 0; i < colCount && rowData[i]; i++)
-        free(rowData[i]); 
-      free(rowData); 
-      colDataAllocated = false; 
-    }
+  void DbStmt::freeBindingRow() {
+    for(int col = 0; col < colCount && bindingRowInC[col]; col++)
+      free(bindingRowInC[col]); 
+    free(bindingRowInC);
+    bindingRowAllocated = false; 
   }
   
   void DbStmt::freeSp() {
@@ -2147,7 +2145,7 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
     freeSp();
     
     paramCount = params->Length();
-    param = (db2_param*)calloc(paramCount, sizeof(db2_param));
+    param = (db2ParameterDescription*)calloc(paramCount, sizeof(db2ParameterDescription));
 
     for(SQLSMALLINT i = 0; i < paramCount; i++) {
 
@@ -2294,7 +2292,7 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
   
   int DbStmt::fetchSp(Napi::Env env, Napi::Array *array) {
     for(int i = 0, j = 0; i < paramCount; i++) {
-      db2_param* p = &param[i];
+      db2ParameterDescription* p = &param[i];
       if(p->io != SQL_PARAM_INPUT) {
         if(p->valueType == SQL_C_BIGINT)  // Integer
           array->Set(j, Napi::Number::New(env, *(int64_t*)p->buf).Int32Value());
@@ -2313,25 +2311,25 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
   
   
   int DbStmt::fetch(Napi::Env env, Napi::Object* row) {
-    for(int i = 0; i < colCount; i++)
+    for(int col = 0; col < colCount; col++)
     {
       Napi::Value value;
-      if(dbColumn[i].rlength == SQL_NULL_DATA){
+      if(dbColumn[col].rlength == SQL_NULL_DATA){
         value = env.Null();
       }
       else {
-        switch(dbColumn[i].sqlType) {
+        switch(dbColumn[col].sqlType) {
           case SQL_VARBINARY :
           case SQL_BINARY : //Buffers are returned for Binary, Varbinary, Blob types.
           case SQL_BLOB :
-            value = Napi::Buffer<char>::New(env, rowData[i], dbColumn[i].rlength);
+            value = Napi::Buffer<char>::New(env, bindingRowInC[col], dbColumn[col].rlength);
             break;
           default : 
-            value = Napi::String::New(env,rowData[i]);
+            value = Napi::String::New(env,bindingRowInC[col]);
             break;
         }
       }
-      row->Set(Napi::String::New(env , (char const*)dbColumn[i].name), value );
+      row->Set(Napi::String::New(env , (char const*)dbColumn[col].name), value );
     }
     return 0;
   }

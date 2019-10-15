@@ -1,4 +1,7 @@
 # idb-connector changelog
+## 1.2.3
+- [dbstmt] fix a memory leak issue (#90)
+- [dbstmt] use more meaningful variable names in code
 
 ## 1.2.2
 - [dbstmt] get accurate CLOB data length (#78)
