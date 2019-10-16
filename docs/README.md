@@ -1433,6 +1433,7 @@ ___
 **Description:**
 
 Enables or disables automatic numeric conversion.
+
 **Syntax 1:**
 
 asNumber()
