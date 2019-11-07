@@ -110,12 +110,12 @@ Napi::Value DbStmt::AsNumber(const Napi::CallbackInfo& info) {
   int length = info.Length();
   //validation
   CHECK_WITH_RETURN(length != 0 && length != 1, INVALID_PARAM_NUM, "asNumber() Expected 0 or 1 Parameter", env, env.Null())
-  if(length == 1) {
+  if (length == 1) {
     CHECK_WITH_RETURN(!info[0].IsBoolean(), INVALID_PARAM_TYPE, "asNumber() Expected 1st Parameter to be a Boolean ", env, env.Null())
-    this->asNumber = Napi::Boolean(env , info[0]).Value();
+    this->asNumber = Napi::Boolean(env, info[0]).Value();
   }
 
-  return Napi::Boolean::New(env , this->asNumber);
+  return Napi::Boolean::New(env, this->asNumber);
 }
 
 /*
@@ -148,7 +148,7 @@ Napi::Value DbStmt::SetStmtAttr(const Napi::CallbackInfo& info) {
   SQLINTEGER sLen = 0;
   SQLRETURN sqlReturnCode = -1;
 
-  if(info[1].IsNumber()) {
+  if (info[1].IsNumber()) {
     int param = Napi::Number(env, info[1]).Int32Value();
     //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnsstma.htm
     sqlReturnCode = SQLSetStmtAttr(this->stmth, //SQLHSTMT hstmt -Statement handle 
@@ -157,7 +157,7 @@ Napi::Value DbStmt::SetStmtAttr(const Napi::CallbackInfo& info) {
                                    0);//SQLINTEGER sLen -Length of data (if string)
     DEBUG(this, "SetStmtAttr() attr = %d, value = %d, sqlReturnCode = %d\n", (int)attr, param, (int)sqlReturnCode);
   } else { // info[1].IsString()
-    std::string arg1 = Napi::String(env , info[1]).Utf8Value();
+    std::string arg1 = Napi::String(env, info[1]).Utf8Value();
     std::vector<char> arg1Vec(arg1.begin(), arg1.end());
     arg1Vec.push_back('\0');
     cValue = &arg1Vec[0];
@@ -166,11 +166,10 @@ Napi::Value DbStmt::SetStmtAttr(const Napi::CallbackInfo& info) {
     DEBUG(this, "SetStmtAttr() attr = %d, value = %s, sqlReturnCode = %d\n", (int)attr, cValue, (int)sqlReturnCode);
   }
 
-  if(sqlReturnCode != SQL_SUCCESS){
+  if (sqlReturnCode != SQL_SUCCESS) {
     this->throwErrMsg(SQL_HANDLE_STMT, env);
   }
   return Napi::Boolean::New(env, 1);
-
 }
 
 /*
@@ -187,7 +186,6 @@ Napi::Value DbStmt::SetStmtAttr(const Napi::CallbackInfo& info) {
  * 
  */
 Napi::Value DbStmt::GetStmtAttr(const Napi::CallbackInfo& info) {
-  
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
 
@@ -208,14 +206,14 @@ Napi::Value DbStmt::GetStmtAttr(const Napi::CallbackInfo& info) {
                                            &sLen); //SQLINTEGER sLen -Length of output data (if string)
 
   if (sqlReturnCode == SQL_SUCCESS) {
-    if(!sLen) {  //If the returned value is a number.
+    if (!sLen) {  //If the returned value is a number.
       pValue = &retVal;
       sqlReturnCode = SQLGetStmtAttr(this->stmth, attr, pValue, 0, &sLen);
       DEBUG(this, "GetStmtAttr() attr = %d, value = %d, sqlReturnCode = %d\n", (int)attr, *(int*)pValue, (int)sqlReturnCode)
-      return Napi::Number::New(env , *(int*)pValue);
+      return Napi::Number::New(env, *(int*)pValue);
     } else { //If the returned value is a string.
       DEBUG(this, "GetStmtAttr() attr = %d, value = %s, sqlReturnCode = %d\n", (int)attr, (char*)pValue, (int)sqlReturnCode)
-      return Napi::String::New(env , buf);
+      return Napi::String::New(env, buf);
     }
   }
 
@@ -236,7 +234,6 @@ Napi::Value DbStmt::GetStmtAttr(const Napi::CallbackInfo& info) {
  *      results, calls the callback function, and cleans up memory in OnOk().
  */
 class ExecAsyncWorker : public Napi::AsyncWorker {
-
   public:
     ExecAsyncWorker(DbStmt *dbStatementObject, SQLCHAR *sqlStatement, Napi::Function& callback) : Napi::AsyncWorker(callback),
       dbStatementObject(dbStatementObject),
@@ -244,7 +241,7 @@ class ExecAsyncWorker : public Napi::AsyncWorker {
     ~ExecAsyncWorker() {}
 
     // Executed inside the worker-thread.
-    void Execute () {
+    void Execute() {
       SQLRETURN sqlReturnCode;
 
       //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnexecd.htm 
@@ -252,26 +249,29 @@ class ExecAsyncWorker : public Napi::AsyncWorker {
                                               sqlStatement, //SQLCHAR* szSQLStr -SQL statement string
                                               SQL_NTS); //SQLINTEGER cbSQlStr -Length of szSQLStr
       DEBUG(dbStatementObject, "SQLExecDirect(%d): %s\n", sqlReturnCode, sqlStatement); 
-      if(sqlReturnCode == SQL_SUCCESS_WITH_INFO) {  // TODO need to check SQLSTATE = 0100C and Error_Code = 466
-        // Stored Procedures with Result Sets
-        dbStatementObject->resultSetAvailable = true;
+      if (sqlReturnCode == SQL_SUCCESS_WITH_INFO) {
+        struct sqlError errObj = dbStatementObject->returnErrObj();
+        if(!strcmp(errObj.sqlState, "0100C") && errObj.sqlCode == 466) {
+          // Stored Procedures with Result Sets
+          dbStatementObject->resultSetAvailable = true;
+        }
       }
-      else if(sqlReturnCode != SQL_SUCCESS) {
+      else if (sqlReturnCode != SQL_SUCCESS) {
         std::string errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
-          SetError(errorMessage);
-          return;
+        SetError(errorMessage);
+        return;
       }
       //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnnrcol.htm
       sqlReturnCode = SQLNumResultCols(dbStatementObject->stmth, //SQLHSTMT hstmt -Statement handle
                        &dbStatementObject->colCount); //SQLSMALLINT* pccol -# of Coluumns (Output param)
 
       DEBUG(dbStatementObject, "SQLNUMRESULTSCOLS(%d) Column Count = %d\n",sqlReturnCode, dbStatementObject->colCount)
-      if (dbStatementObject->colCount == 0){ /* statement is not a select statement */
+      if (dbStatementObject->colCount == 0) { /* statement is not a select statement */
         return;
       }
 
       dbStatementObject->resultSetAvailable = true;      
-      if(dbStatementObject->bindColData(NULL) < 0) {
+      if (dbStatementObject->bindColData(NULL) < 0) {
         DEBUG(dbStatementObject, "bindColData is < 0 \n")
         SetError("Error: During bindColData()");
         return;
@@ -280,7 +280,7 @@ class ExecAsyncWorker : public Napi::AsyncWorker {
       dbStatementObject->fetchData();
     }
 
-    void OnError(const Napi::Error& e){
+    void OnError(const Napi::Error& e) {
       // callback signature function(result, error)
       Callback().MakeCallback(Receiver().Value(), std::initializer_list<napi_value>{ e.Env().Null(), e.Value() });
     } 
@@ -293,7 +293,7 @@ class ExecAsyncWorker : public Napi::AsyncWorker {
       std::vector<napi_value> callbackArguments;
       Napi::Array results = Napi::Array::New(env);
 
-      if (dbStatementObject->colCount == 0){ /* statement is not a select statement (No Result Set)*/
+      if (dbStatementObject->colCount == 0) { /* statement is not a select statement (No Result Set)*/
           DEBUG(dbStatementObject, "NO RESULTS: SQLExecDirect() call")
           //callback signature function(result, error)
           callbackArguments.push_back(Env().Null());
@@ -340,7 +340,7 @@ void DbStmt::Exec(const Napi::CallbackInfo& info) {
   CHECK(!info[0].IsString(), INVALID_PARAM_TYPE, "Argument 1 Must be a String", env)
   CHECK(!info[1].IsFunction(), INVALID_PARAM_TYPE, "Argument 2 Must be a Function", env)
 
-  std::string sqlString = Napi::String(env , info[0]).Utf8Value();
+  std::string sqlString = Napi::String(env, info[0]).Utf8Value();
   std::vector<char> sqlStringVec(sqlString.begin(), sqlString.end());
   sqlStringVec.push_back('\0');
 
@@ -380,7 +380,7 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo& info) {
   CHECK_WITH_RETURN(length != 1 && info.Length() != 2, INVALID_PARAM_NUM, "The execSync() method accepts only one or two parameters.", env, env.Null());
   CHECK_WITH_RETURN(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statment handler is not initialized.", env, env.Null());
   CHECK_WITH_RETURN(!info[0].IsString(), INVALID_PARAM_TYPE, "Argument 1 Must be a String", env, env.Null())
-  if (length == 2){
+  if (length == 2) {
     CHECK_WITH_RETURN(!info[1].IsFunction(), INVALID_PARAM_TYPE, "Argument 2 Must be a Function", env, env.Null())
     cb = info[1].As<Napi::Function>();
   }
@@ -392,8 +392,15 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo& info) {
   SQLRETURN sqlReturnCode = SQLExecDirect(this->stmth, tmpSqlSt, SQL_NTS);
   DEBUG(this,"SQLExecDirect(%d): %s\n", sqlReturnCode, tmpSqlSt);
   //check if an error occured
-  if(sqlReturnCode != SQL_SUCCESS && sqlReturnCode != SQL_SUCCESS_WITH_INFO) {  // TODO need to check SQLSTATE = 0100C and Error_Code = 466
-    if(length == 2){ // callback signature function(result , error)
+  if (sqlReturnCode == SQL_SUCCESS_WITH_INFO) {
+    struct sqlError errObj = this->returnErrObj();
+    if(!strcmp(errObj.sqlState, "0100C") && errObj.sqlCode == 466) {
+      // Stored Procedures with Result Sets
+      this->resultSetAvailable = true;
+    }
+  }
+  else if (sqlReturnCode != SQL_SUCCESS) {
+    if (length == 2) { // callback signature function(result , error)
       std::string errorMessage = this->returnErrMsg(SQL_HANDLE_STMT);
       Napi::Error error = Napi::Error::New(env, errorMessage);
       callbackArguments.push_back(Napi::Value(Env().Null()));
@@ -413,7 +420,7 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo& info) {
   /* determine statement type */
   if (this->colCount == 0) { /* statement is not a select statement (No Result Set) */
     DEBUG(this, "NO RESULTS: SQLExecDirect() call for (%s)\n", tmpSqlSt)
-    if(length == 2){ //callback signature function (result, error)
+    if (length == 2) { //callback signature function (result, error)
       callbackArguments.push_back(env.Null());
       callbackArguments.push_back(env.Null());
       cb.MakeCallback(env.Global(), callbackArguments);
@@ -426,7 +433,7 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo& info) {
   DEBUG(this, "SQLExecDirect() call for (%s) Has Results\n", tmpSqlSt)
   this->resultSetAvailable = true;
   //bindColData() will throw error if it occurs
-  if(this->bindColData(env) < 0){
+  if (this->bindColData(env) < 0) {
     return env.Null();
   }
   this->fetchData();
@@ -475,16 +482,16 @@ class PrepareAsyncWorker : public Napi::AsyncWorker {
                                  SQL_NTS); //SQLINTEGER cbSQLStr -Length of szSQLStr
       DEBUG(dbStatementObject, "SQLPrepare(%d): %s\n", sqlReturnCode, sqlStatement);
 
-       if(sqlReturnCode != SQL_SUCCESS) {
+       if (sqlReturnCode != SQL_SUCCESS) {
         std::string  errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
-        if(errorMessage.length() != 0 ){
+        if (errorMessage.length() != 0 ) {
           SetError(errorMessage);
           return;
         }
       }
     }
 
-    void OnError(const Napi::Error& e){
+    void OnError(const Napi::Error& e) {
       //callback signature function(error)
       Callback().MakeCallback(Receiver().Value(), std::initializer_list<napi_value>{ e.Value() });
     }
@@ -535,7 +542,7 @@ void DbStmt::Prepare(const Napi::CallbackInfo& info) {
   CHECK(!info[0].IsString(), INVALID_PARAM_TYPE, "Expected Parameter 1 to be a String", env)
   CHECK(!info[1].IsFunction(), INVALID_PARAM_TYPE, "Expected Parameter 2 to be a Function", env)
   
-  std::string arg0 = Napi::String(env , info[0]).Utf8Value();
+  std::string arg0 = Napi::String(env, info[0]).Utf8Value();
   std::vector<char> arg0Vec(arg0.begin(), arg0.end());
   arg0Vec.push_back('\0');
 
@@ -572,7 +579,7 @@ void DbStmt::PrepareSync(const Napi::CallbackInfo& info) {
   CHECK(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statment handler is not initialized.", env);
   CHECK(length != 1 && info.Length() != 2, INVALID_PARAM_NUM, "Expected 1 or 2 Parameters for prepare()", env)
   CHECK(!info[0].IsString(), INVALID_PARAM_TYPE, "Expected Parameter 1 to be a String", env)
-  if(length == 2){
+  if (length == 2) {
     CHECK(!info[1].IsFunction(), INVALID_PARAM_TYPE, "Expected Parameter 2 to be a Function", env)
   }
 
@@ -584,14 +591,14 @@ void DbStmt::PrepareSync(const Napi::CallbackInfo& info) {
   SQLRETURN sqlReturnCode = SQLPrepare(this->stmth, cValue, SQL_NTS);
   DEBUG(this, "SQLPrepare(%d): %s\n", sqlReturnCode, cValue);
   //check if error occured
-  if(sqlReturnCode != SQL_SUCCESS) {
+  if (sqlReturnCode != SQL_SUCCESS) {
     DEBUG(this, "PrepareSync() Failed.\n");
     std::string errorMessage = this->returnErrMsg(SQL_HANDLE_STMT);
     Napi::Error error = Napi::Error::New(env, errorMessage);
     Napi::Value errorValue = error.Value();
     
     //no callback was provided
-    if(length != 2 ){
+    if (length != 2 ) {
       CHECK(sqlReturnCode != SQL_SUCCESS, SQL_ERROR, "PrepareSync() failed.", env);
     }
     else{ //pass the error to the callback function , let the caller handle the error
@@ -602,7 +609,7 @@ void DbStmt::PrepareSync(const Napi::CallbackInfo& info) {
   } 
  //No Error Occured
  //callback provided Pass null back As the error
- if(info.Length() == 2) {
+ if (info.Length() == 2) {
   Napi::Function cb = info[1].As<Napi::Function>(); 
   cb.MakeCallback(env.Global(),{env.Null()} );
  }
@@ -643,7 +650,7 @@ class BindParamAsyncWorker : public Napi::AsyncWorker {
 
       int returnCode = dbStatementObject->bindParams(env, &array, error);
       //check if errors Occured.
-      if(returnCode != 0){
+      if (returnCode != 0) {
         //callback signature function(error)
         callbackArguments.push_back(Napi::Error::New(env, error).Value());
         Callback().Call(callbackArguments);
@@ -726,7 +733,7 @@ void DbStmt::BindParamSync(const Napi::CallbackInfo& info) {
   CHECK(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statment handler is not initialized.", env)
   CHECK(length != 1 && length != 2, INVALID_PARAM_NUM, "The bindParamSync() method accepts only one or two parameters.", env)
   CHECK(!info[0].IsArray(), INVALID_PARAM_TYPE, "Parameter 1 Must be an Array", env)
-  if(length == 2 ){
+  if (length == 2 ) {
       CHECK(!info[1].IsFunction(), INVALID_PARAM_TYPE, "Parameter 2 must be a Function", env)
       cb = info[1].As<Napi::Function>();
   }
@@ -736,9 +743,9 @@ void DbStmt::BindParamSync(const Napi::CallbackInfo& info) {
   int returnCode = this->bindParams(env, &parametersToBind, errorMsg);
   DEBUG(this, "bindParams(%d)\n" , returnCode);
   //check if an error occured while binding
-  if(returnCode != 0){
+  if (returnCode != 0) {
     Napi::Error error = Napi::Error::New(env, errorMsg);
-    if(length == 2){
+    if (length == 2) {
       //callback signature function(error)
       callbackArguments.push_back(error.Value());
       cb.Call(callbackArguments);
@@ -747,7 +754,7 @@ void DbStmt::BindParamSync(const Napi::CallbackInfo& info) {
     error.ThrowAsJavaScriptException();
   }
   //if callback was defined make the callback
-  if(length == 2 ){
+  if (length == 2 ) {
     //callback signature function(error)
     callbackArguments.push_back(Env().Null());
     cb.Call(callbackArguments);
@@ -780,13 +787,16 @@ class ExecuteAsyncWorker : public Napi::AsyncWorker {
       sqlReturnCode = SQLExecute(dbStatementObject->stmth); //SQLHSTMT hstmt -Statement Handle
       DEBUG(dbStatementObject, "SQLExecuteAsync(%d):\n", sqlReturnCode);
 
-      if(sqlReturnCode == SQL_SUCCESS_WITH_INFO) {  // TODO need to check SQLSTATE = 0100C and Error_Code = 466
-        // Stored Procedures with Result Sets
-        dbStatementObject->resultSetAvailable = true;
+      if (sqlReturnCode == SQL_SUCCESS_WITH_INFO) {
+        struct sqlError errObj = dbStatementObject->returnErrObj();
+        if(!strcmp(errObj.sqlState, "0100C") && errObj.sqlCode == 466) {
+          // Stored Procedures with Result Sets
+          dbStatementObject->resultSetAvailable = true;
+        }
       }
-      else if(sqlReturnCode != SQL_SUCCESS) {
+      else if (sqlReturnCode != SQL_SUCCESS) {
         std::string errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
-        if(errorMessage.length() != 0 ){
+        if (errorMessage.length() != 0 ) {
           SetError(errorMessage);
           return;
         }
@@ -795,20 +805,20 @@ class ExecuteAsyncWorker : public Napi::AsyncWorker {
       DEBUG(dbStatementObject, "SQLNUMRESULTSCOLS(%d) Column Count = %d\n",sqlReturnCode, dbStatementObject->colCount)
 
       /* determine statement type */
-      if(dbStatementObject->colCount == 0){ /* statement is not a select statement */
+      if (dbStatementObject->colCount == 0) { /* statement is not a select statement */
         DEBUG(dbStatementObject, "NO RESULTS :SQLExecuteAsync()\n");
         return;
       }
         
       dbStatementObject->resultSetAvailable = true;
-      if(dbStatementObject->bindColData(NULL) < 0){
+      if (dbStatementObject->bindColData(NULL) < 0) {
         DEBUG(dbStatementObject, "bindColData < 0 \n");
         return;
       }
     }
 
     //executed when SetError() is called
-    void OnError(const Napi::Error& e){
+    void OnError(const Napi::Error& e) {
       //callback signature function(result, error)
       Callback().MakeCallback(Receiver().Value(), std::initializer_list<napi_value>{ e.Env().Null(), e.Value()});
     }
@@ -823,12 +833,12 @@ class ExecuteAsyncWorker : public Napi::AsyncWorker {
       // param && paramCount are only set during bindParams
       // What this is doing is checking if parameters were bound
       // And get any output Params from the Stored Procedures if available.
-      if(dbStatementObject->param && dbStatementObject->paramCount > 0 ) {  // executeAsync(function(array){...})
+      if (dbStatementObject->param && dbStatementObject->paramCount > 0 ) {  // executeAsync(function(array) {...})
 
         Napi::Array results = Napi::Array::New(env); 
         dbStatementObject->fetchSp(env, &results);
 
-        if(results.Length() > 0){
+        if (results.Length() > 0) {
           //callback signature function(result, error)
           callbackArguments.push_back(results);
           callbackArguments.push_back(env.Null());
@@ -918,15 +928,22 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo& info) {
   DEBUG(this, "ExecuteSync().\n");
   //Validation
   CHECK_WITH_RETURN(length != 0 && length != 1 , INVALID_PARAM_NUM, "The executeSync() method accepts 0 or 1 parameter.", env, env.Null())
-  if(length == 1){
+  if (length == 1) {
     CHECK_WITH_RETURN(!info[0].IsFunction(), INVALID_PARAM_TYPE, "Expected the first parameter to be a Function.", env, env.Null());
     cb = info[0].As<Napi::Function>();
   }
   sqlReturnCode = SQLExecute(this->stmth);
   DEBUG(this, "SQLExecute(%d):\n", sqlReturnCode);
   //Check if errors occured
-  if(sqlReturnCode != SQL_SUCCESS && sqlReturnCode != SQL_SUCCESS_WITH_INFO) {  // TODO need to check SQLSTATE = 0100C and Error_Code = 466
-    if(length == 1){ // callback signature function(result , error)
+  if (sqlReturnCode == SQL_SUCCESS_WITH_INFO) {
+    struct sqlError errObj = this->returnErrObj();
+    if(!strcmp(errObj.sqlState, "0100C") && errObj.sqlCode == 466) {
+      // Stored Procedures with Result Sets
+      this->resultSetAvailable = true;
+    }
+  }
+  else if (sqlReturnCode != SQL_SUCCESS) {
+    if (length == 1) { // callback signature function(result , error)
       std::string errorMessage = this->returnErrMsg(SQL_HANDLE_STMT);
       Napi::Error error = Napi::Error::New(env, errorMessage);
       callbackArguments.push_back(Napi::Value(Env().Null()));
@@ -942,7 +959,7 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo& info) {
     
   sqlReturnCode = SQLNumResultCols(this->stmth, &this->colCount);
   DEBUG(this, "SQLNumResultsCols(%d) Has Results\n", sqlReturnCode)
-  if (sqlReturnCode != SQL_SUCCESS){
+  if (sqlReturnCode != SQL_SUCCESS) {
     this->throwErrMsg(SQL_HANDLE_STMT, env);
   }
   if (this->colCount > 0) { /* there is a result set*/
@@ -950,18 +967,18 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo& info) {
     this->resultSetAvailable = true;
     int returnCode = this->bindColData(env);
     DEBUG(this, "bindColData(%d)\n", returnCode)
-    if(returnCode < 0){
+    if (returnCode < 0) {
       Napi::Error::New(env, "Error While BindingColData").ThrowAsJavaScriptException();
     }
   }
 
   // Parameters were bound
-  if(this->param && this->paramCount > 0 ) {
+  if (this->param && this->paramCount > 0 ) {
     Napi::Array array = Napi::Array::New(env);
     // FetchSp gets back output params from Stored Procedures.
     this->fetchSp(env, &array);
-    if(length == 1){ //callback was defined
-      if(array.Length() > 0){
+    if (length == 1) { //callback was defined
+      if (array.Length() > 0) {
         //callback signature function(outParams, error)
         callbackArguments.push_back(array);
         callbackArguments.push_back(env.Null());
@@ -975,7 +992,7 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo& info) {
       return env.Null();
     }
     else{ //callback was not defined
-      if(array.Length() > 0){
+      if (array.Length() > 0) {
         return array;
       } else{
         return env.Null();
@@ -984,7 +1001,7 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo& info) {
     
   }
   //there was no paramters bound
-  if(length == 1){ //callback was defined
+  if (length == 1) { //callback was defined
     //callback signature function(outParams, error)
     callbackArguments.push_back(env.Null());
     callbackArguments.push_back(env.Null());
@@ -1024,14 +1041,14 @@ class FetchAsyncWorker : public Napi::AsyncWorker {
         sqlReturnCode = SQLGetStmtAttr(dbStatementObject->stmth, SQL_ATTR_CURSOR_SCROLLABLE, &retVal, 0, 0);
         DEBUG(dbStatementObject, "SQLGetStmtAttr(%d) Scrollable = %d.\n", sqlReturnCode, retVal);
         
-        if(retVal == SQL_TRUE) {
+        if (retVal == SQL_TRUE) {
           //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfetchsc.htm
           sqlReturnCode = SQLFetchScroll(dbStatementObject->stmth, //SQLHSTMT hstmt -Statement handle
                                          orient, //SQLSMALLINT fOrient -Fetch Orientation
                                          offset); //SQLINTEGER fOffset -Row offset
           DEBUG(dbStatementObject, "SQLFetchScroll(%d) orient = %d, offset = %d.\n", sqlReturnCode, orient, offset);
           //handle if an error occured
-          if(sqlReturnCode == SQL_ERROR) {
+          if (sqlReturnCode == SQL_ERROR) {
             std::string  errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
             SetError(errorMessage);
             return;
@@ -1044,7 +1061,7 @@ class FetchAsyncWorker : public Napi::AsyncWorker {
       sqlReturnCode = SQLFetch(dbStatementObject->stmth);
       DEBUG(dbStatementObject, "SQLFetch(%d).\n", sqlReturnCode);
       //handle if an error occured
-      if(sqlReturnCode == SQL_ERROR) {
+      if (sqlReturnCode == SQL_ERROR) {
         std::string  errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
         SetError(errorMessage);
         return;
@@ -1052,7 +1069,7 @@ class FetchAsyncWorker : public Napi::AsyncWorker {
     }
 
     //executed when SetError() is called , when sqlReturnCode == SQL_ERROR
-    void OnError(const Napi::Error& e){
+    void OnError(const Napi::Error& e) {
       //callback signature function(row, error)
       Callback().MakeCallback(Receiver().Value(), std::initializer_list<napi_value>{ e.Env().Null(), e.Value()});
     }
@@ -1068,7 +1085,7 @@ class FetchAsyncWorker : public Napi::AsyncWorker {
       dbStatementObject->fetch(env, &row);
       //callback signature function(row, error)
       callbackArguments.push_back(row);
-      if(sqlReturnCode != SQL_SUCCESS) // warning messages available
+      if (sqlReturnCode != SQL_SUCCESS) // warning messages available
         callbackArguments.push_back(Napi::String::New(env, dbStatementObject->returnErrMsg(SQL_HANDLE_STMT)));
 
       Callback().Call(callbackArguments);
@@ -1161,7 +1178,7 @@ Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo& info) {
   CHECK_WITH_RETURN(length != 0 && length != 1 && length != 3 , INVALID_PARAM_NUM, "The fetch() method accept only zero , one or three parameters.", env, env.Null())
   CHECK_WITH_RETURN(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statement handler is not initialized.", env, env.Null())
   CHECK_WITH_RETURN(this->resultSetAvailable == false, RSSET_NOT_READY, "There is no result set to be queried. Please execute a SQL command first.", env, env.Null());
-  if (length == 1 || length == 3){
+  if (length == 1 || length == 3) {
     CHECK_WITH_RETURN(!info[length -1].IsFunction(), INVALID_PARAM_TYPE, "Final Argument Must be a Function", env, env.Null())
     cb = info[length-1].As<Napi::Function>();
   }
@@ -1175,10 +1192,10 @@ Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo& info) {
     sqlReturnCode = SQLGetStmtAttr(this->stmth, SQL_ATTR_CURSOR_SCROLLABLE, &retVal, 0, 0);
     DEBUG(this, "SQLGetStmtAttr(%d) Scrollable = %d.\n", sqlReturnCode, retVal);
 
-    if(retVal == SQL_TRUE) {
+    if (retVal == SQL_TRUE) {
       sqlReturnCode = SQLFetchScroll(this->stmth, orient, offset);
       DEBUG(this, "SQLFetchScroll(%d) orient = %d, offset = %d.\n", sqlReturnCode, orient, offset);
-      if(sqlReturnCode == SQL_ERROR){
+      if (sqlReturnCode == SQL_ERROR) {
         this->throwErrMsg(SQL_HANDLE_STMT, env);
       }
     }
@@ -1189,11 +1206,11 @@ Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo& info) {
   sqlReturnCode = SQLFetch(this->stmth);
   DEBUG(this, "SQLFetch(%d).\n", sqlReturnCode);
 
-  if(sqlReturnCode == SQL_SUCCESS || sqlReturnCode == SQL_SUCCESS_WITH_INFO)
+  if (sqlReturnCode == SQL_SUCCESS || sqlReturnCode == SQL_SUCCESS_WITH_INFO)
   {
     Napi::Object row = Napi::Object::New(env);
     this->fetch(env, &row);
-    if(length == 1 || length == 3) {  // Run call back to handle the fetched row.
+    if (length == 1 || length == 3) {  // Run call back to handle the fetched row.
         //Callback signature function(row, returnCode)
         callbackArguments.push_back(row);
         callbackArguments.push_back(Napi::Number::New(env, sqlReturnCode));
@@ -1205,12 +1222,12 @@ Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo& info) {
       return row;
     }
   }
-  if(sqlReturnCode == SQL_ERROR){
+  if (sqlReturnCode == SQL_ERROR) {
     this->throwErrMsg(SQL_HANDLE_STMT, env);
   }
 
   //SQL_ERROR or SQL_SUCCESS DID not occur
-  if(length == 1 || length == 3){ //run the callback flow
+  if (length == 1 || length == 3) { //run the callback flow
     //Callback signature function(row, returnCode)
     callbackArguments.push_back(env.Null());
     callbackArguments.push_back(Napi::Number::New(env, sqlReturnCode));
@@ -1241,7 +1258,7 @@ class FetchAllAsyncWorker : public Napi::AsyncWorker {
     // Executed inside the worker-thread.
     void Execute () {
       returnCode = dbStatementObject->fetchData();
-      if(returnCode == SQL_ERROR){
+      if (returnCode == SQL_ERROR) {
         std::string errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
         SetError(errorMessage);
         return;
@@ -1249,7 +1266,7 @@ class FetchAllAsyncWorker : public Napi::AsyncWorker {
     }
 
     //executed when SetError() is called , when sqlReturnCode == SQL_ERROR
-    void OnError(const Napi::Error& e){
+    void OnError(const Napi::Error& e) {
       //callback signature function(result, error)
       Callback().MakeCallback(Receiver().Value(), std::initializer_list<napi_value>{ e.Env().Null(), e.Value()});
     }
@@ -1265,7 +1282,7 @@ class FetchAllAsyncWorker : public Napi::AsyncWorker {
       dbStatementObject->buildJsObject(env, &results);
       //callback signature function(result, error)
       callbackArguments.push_back(results);
-      if(returnCode != SQL_SUCCESS) // warning messages available
+      if (returnCode != SQL_SUCCESS) // warning messages available
         callbackArguments.push_back(Napi::String::New(env, dbStatementObject->returnErrMsg(SQL_HANDLE_STMT)));
       
       Callback().Call(callbackArguments);
@@ -1337,15 +1354,15 @@ Napi::Value DbStmt::FetchAllSync(const Napi::CallbackInfo& info) {
   CHECK_WITH_RETURN(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statement handler is not initialized.", env, env.Null())
   CHECK_WITH_RETURN(this->resultSetAvailable == false, RSSET_NOT_READY, "There is no result set to be queried. Please execute a SQL command first.", env, env.Null())
   CHECK_WITH_RETURN(length != 0 && length != 1, INVALID_PARAM_NUM, "Expected Only 1 Argument For FetchAllSync()", env, env.Null())
-  if(length == 1){
+  if (length == 1) {
       CHECK_WITH_RETURN(!info[0].IsFunction(), INVALID_PARAM_TYPE, "Expected Argument 1 to be a Function", env, env.Null())
       cb = info[0].As<Napi::Function>();
   }
 
   Napi::Array results = Napi::Array::New(env);
   //check if error occured
-  if(this->fetchData() < 0){
-    if(length == 1){
+  if (this->fetchData() < 0) {
+    if (length == 1) {
         std::string errorMessage = this->returnErrMsg(SQL_HANDLE_STMT);
         callbackArguments.push_back(env.Null());
         callbackArguments.push_back(Napi::Error::New(env, errorMessage).Value());
@@ -1354,7 +1371,7 @@ Napi::Value DbStmt::FetchAllSync(const Napi::CallbackInfo& info) {
     this->throwErrMsg(SQL_HANDLE_DBC, env);
   }
 
-  if(this->buildJsObject(env, &results) < 0) {
+  if (this->buildJsObject(env, &results) < 0) {
     DEBUG(this, "buildJsObject < 0\n")
     return env.Null();
   } 
@@ -1400,7 +1417,7 @@ Napi::Value DbStmt::NextResult(const Napi::CallbackInfo& info) {
   if (this->colCount > 0) { // is a SELECT statement
     this->resultSetAvailable = true;
     //Some error occured if < 0
-    if(this->bindColData(env) < 0){
+    if (this->bindColData(env) < 0) {
       Napi::Error::New(env, "bindColData failed During NextResult()").ThrowAsJavaScriptException();
       return env.Null();
     }
@@ -1501,7 +1518,7 @@ void DbStmt::Reset(const Napi::CallbackInfo& info) {
   Napi::HandleScope scope(env);
 
   DEBUG(this, "SQLFreeStmt: stmth %d [SQL_RESET_PARAMS]\n", this->stmth)
-  if(this->stmtAllocated){
+  if (this->stmtAllocated) {
     SQLFreeStmt(this->stmth, SQL_RESET_PARAMS); //Release all params set by SQLBindParam()
   }
 }
@@ -1524,7 +1541,7 @@ Napi::Value DbStmt::Close(const Napi::CallbackInfo& info) {
 
   this->freeColumns();
   DEBUG(this, "SQLFreeStmt: stmth %d [SQL_DROP]\n", this->stmth)
-  if(this->stmtAllocated) {
+  if (this->stmtAllocated) {
     //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnfstmt.htm
     //Free the statement handle here. No further processing allowed.
     SQLRETURN sqlReturnCode = SQLFreeStmt(this->stmth, //SQLHSTMT hstmt -Statement Handle
@@ -1558,7 +1575,7 @@ Napi::Value DbStmt::NumFields(const Napi::CallbackInfo& info) {
   //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnnrcol.htm
   SQLRETURN sqlReturnCode = SQLNumResultCols(this->stmth, //SQLHSTMT hstmt -Statement Handle
                                              &colCount); //SQLSMALLINT* pccol -Number of columns in result (OUTPUT)
-  if(sqlReturnCode != SQL_SUCCESS) {
+  if (sqlReturnCode != SQL_SUCCESS) {
     this->throwErrMsg(SQL_ERROR, "SQLNumResultCols() failed.", env);
     return env.Null();
   }
@@ -1586,11 +1603,11 @@ Napi::Value DbStmt::NumRows(const Napi::CallbackInfo& info) {
 
   SQLINTEGER rowCount;
   //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnrowc.htm
-  if(SQLRowCount (this->stmth, &rowCount) != SQL_SUCCESS) {
+  if (SQLRowCount (this->stmth, &rowCount) != SQL_SUCCESS) {
     this->throwErrMsg(SQL_ERROR, "SQLRowCount() failed.", env);
     return env.Null();
   }
-  return Napi::Number::New(env , rowCount);
+  return Napi::Number::New(env, rowCount);
 }
 
 /*
@@ -1619,7 +1636,7 @@ Napi::Value DbStmt::FieldType(const Napi::CallbackInfo& info) {
   SQLSMALLINT i = Napi::Number(env,info[0]).Int32Value();
   CHECK_WITH_RETURN((i >= this->colCount || i < 0), INVALID_PARAM_RANGE, "The input parameter is beyond the boundary.", env, env.Null());
   
-  return Napi::Number::New(env , this->dbColumn[i].sqlType);
+  return Napi::Number::New(env, this->dbColumn[i].sqlType);
 }
 
 /*
@@ -1646,7 +1663,7 @@ Napi::Value DbStmt::FieldWidth(const Napi::CallbackInfo& info) {
   SQLSMALLINT i = Napi::Number(env,info[0]).Int32Value();
   CHECK_WITH_RETURN((i >= this->colCount || i < 0), INVALID_PARAM_RANGE, "The input parameter is beyond the boundary.", env, env.Null());
 
-  return Napi::Number::New(env , this->dbColumn[i].nameLength);
+  return Napi::Number::New(env, this->dbColumn[i].nameLength);
 }
 
 /*
@@ -1704,7 +1721,7 @@ Napi::Value DbStmt::FieldPrecise(const Napi::CallbackInfo& info) {
   SQLSMALLINT i = Napi::Number(env,info[0]).Int32Value();
   CHECK_WITH_RETURN((i >= this->colCount || i < 0), INVALID_PARAM_RANGE, "The input parameter is beyond the boundary.", env, env.Null());
 
-  return Napi::Number::New(env ,this->dbColumn[i].colPrecise);
+  return Napi::Number::New(env,this->dbColumn[i].colPrecise);
 }
 
 /*
@@ -1867,7 +1884,7 @@ void DbStmt::StmtError(const Napi::CallbackInfo& info) {
 /****** UNEXPOSED HELPER FUNCTIONS ******/
 
 int DbStmt::populateColumnDescriptions(Napi::Env env) {
-  if(colDescAllocated == true) {
+  if (colDescAllocated == true) {
     freeColumnDescriptions();
   }
   
@@ -1891,7 +1908,7 @@ int DbStmt::populateColumnDescriptions(Napi::Env env) {
     
     if (sqlReturnCode != SQL_SUCCESS) {
       freeColumnDescriptions();
-      if(env != NULL)
+      if (env != NULL)
         throwErrMsg(SQL_ERROR, "SQLDescribeCol() failed.", env);
       else printErrorToLog();
       return -1;
@@ -1909,11 +1926,11 @@ void DbStmt::freeColumnDescriptions() {
 }
 
 int DbStmt::bindColData(Napi::Env env) {
-  if(bindingRowAllocated == true) 
+  if (bindingRowAllocated == true) 
     freeBindingRow();
   
-  if(colDescAllocated != true)
-    if(populateColumnDescriptions(env) < 0)
+  if (colDescAllocated != true)
+    if (populateColumnDescriptions(env) < 0)
       return -1;
   
   SQLRETURN sqlReturnCode;
@@ -1999,7 +2016,7 @@ int DbStmt::bindColData(Napi::Env env) {
     }
     if (sqlReturnCode != SQL_SUCCESS) {
       freeBindingRow();
-      if(env != NULL)
+      if (env != NULL)
         throwErrMsg(SQL_ERROR, "SQLBindCol() failed.", env);
       else printErrorToLog();
       return -1;
@@ -2015,16 +2032,19 @@ int DbStmt::fetchData() {
   while(true) 
   {
     SQLRETURN returnCode = SQLFetch(stmth);
-    if(returnCode != SQL_SUCCESS && returnCode != SQL_SUCCESS_WITH_INFO)  // error occurred!
-      break;
-    if(returnCode != SQL_SUCCESS) // may be warning messages
+
+    if (returnCode != SQL_SUCCESS) // may be warning messages
       sqlReturnCode = returnCode;
+
+    if (returnCode != SQL_SUCCESS && returnCode != SQL_SUCCESS_WITH_INFO)  // error occurred!
+      break;
+
     resultSetItem* rowOfResultSetInC = (resultSetItem*)calloc(colCount, sizeof(resultSetItem)); 
     for(int col = 0; col < colCount; col++)
     {
       int colLen = 0;
       int ind = 0;
-      if(dbColumn[col].sqlType == SQL_CLOB) {  // TODO: check return code
+      if (dbColumn[col].sqlType == SQL_CLOB) {  // TODO: check return code
         SQLHANDLE stmtLoc, stmtLocFree;
         
         returnCode = SQLAllocStmt(connh, &stmtLoc);
@@ -2043,17 +2063,17 @@ int DbStmt::fetchData() {
         returnCode = SQLFreeStmt(stmtLoc, SQL_DROP);
         returnCode = SQLFreeStmt(stmtLocFree, SQL_DROP);
       }
-      else if(dbColumn[col].rlength == SQL_NTS) { // SQL_NTS = -3
+      else if (dbColumn[col].rlength == SQL_NTS) { // SQL_NTS = -3
         colLen = strlen(bindingRowInC[col]);
         rowOfResultSetInC[col].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
         memcpy(rowOfResultSetInC[col].data, bindingRowInC[col], colLen * sizeof(SQLCHAR));
         rowOfResultSetInC[col].rlength = SQL_NTS;
       }
-      else if(dbColumn[col].rlength == SQL_NULL_DATA) { // SQL_NULL_DATA = -1
+      else if (dbColumn[col].rlength == SQL_NULL_DATA) { // SQL_NULL_DATA = -1
         rowOfResultSetInC[col].data = NULL;
         rowOfResultSetInC[col].rlength = SQL_NULL_DATA;
       }
-      else if(dbColumn[col].rlength < 0) { // inconsistent data
+      else if (dbColumn[col].rlength < 0) { // inconsistent data
         rowOfResultSetInC[col].data = strdup("-");
         rowOfResultSetInC[col].rlength = SQL_NTS;
       }
@@ -2077,7 +2097,7 @@ int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array) {
     {
       Napi::Value value;
       Napi::Value nvalue;
-      if(resultSetInC[row][col].rlength == SQL_NULL_DATA)
+      if (resultSetInC[row][col].rlength == SQL_NULL_DATA)
         value = env.Null();
       else {
         switch(dbColumn[col].sqlType) {
@@ -2094,14 +2114,14 @@ int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array) {
           }
           case SQL_SMALLINT :
           case SQL_INTEGER :
-            if(asNumber == true){
+            if (asNumber == true) {
               nvalue = Napi::String::New(env, resultSetInC[row][col].data);
               value = Napi::Number::New(env, nvalue.ToNumber());            
               break;
             }
           case SQL_DECIMAL :
           case SQL_NUMERIC :
-            if(asNumber == true && dbColumn[col].colPrecise <= 15){
+            if (asNumber == true && dbColumn[col].colPrecise <= 15) {
               nvalue = Napi::String::New(env, resultSetInC[row][col].data);
               value = Napi::Number::New(env, nvalue.ToNumber());            
               break;
@@ -2122,9 +2142,9 @@ int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array) {
 }
 
 void DbStmt::freeColumns() {
-  if(colDescAllocated == true)
+  if (colDescAllocated == true)
     freeColumnDescriptions();
-  if(bindingRowAllocated == true) 
+  if (bindingRowAllocated == true) 
     freeBindingRow();
 }
 
@@ -2136,7 +2156,7 @@ void DbStmt::freeBindingRow() {
 }
 
 void DbStmt::freeSp() {
-  if(param) {
+  if (param) {
     for(int i = 0; i < paramCount; i++)
       free(param[i].buf);
     free(param);
@@ -2145,7 +2165,6 @@ void DbStmt::freeSp() {
 }
 
 int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string& error) {
-
   Napi::Array object;
   int bindIndicator, io;
   SQLRETURN sqlReturnCode;
@@ -2162,20 +2181,20 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string& error) {
     bindValue = object.Get(2);
 
     //validate io
-    if(! ioValue.IsNumber()){
+    if (! ioValue.IsNumber()) {
       error =  "IO TYPE OF PARAMETER " + std::to_string(i+1) + " IS INVALID";
       return -1;
     }
 
     io = ioValue.ToNumber().Int32Value();  //convert from Napi::Value to an int
 
-    if(io != SQL_PARAM_INPUT && io != SQL_PARAM_OUTPUT && io != SQL_PARAM_INPUT_OUTPUT){
+    if (io != SQL_PARAM_INPUT && io != SQL_PARAM_OUTPUT && io != SQL_PARAM_INPUT_OUTPUT) {
       error =  "IO TYPE OF PARAMETER " + std::to_string(i+1) + " IS INVALID. SHOULD EQUAL PARAM INPUT, OUTPUT, OR INPUT_OUTPUT";
       return -1;
     }
 
     //validate bindIndicator
-    if(! bindValue.IsNumber()){
+    if (! bindValue.IsNumber()) {
       error =  "BIND INDICATOR TYPE OF PARAMETER " + std::to_string(i+1) + " IS INVALID\n";
       return -1;
     }
@@ -2192,7 +2211,7 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string& error) {
                         &param[i].decDigits, //SQLSMALLINT* DecimalDigitsPtr -Pointer to buffer to return # dec digits (Output)
                         &param[i].nullable); //SQLSMALLINT* NullablePtr -Pointer to buffer to return if nullable (Output)
 
-    if (sqlReturnCode != SQL_SUCCESS){
+    if (sqlReturnCode != SQL_SUCCESS) {
       DEBUG(this,"SQLDescribeParam(%d)\n", sqlReturnCode)
       error = "SQLDescribeParm FAILED\n" + this->returnErrMsg(SQL_HANDLE_STMT);
       return -1;
@@ -2200,51 +2219,51 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string& error) {
     Napi::Value value = object.Get((uint32_t)0); // have to cast otherwise it complains about ambiguity
     
     //validate the value is not undefined
-    if(value.IsUndefined()){ // if value is undefined convert it to null
+    if (value.IsUndefined()) { // if value is undefined convert it to null
       error =  "VALUE OF PARAMETER " + std::to_string(i+1) + " IS UNDEFINED\n";
       return -1;
     }
 
-    if(bindIndicator == 0 || bindIndicator == 1) { //Parameter is string or clob
+    if (bindIndicator == 0 || bindIndicator == 1) { //Parameter is string or clob
       std::string string = value.ToString().Utf8Value();
       const char* cString = string.c_str();
       param[i].valueType = SQL_C_CHAR;
-      if(param[i].io == SQL_PARAM_INPUT) {
+      if (param[i].io == SQL_PARAM_INPUT) {
         param[i].buf = strdup(cString);
-        if(bindIndicator == 0) {//CLOB
+        if (bindIndicator == 0) {//CLOB
           param[i].ind = strlen(cString);
           }
-        else if(bindIndicator == 1){ //NTS
+        else if (bindIndicator == 1) { //NTS
           param[i].ind = SQL_NTS;
         }
       }
-      else if(param[i].io == SQL_PARAM_OUTPUT) {
+      else if (param[i].io == SQL_PARAM_OUTPUT) {
         param[i].buf = (char*)calloc(param[i].paramSize + 1, sizeof(char));
         param[i].ind = param[i].paramSize;
       }
-      else if(param[i].io == SQL_PARAM_INPUT_OUTPUT) {
+      else if (param[i].io == SQL_PARAM_INPUT_OUTPUT) {
         param[i].buf = (char*)calloc(param[i].paramSize + 1, sizeof(char));
         strcpy((char*)param[i].buf, cString);
-        if(bindIndicator == 0) //CLOB
+        if (bindIndicator == 0) //CLOB
           param[i].ind = strlen(cString);
-        else if(bindIndicator == 1) //NTS
+        else if (bindIndicator == 1) //NTS
           param[i].ind = SQL_NTS;
       }
     }
-    else if(bindIndicator == 2) { //Parameter is Integer
+    else if (bindIndicator == 2) { //Parameter is Integer
       int64_t *number = (int64_t*)malloc(sizeof(int64_t));
       *number = value.ToNumber().Int32Value();
       param[i].valueType = SQL_C_BIGINT;
       param[i].buf = number;
       param[i].ind = 0;
     }
-    else if(bindIndicator == 3 || value.IsNull()) { //Parameter is NULL
+    else if (bindIndicator == 3 || value.IsNull()) { //Parameter is NULL
       param[i].valueType = SQL_C_DEFAULT;
       param[i].ind = SQL_NULL_DATA;
       void *dummy = nullptr;
       param[i].buf = &dummy;
     }
-    else if(bindIndicator == 4 || value.IsNumber()) { //Parameter is Decimal
+    else if (bindIndicator == 4 || value.IsNumber()) { //Parameter is Decimal
       double *number = (double*)malloc(sizeof(double));
       *number = value.ToNumber();
       param[i].valueType = SQL_C_DOUBLE;
@@ -2253,14 +2272,14 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string& error) {
       param[i].decDigits = 7;
       param[i].paramSize = sizeof(double);
     }
-    else if(bindIndicator == 5 || value.IsBoolean()) { //Parameter is Boolean
+    else if (bindIndicator == 5 || value.IsBoolean()) { //Parameter is Boolean
       bool *boolean = (bool*)malloc(sizeof(bool));
       *boolean = value.ToBoolean();
       param[i].valueType = SQL_C_BIT;
       param[i].buf = boolean;
       param[i].ind = 0;
     }
-    else if(bindIndicator == SQL_BINARY || bindIndicator == SQL_BLOB || value.IsBuffer()){ //Parameter is blob/binary
+    else if (bindIndicator == SQL_BINARY || bindIndicator == SQL_BLOB || value.IsBuffer()) { //Parameter is blob/binary
       //convert into Napi::Buffer
       Napi::Buffer<char> buffer = value.As<Napi::Buffer<char>>();
       int bufferLength = buffer.Length();
@@ -2289,7 +2308,7 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string& error) {
     
     DEBUG(this,"SQLBindParameter(%d) TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d] INDEX[%i]\n", sqlReturnCode, param[i].paramType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind, i)
     
-    if (sqlReturnCode != SQL_SUCCESS){
+    if (sqlReturnCode != SQL_SUCCESS) {
       error = "SQLBindParmeter FAILED\n" + this->returnErrMsg(SQL_HANDLE_STMT);
       return -1;
     }
@@ -2301,12 +2320,12 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string& error) {
 int DbStmt::fetchSp(Napi::Env env, Napi::Array *array) {
   for(int i = 0, j = 0; i < paramCount; i++) {
     db2ParameterDescription* p = &param[i];
-    if(p->io != SQL_PARAM_INPUT) {
-      if(p->valueType == SQL_C_BIGINT)  // Integer
+    if (p->io != SQL_PARAM_INPUT) {
+      if (p->valueType == SQL_C_BIGINT)  // Integer
         array->Set(j, Napi::Number::New(env, *(int64_t*)p->buf).Int32Value());
-      else if(p->valueType == SQL_C_DOUBLE)  // Decimal
+      else if (p->valueType == SQL_C_DOUBLE)  // Decimal
         array->Set(j, Napi::Number::New(env, *(double*)p->buf));
-      else if(p->valueType == SQL_C_BIT)  // Boolean
+      else if (p->valueType == SQL_C_BIT)  // Boolean
         array->Set(j, Napi::Boolean::New(env, *(bool*)p->buf));
       else
         array->Set(j, Napi::String::New(env, (char*)p->buf));
@@ -2317,15 +2336,14 @@ int DbStmt::fetchSp(Napi::Env env, Napi::Array *array) {
   return 0;
 }
 
-
 int DbStmt::fetch(Napi::Env env, Napi::Object* row) {
   for(int col = 0; col < colCount; col++)
   {
     Napi::Value value;
-    if(dbColumn[col].rlength == SQL_NULL_DATA){ // SQL_NULL_DATA = -1
+    if (dbColumn[col].rlength == SQL_NULL_DATA) { // SQL_NULL_DATA = -1
       value = env.Null();
     }
-    else if(dbColumn[col].rlength < 0 && dbColumn[col].rlength != SQL_NTS) { // inconsistent data
+    else if (dbColumn[col].rlength < 0 && dbColumn[col].rlength != SQL_NTS) { // inconsistent data
       value = Napi::String::New(env, "-");
     }
     else {
@@ -2340,14 +2358,13 @@ int DbStmt::fetch(Napi::Env env, Napi::Object* row) {
           break;
       }
     }
-    row->Set(Napi::String::New(env , (char const*)dbColumn[col].name), value );
+    row->Set(Napi::String::New(env, (char const*)dbColumn[col].name), value );
   }
   return 0;
 }
 
-void DbStmt::printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
-{
-  if(isDebug == true) 
+void DbStmt::printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt) {
+  if (isDebug == true) 
   { 
     SQLCHAR buffer[SQL_MAX_MESSAGE_LENGTH + 1];
     SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
@@ -2363,8 +2380,7 @@ void DbStmt::printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
   }
 }
 
-void DbStmt::printErrorToLog()
-{
+void DbStmt::printErrorToLog() {
   SQLCHAR buffer[SQL_MAX_MESSAGE_LENGTH + 1];
   SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
   SQLINTEGER sqlcode;
@@ -2372,7 +2388,7 @@ void DbStmt::printErrorToLog()
 
   SQLRETURN sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT, stmth, 1, sqlstate, &sqlcode, buffer, SQL_MAX_MESSAGE_LENGTH + 1, &length); 
   if (sqlReturnCode == SQL_SUCCESS) {
-    if(buffer[length-1] == '\n') {
+    if (buffer[length-1] == '\n') {
       SQLCHAR *p = &buffer[length-1];
       *p = '\0';
     }
@@ -2380,8 +2396,7 @@ void DbStmt::printErrorToLog()
   }
 }
 
-void DbStmt::throwErrMsg(int handleType, Napi::Env env) 
-{
+void DbStmt::throwErrMsg(int handleType, Napi::Env env) {
   SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
   SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
   SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
@@ -2394,7 +2409,7 @@ void DbStmt::throwErrMsg(int handleType, Napi::Env env)
   memset(errMsg, '\0', SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10);
   SQLRETURN sqlReturnCode = -1;
   
-  if(handleType == SQL_HANDLE_STMT && stmtAllocated == true) {
+  if (handleType == SQL_HANDLE_STMT && stmtAllocated == true) {
     //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfndrec.htm
     sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT, //SQLSMALLINT gtype -Handle Type
                                   stmth, //SQLINTEGER handle -hadnle for info is wanted
@@ -2405,32 +2420,26 @@ void DbStmt::throwErrMsg(int handleType, Napi::Env env)
                                   SQL_MAX_MESSAGE_LENGTH + 1, //SQLSMALLINT cbErorMsgMax -Max length of the buffer szErrorMsg
                                   &length); //SQLSMALLINT* pcbErrorMsg -Pointer total # bytes to return to szErrorMsg (Output)  
     printError(envh, connh, stmth);
-  }
-  else{
-    return;
-  }
-  
-  if  (sqlReturnCode == SQL_SUCCESS) {
-    if (msg[length-1] == '\n') {
-      p = &msg[length-1];
-      *p = '\0';
+
+    if (sqlReturnCode == SQL_SUCCESS) {
+      if (msg[length-1] == '\n') {
+        p = &msg[length-1];
+        *p = '\0';
+      }
+      sprintf((char *)errMsg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, msg);
     }
-    sprintf((char *)errMsg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, msg);
+    Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
   }
-  Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
-  return;
 }
 
-void DbStmt::throwErrMsg(int code, const char* msg, Napi::Env env)
-{
+void DbStmt::throwErrMsg(int code, const char* msg, Napi::Env env) {
   SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
   sprintf((char *)errMsg, "SQLSTATE=PAERR SQLCODE=%d %s", code, msg);
   Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
-  return;
 }
+
 //experimental way to actually return error messages in callbacks
-  std::string DbStmt::returnErrMsg(int handleType)
-{
+std::string DbStmt::returnErrMsg(int handleType) {
   SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
   SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
   SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
@@ -2444,15 +2453,14 @@ void DbStmt::throwErrMsg(int code, const char* msg, Napi::Env env)
   memset(errMsg, '\0', SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10);
   SQLRETURN sqlReturnCode = -1;
   
-  if(handleType == SQL_HANDLE_STMT && stmtAllocated == true) {
+  if (handleType == SQL_HANDLE_STMT && stmtAllocated == true) {
     sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT, stmth, 1, sqlstate, &sqlcode, msg, SQL_MAX_MESSAGE_LENGTH + 1, &length); 
     printError(envh, connh, stmth);
-  }
-  else{
+  } else {
     error = "";
     return error;
   }
-  if  (sqlReturnCode == SQL_SUCCESS) {
+  if (sqlReturnCode == SQL_SUCCESS) {
     if (msg[length-1] == '\n') {
       p = &msg[length-1];
       *p = '\0';
@@ -2462,4 +2470,22 @@ void DbStmt::throwErrMsg(int code, const char* msg, Napi::Env env)
   //  return Napi::String::New(env, errMsg).Utf8Value();
   error = errMsg;
   return error;
+}
+
+struct sqlError DbStmt::returnErrObj() {
+  struct sqlError errObj;
+  SQLSMALLINT length = 0;
+  SQLRETURN sqlReturnCode = -1;
+  
+  if (stmtAllocated == true) {
+    sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT, //SQLSMALLINT gtype -Handle Type
+                              stmth, //SQLINTEGER handle -hadnle for info is wanted
+                              1, //SQLSMALLINT recNUM -Indicates which error record to return (if multiple)
+                              errObj.sqlState, //SQLCHAR* szSQLSTATE -SQLSTATE as a string of 5 characters terminated by a null character. (Output)
+                              &errObj.sqlCode, //SQLINTEGER* pfNativeError -Error Code (Output)
+                              errObj.message, //SQLCHAR* szErrorMsg -Pointer to buffer msg text (Output)
+                              SQL_MAX_MESSAGE_LENGTH + 1, //SQLSMALLINT cbErorMsgMax -Max length of the buffer szErrorMsg
+                              &length); //SQLSMALLINT* pcbErrorMsg -Pointer total # bytes to return to szErrorMsg (Output)  
+  }
+  return errObj;
 }

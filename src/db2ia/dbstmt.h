@@ -37,6 +37,12 @@ struct resultSetItem {
   SQLINTEGER  rlength;
 };
 
+struct sqlError {
+  SQLCHAR     sqlState[SQL_SQLSTATE_SIZE + 1];
+  SQLINTEGER  sqlCode;
+  SQLCHAR     message[SQL_MAX_MESSAGE_LENGTH + 1];
+};
+
 class DbStmt : public Napi::ObjectWrap<DbStmt> {
 
   // classes that do the async versions of the workflows
@@ -114,6 +120,7 @@ class DbStmt : public Napi::ObjectWrap<DbStmt> {
     void throwErrMsg(int handleType, Napi::Env env);
     void throwErrMsg(int code, const char* msg, Napi::Env env);
     std::string returnErrMsg(int handleType);
+    struct sqlError returnErrObj();
 
     bool stmtAllocated = false;
     bool resultSetAvailable = false;
