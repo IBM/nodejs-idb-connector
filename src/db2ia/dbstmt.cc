@@ -1053,7 +1053,7 @@ class FetchAsyncWorker : public Napi::AsyncWorker {
 
     //executed when SetError() is called , when sqlReturnCode == SQL_ERROR
     void OnError(const Napi::Error& e){
-      //callback signature function(result, error)
+      //callback signature function(row, error)
       Callback().MakeCallback(Receiver().Value(), std::initializer_list<napi_value>{ e.Env().Null(), e.Value()});
     }
 
@@ -1066,9 +1066,10 @@ class FetchAsyncWorker : public Napi::AsyncWorker {
 
       //set the data to the row object.
       dbStatementObject->fetch(env, &row);
-      //callback signature function(row, returnCode)
+      //callback signature function(row, error)
       callbackArguments.push_back(row);
-      callbackArguments.push_back(Napi::Number::New(env , sqlReturnCode));
+      if(sqlReturnCode != SQL_SUCCESS) // warning messages available
+        callbackArguments.push_back(Napi::String::New(env, dbStatementObject->returnErrMsg(SQL_HANDLE_STMT)));
 
       Callback().Call(callbackArguments);
     }
@@ -1239,16 +1240,17 @@ class FetchAllAsyncWorker : public Napi::AsyncWorker {
 
     // Executed inside the worker-thread.
     void Execute () {
-      int returnCode = dbStatementObject->fetchData();
-      if(returnCode < 0){
-        std::string  errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
+      returnCode = dbStatementObject->fetchData();
+      if(returnCode == SQL_ERROR){
+        std::string errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
         SetError(errorMessage);
         return;
       }
     }
 
+    //executed when SetError() is called , when sqlReturnCode == SQL_ERROR
     void OnError(const Napi::Error& e){
-      //callback signature function(row, error)
+      //callback signature function(result, error)
       Callback().MakeCallback(Receiver().Value(), std::initializer_list<napi_value>{ e.Env().Null(), e.Value()});
     }
 
@@ -1257,17 +1259,21 @@ class FetchAllAsyncWorker : public Napi::AsyncWorker {
       Napi::Env env = Env(); // not sure this is right... old one just gets the Isolate out of thin air
       Napi::HandleScope scope(Env());
       std::vector<napi_value> callbackArguments;
-      Napi::Array results = Napi::Array::New(env); 
+      Napi::Array results = Napi::Array::New(env);
+
       //load up the array with data
       dbStatementObject->buildJsObject(env, &results);
-      
+      //callback signature function(result, error)
       callbackArguments.push_back(results);
-      callbackArguments.push_back(env.Null());
+      if(returnCode != SQL_SUCCESS) // warning messages available
+        callbackArguments.push_back(Napi::String::New(env, dbStatementObject->returnErrMsg(SQL_HANDLE_STMT)));
+      
       Callback().Call(callbackArguments);
     }
 
   private:
     DbStmt* dbStatementObject;
+    SQLRETURN returnCode;
 };
 
 /*
@@ -1861,594 +1867,599 @@ void DbStmt::StmtError(const Napi::CallbackInfo& info) {
 /****** UNEXPOSED HELPER FUNCTIONS ******/
 
 int DbStmt::populateColumnDescriptions(Napi::Env env) {
-    if(colDescAllocated == true) {
+  if(colDescAllocated == true) {
+    freeColumnDescriptions();
+  }
+  
+  SQLRETURN sqlReturnCode;
+  dbColumn = (db2ColumnDescription*)calloc(colCount, sizeof(db2ColumnDescription));
+
+  for(int col = 0; col < colCount; col++) {
+    dbColumn[col].name = (SQLCHAR*)calloc(MAX_COLNAME_WIDTH, sizeof(SQLCHAR));
+    //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfndecol.htm
+    sqlReturnCode = SQLDescribeCol(stmth, //SQLHSTMT hstmt -Statement handle
+                                    col + 1, //SQLSMALLINT icol -Column # to be described
+                                    dbColumn[col].name, //SQLCHAR* szColName -Pointer to column name buffer
+                                    MAX_COLNAME_WIDTH, //SQLSMALLINT cbColNameMax -Size of szColName buffer
+                                    &dbColumn[col].nameLength, //SQLSMALLINT* pcbColName -Bytes avail to return for szColName (Output)
+                                    &dbColumn[col].sqlType, //SQLSMALLINT* pfSqlType -SQL data type of column (Output)
+                                    &dbColumn[col].colPrecise, //SQLINTEGER* pcbColDef -Precision of column as defined in db2 (Output)
+                                    &dbColumn[col].colScale, //SQLSMALLINT* pibScale -Scale of column as defined in db2 (Output)
+                                    &dbColumn[col].colNull); //SQLSMALLINT* pfNullable -Indactes whether null is allowed (Output)
+
+    DEBUG(this,"SQLDescribeCol(%d)\tindex[%d]\tsqlType[%d]\tcolScale[%d]\tcolPrecise[%d]\n",sqlReturnCode, col, dbColumn[col].sqlType, dbColumn[col].colScale, dbColumn[col].colPrecise )  
+    
+    if (sqlReturnCode != SQL_SUCCESS) {
       freeColumnDescriptions();
-    }
-    
-    SQLRETURN sqlReturnCode;
-    dbColumn = (db2ColumnDescription*)calloc(colCount, sizeof(db2ColumnDescription));
-
-    for(int col = 0; col < colCount; col++) {
-      dbColumn[col].name = (SQLCHAR*)calloc(MAX_COLNAME_WIDTH, sizeof(SQLCHAR));
-      //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfndecol.htm
-      sqlReturnCode = SQLDescribeCol(stmth, //SQLHSTMT hstmt -Statement handle
-                                     col + 1, //SQLSMALLINT icol -Column # to be described
-                                     dbColumn[col].name, //SQLCHAR* szColName -Pointer to column name buffer
-                                     MAX_COLNAME_WIDTH, //SQLSMALLINT cbColNameMax -Size of szColName buffer
-                                     &dbColumn[col].nameLength, //SQLSMALLINT* pcbColName -Bytes avail to return for szColName (Output)
-                                     &dbColumn[col].sqlType, //SQLSMALLINT* pfSqlType -SQL data type of column (Output)
-                                     &dbColumn[col].colPrecise, //SQLINTEGER* pcbColDef -Precision of column as defined in db2 (Output)
-                                     &dbColumn[col].colScale, //SQLSMALLINT* pibScale -Scale of column as defined in db2 (Output)
-                                     &dbColumn[col].colNull); //SQLSMALLINT* pfNullable -Indactes whether null is allowed (Output)
-
-      DEBUG(this,"SQLDescribeCol(%d)\tindex[%d]\tsqlType[%d]\tcolScale[%d]\tcolPrecise[%d]\n",sqlReturnCode, col, dbColumn[col].sqlType, dbColumn[col].colScale, dbColumn[col].colPrecise )  
-     
-      if (sqlReturnCode != SQL_SUCCESS) {
-        freeColumnDescriptions();
-        if(env != NULL)
-          throwErrMsg(SQL_ERROR, "SQLDescribeCol() failed.", env);
-        else printErrorToLog();
-        return -1;
-      }
-    }
-    colDescAllocated = true;
-    return 0;
-  }
-  
-  void DbStmt::freeColumnDescriptions() {
-    for(int col = 0; col < colCount && dbColumn[col].name; col++)
-      free(dbColumn[col].name); 
-    free(dbColumn); 
-    colDescAllocated = false;
-  }
-  
-  int DbStmt::bindColData(Napi::Env env) {
-    if(bindingRowAllocated == true) 
-      freeBindingRow();
-    
-    if(colDescAllocated != true)
-      if(populateColumnDescriptions(env) < 0)
-        return -1;
-    
-    SQLRETURN sqlReturnCode;
-    SQLINTEGER maxColLen = 0;
-    //bindingRowInC defined in dbstmt.h as type SQLCHAR**
-    bindingRowInC = (SQLCHAR**)calloc(colCount, sizeof(SQLCHAR*)); 
-    for(int col = 0; col < colCount; col++) {
-      switch(dbColumn[col].sqlType) {
-        case SQL_SMALLINT :
-        {
-          maxColLen = 7;
-          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnbindc.htm
-          sqlReturnCode = SQLBindCol(stmth, //SQLHSTMT hstmt -Statement Handle
-                                     col + 1, //SQLSMALLINT icol -# identifying the column
-                                     SQL_C_CHAR, //SQLSMALLINT fCtype -App Data type for icol 
-                                     (SQLPOINTER)bindingRowInC[col], //SQLPOINTER rgbValue -Pointer to buffer to store col data (Output) 
-                                     maxColLen, //SQLINTEGER cbValueMax -Size of rgbValue buffer in bytes avail to store col data
-                                     &dbColumn[col].rlength); //SQLINTEGER* pcbValue -Pointer to value for # bytes avail to return in rgbValue buffer (Output)
-        } break;
-        case SQL_INTEGER :
-        {
-          maxColLen = 12;
-          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
-        } break;
-        case SQL_BIGINT :
-        {
-          maxColLen = 21;
-          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
-        } break;
-        case SQL_DECIMAL :
-        case SQL_NUMERIC :
-        case SQL_FLOAT :
-        case SQL_DOUBLE :
-        {
-          maxColLen = dbColumn[col].colPrecise + dbColumn[col].colScale + 3;
-          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
-        } break;
-        case SQL_REAL :
-        {
-          maxColLen = 30;  // The ISO synonym for real is float(24).
-          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
-        } break;
-        case SQL_VARBINARY :
-        case SQL_BINARY :
-        {
-          maxColLen = dbColumn[col].colPrecise;
-          bindingRowInC[col] = (SQLCHAR*)malloc(maxColLen * sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_BINARY, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
-        }
-        break;
-        case SQL_BLOB :
-        {
-          maxColLen = dbColumn[col].colPrecise;
-          bindingRowInC[col] = (SQLCHAR*)malloc(maxColLen * sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_BLOB, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
-        }
-        break;
-        case SQL_CLOB :
-        {
-          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CLOB_LOCATOR, &dbColumn[col].clobLoc, 0, &dbColumn[col].rlength);
-        }
-        break;
-        case SQL_WCHAR :
-        case SQL_WVARCHAR :
-        {
-          maxColLen = dbColumn[col].colPrecise * 4 + 1;
-          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
-        }
-        break;
-        default : // SQL_CHAR / SQL_VARCHAR
-        {
-          maxColLen = dbColumn[col].colPrecise * 4 + 1;
-          bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
-          sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
-        }
-        break;
-      }
-      if (sqlReturnCode != SQL_SUCCESS) {
-        freeBindingRow();
-        if(env != NULL)
-          throwErrMsg(SQL_ERROR, "SQLBindCol() failed.", env);
-        else printErrorToLog();
-        return -1;
-      }
-    }
-    bindingRowAllocated = true;
-    return 0;
-  }
-  
-  int DbStmt::fetchData() {
-  
-    SQLRETURN sqlReturnCode;
-    // Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnfetch.htm
-    while(true) 
-    {
-      sqlReturnCode = SQLFetch(stmth);
-      if(sqlReturnCode != SQL_SUCCESS && sqlReturnCode != SQL_SUCCESS_WITH_INFO)
-        break;
-      resultSetItem* rowOfResultSetInC = (resultSetItem*)calloc(colCount, sizeof(resultSetItem)); 
-      for(int col = 0; col < colCount; col++)
-      {
-        int colLen = 0;
-        int ind = 0;
-        if(dbColumn[col].sqlType == SQL_CLOB) {
-          SQLHANDLE stmtLoc, stmtLocFree;
-          
-          sqlReturnCode = SQLAllocStmt(connh, &stmtLoc);
-          sqlReturnCode = SQLAllocStmt(connh, &stmtLocFree);
-
-          sqlReturnCode = SQLGetLength(stmtLoc, SQL_C_CLOB_LOCATOR, dbColumn[col].clobLoc, &colLen, &ind);
-
-          rowOfResultSetInC[col].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
-          rowOfResultSetInC[col].rlength = colLen;
-          sqlReturnCode = SQLGetCol(stmth, col + 1, SQL_C_CLOB, rowOfResultSetInC[col].data, colLen, &ind);
-
-          SQLCHAR *freeLocStmt = (SQLCHAR *)"FREE LOCATOR ?";
-          sqlReturnCode = SQLSetParam(stmtLocFree, 1, SQL_C_CLOB_LOCATOR, SQL_CLOB_LOCATOR, 0, 0, &dbColumn[col].clobLoc, NULL);
-          sqlReturnCode = SQLExecDirect(stmtLocFree, freeLocStmt, SQL_NTS);
-
-          sqlReturnCode = SQLFreeStmt(stmtLoc, SQL_DROP);
-          sqlReturnCode = SQLFreeStmt(stmtLocFree, SQL_DROP);
-        }
-        else if(dbColumn[col].rlength == SQL_NTS) {
-          colLen = strlen(bindingRowInC[col]);
-          rowOfResultSetInC[col].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
-          memcpy(rowOfResultSetInC[col].data, bindingRowInC[col], colLen * sizeof(SQLCHAR));
-          rowOfResultSetInC[col].rlength = SQL_NTS;
-        }
-        else if(dbColumn[col].rlength == SQL_NULL_DATA) {
-          rowOfResultSetInC[col].data = NULL;
-          rowOfResultSetInC[col].rlength = SQL_NULL_DATA;
-        }
-        else {
-          colLen = dbColumn[col].rlength;
-          rowOfResultSetInC[col].data = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
-          memcpy(rowOfResultSetInC[col].data, bindingRowInC[col], colLen * sizeof(SQLCHAR));
-          rowOfResultSetInC[col].rlength = colLen;
-        }
-      }
-      resultSetInC.push_back(rowOfResultSetInC);
-    }
-    if(sqlReturnCode == SQL_ERROR){
+      if(env != NULL)
+        throwErrMsg(SQL_ERROR, "SQLDescribeCol() failed.", env);
+      else printErrorToLog();
       return -1;
     }
-    return 0;
   }
+  colDescAllocated = true;
+  return 0;
+}
+
+void DbStmt::freeColumnDescriptions() {
+  for(int col = 0; col < colCount && dbColumn[col].name; col++)
+    free(dbColumn[col].name); 
+  free(dbColumn); 
+  colDescAllocated = false;
+}
+
+int DbStmt::bindColData(Napi::Env env) {
+  if(bindingRowAllocated == true) 
+    freeBindingRow();
   
-  int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array) {
-    for(std::size_t row = 0; row < resultSetInC.size(); row++)
-    {
-      Napi::Object rowInJs = Napi::Object::New(env);
-      for(int col = 0; col < colCount; col++)
+  if(colDescAllocated != true)
+    if(populateColumnDescriptions(env) < 0)
+      return -1;
+  
+  SQLRETURN sqlReturnCode;
+  SQLINTEGER maxColLen = 0;
+  //bindingRowInC defined in dbstmt.h as type SQLCHAR**
+  bindingRowInC = (SQLCHAR**)calloc(colCount, sizeof(SQLCHAR*)); 
+  for(int col = 0; col < colCount; col++) {
+    switch(dbColumn[col].sqlType) {
+      case SQL_SMALLINT :
       {
-        Napi::Value value;
-        Napi::Value nvalue;
-        if(resultSetInC[row][col].rlength == SQL_NULL_DATA)
-          value = env.Null();
-        else {
-          switch(dbColumn[col].sqlType) {
-            case SQL_VARBINARY :
-            case SQL_BINARY : 
-            case SQL_BLOB :
-            {
-              SQLCHAR *binaryData = new SQLCHAR[resultSetInC[row][col].rlength]; // have to save the data on the heap
-              memcpy((SQLCHAR *) binaryData, resultSetInC[row][col].data, resultSetInC[row][col].rlength);
-              value = Napi::Buffer<SQLCHAR>::New(env, binaryData, resultSetInC[row][col].rlength, [](Napi::Env env, void* finalizeData) {
-                delete[] (SQLCHAR*)finalizeData;
-              });
-              break;
-            }
-            case SQL_SMALLINT :
-            case SQL_INTEGER :
-              if(asNumber == true){
-                nvalue = Napi::String::New(env, resultSetInC[row][col].data);
-                value = Napi::Number::New(env, nvalue.ToNumber());            
-                break;
-              }
-            case SQL_DECIMAL :
-            case SQL_NUMERIC :
-              if(asNumber == true && dbColumn[col].colPrecise <= 15){
-                nvalue = Napi::String::New(env, resultSetInC[row][col].data);
-                value = Napi::Number::New(env, nvalue.ToNumber());            
-                break;
-              }
-            default : 
-              value = Napi::String::New(env, resultSetInC[row][col].data);
-              break;
-          }
-        }
-        rowInJs.Set(Napi::String::New(env, (char const*)dbColumn[col].name), value);  //Build a JS row
-        free(resultSetInC[row][col].data);  //Free current column field of the row
+        maxColLen = 7;
+        bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+        //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnbindc.htm
+        sqlReturnCode = SQLBindCol(stmth, //SQLHSTMT hstmt -Statement Handle
+                                    col + 1, //SQLSMALLINT icol -# identifying the column
+                                    SQL_C_CHAR, //SQLSMALLINT fCtype -App Data type for icol 
+                                    (SQLPOINTER)bindingRowInC[col], //SQLPOINTER rgbValue -Pointer to buffer to store col data (Output) 
+                                    maxColLen, //SQLINTEGER cbValueMax -Size of rgbValue buffer in bytes avail to store col data
+                                    &dbColumn[col].rlength); //SQLINTEGER* pcbValue -Pointer to value for # bytes avail to return in rgbValue buffer (Output)
+      } break;
+      case SQL_INTEGER :
+      {
+        maxColLen = 12;
+        bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+        sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
+      } break;
+      case SQL_BIGINT :
+      {
+        maxColLen = 21;
+        bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+        sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
+      } break;
+      case SQL_DECIMAL :
+      case SQL_NUMERIC :
+      case SQL_FLOAT :
+      case SQL_DOUBLE :
+      {
+        maxColLen = dbColumn[col].colPrecise + dbColumn[col].colScale + 3;
+        bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+        sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
+      } break;
+      case SQL_REAL :
+      {
+        maxColLen = 30;  // The ISO synonym for real is float(24).
+        bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+        sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
+      } break;
+      case SQL_VARBINARY :
+      case SQL_BINARY :
+      {
+        maxColLen = dbColumn[col].colPrecise;
+        bindingRowInC[col] = (SQLCHAR*)malloc(maxColLen * sizeof(SQLCHAR));
+        sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_BINARY, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
       }
-      array->Set(row, rowInJs);  //Build the JS object of the result set
-      free(resultSetInC[row]);  //Free current row of the C array of the result set
+      break;
+      case SQL_BLOB :
+      {
+        maxColLen = dbColumn[col].colPrecise;
+        bindingRowInC[col] = (SQLCHAR*)malloc(maxColLen * sizeof(SQLCHAR));
+        sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_BLOB, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
+      }
+      break;
+      case SQL_CLOB :
+      {
+        sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CLOB_LOCATOR, &dbColumn[col].clobLoc, 0, &dbColumn[col].rlength);
+      }
+      break;
+      case SQL_WCHAR :
+      case SQL_WVARCHAR :
+      {
+        maxColLen = dbColumn[col].colPrecise * 4 + 1;
+        bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+        sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
+      }
+      break;
+      default : // SQL_CHAR / SQL_VARCHAR
+      {
+        maxColLen = dbColumn[col].colPrecise * 4 + 1;
+        bindingRowInC[col] = (SQLCHAR*)calloc(maxColLen, sizeof(SQLCHAR));
+        sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
+      }
+      break;
     }
-    resultSetInC.clear();  //Free the C array of the result set
-    return 0;
-  }
- 
-  void DbStmt::freeColumns() {
-    if(colDescAllocated == true)
-      freeColumnDescriptions();
-    if(bindingRowAllocated == true) 
+    if (sqlReturnCode != SQL_SUCCESS) {
       freeBindingRow();
-  }
-
-  void DbStmt::freeBindingRow() {
-    for(int col = 0; col < colCount && bindingRowInC[col]; col++)
-      free(bindingRowInC[col]); 
-    free(bindingRowInC);
-    bindingRowAllocated = false; 
-  }
-  
-  void DbStmt::freeSp() {
-    if(param) {
-      for(int i = 0; i < paramCount; i++)
-        free(param[i].buf);
-      free(param);
-      param = NULL;
+      if(env != NULL)
+        throwErrMsg(SQL_ERROR, "SQLBindCol() failed.", env);
+      else printErrorToLog();
+      return -1;
     }
   }
+  bindingRowAllocated = true;
+  return 0;
+}
 
-  int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string& error) {
-
-    Napi::Array object;
-    int bindIndicator, io;
-    SQLRETURN sqlReturnCode;
-    Napi::Value ioValue, bindValue;
-    freeSp();
-    
-    paramCount = params->Length();
-    param = (db2ParameterDescription*)calloc(paramCount, sizeof(db2ParameterDescription));
-
-    for(SQLSMALLINT i = 0; i < paramCount; i++) {
-
-      object = params->Get(i).As<Napi::Array>();  //Get a  ? parameter from the array.
-      ioValue = object.Get(1);
-      bindValue = object.Get(2);
-
-      //validate io
-      if(! ioValue.IsNumber()){
-        error =  "IO TYPE OF PARAMETER " + std::to_string(i+1) + " IS INVALID";
-        return -1;
-      }
-
-      io = ioValue.ToNumber().Int32Value();  //convert from Napi::Value to an int
-
-      if(io != SQL_PARAM_INPUT && io != SQL_PARAM_OUTPUT && io != SQL_PARAM_INPUT_OUTPUT){
-        error =  "IO TYPE OF PARAMETER " + std::to_string(i+1) + " IS INVALID. SHOULD EQUAL PARAM INPUT, OUTPUT, OR INPUT_OUTPUT";
-        return -1;
-      }
-
-      //validate bindIndicator
-      if(! bindValue.IsNumber()){
-        error =  "BIND INDICATOR TYPE OF PARAMETER " + std::to_string(i+1) + " IS INVALID\n";
-        return -1;
-      }
-
-      param[i].io = io;
-      bindIndicator = bindValue.ToNumber().Int32Value();  //convert from Napi::Value to an int
-
-      //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfndescprm.htm
-      sqlReturnCode = SQLDescribeParam(
-                          stmth, //SQLHSTMT StatementHandle 
-                          i + 1, //SQLSMALLINT ParameterNumber
-                          &param[i].paramType, //SQLSMALLINT* DataTypePtr -Pointer to buffer to return data type (Output)
-                          &param[i].paramSize, //SQLINTEGER*  ParameterSizePtr -Pointer to buffer to return size (Output)
-                          &param[i].decDigits, //SQLSMALLINT* DecimalDigitsPtr -Pointer to buffer to return # dec digits (Output)
-                          &param[i].nullable); //SQLSMALLINT* NullablePtr -Pointer to buffer to return if nullable (Output)
-
-      if (sqlReturnCode != SQL_SUCCESS){
-        DEBUG(this,"SQLDescribeParam(%d)\n", sqlReturnCode)
-        error = "SQLDescribeParm FAILED\n" + this->returnErrMsg(SQL_HANDLE_STMT);
-        return -1;
-      }    
-      Napi::Value value = object.Get((uint32_t)0); // have to cast otherwise it complains about ambiguity
-      
-      //validate the value is not undefined
-      if(value.IsUndefined()){ // if value is undefined convert it to null
-        error =  "VALUE OF PARAMETER " + std::to_string(i+1) + " IS UNDEFINED\n";
-        return -1;
-      }
-
-      if(bindIndicator == 0 || bindIndicator == 1) { //Parameter is string or clob
-        std::string string = value.ToString().Utf8Value();
-        const char* cString = string.c_str();
-        param[i].valueType = SQL_C_CHAR;
-        if(param[i].io == SQL_PARAM_INPUT) {
-          param[i].buf = strdup(cString);
-          if(bindIndicator == 0) {//CLOB
-            param[i].ind = strlen(cString);
-            }
-          else if(bindIndicator == 1){ //NTS
-            param[i].ind = SQL_NTS;
-          }
-        }
-        else if(param[i].io == SQL_PARAM_OUTPUT) {
-          param[i].buf = (char*)calloc(param[i].paramSize + 1, sizeof(char));
-          param[i].ind = param[i].paramSize;
-        }
-        else if(param[i].io == SQL_PARAM_INPUT_OUTPUT) {
-          param[i].buf = (char*)calloc(param[i].paramSize + 1, sizeof(char));
-          strcpy((char*)param[i].buf, cString);
-          if(bindIndicator == 0) //CLOB
-            param[i].ind = strlen(cString);
-          else if(bindIndicator == 1) //NTS
-            param[i].ind = SQL_NTS;
-        }
-      }
-      else if(bindIndicator == 2) { //Parameter is Integer
-        int64_t *number = (int64_t*)malloc(sizeof(int64_t));
-        *number = value.ToNumber().Int32Value();
-        param[i].valueType = SQL_C_BIGINT;
-        param[i].buf = number;
-        param[i].ind = 0;
-      }
-      else if(bindIndicator == 3 || value.IsNull()) { //Parameter is NULL
-        param[i].valueType = SQL_C_DEFAULT;
-        param[i].ind = SQL_NULL_DATA;
-        void *dummy = nullptr;
-        param[i].buf = &dummy;
-      }
-      else if(bindIndicator == 4 || value.IsNumber()) { //Parameter is Decimal
-        double *number = (double*)malloc(sizeof(double));
-        *number = value.ToNumber();
-        param[i].valueType = SQL_C_DOUBLE;
-        param[i].buf = number;
-        param[i].ind = sizeof(double);
-        param[i].decDigits = 7;
-        param[i].paramSize = sizeof(double);
-      }
-      else if(bindIndicator == 5 || value.IsBoolean()) { //Parameter is Boolean
-        bool *boolean = (bool*)malloc(sizeof(bool));
-        *boolean = value.ToBoolean();
-        param[i].valueType = SQL_C_BIT;
-        param[i].buf = boolean;
-        param[i].ind = 0;
-      }
-      else if(bindIndicator == SQL_BINARY || bindIndicator == SQL_BLOB || value.IsBuffer()){ //Parameter is blob/binary
-        //convert into Napi::Buffer
-        Napi::Buffer<char> buffer = value.As<Napi::Buffer<char>>();
-        int bufferLength = buffer.Length();
-        param[i].valueType = SQL_C_BINARY;
-        //get a pointer to the buffer
-        char* bufferPtr = buffer.Data();
-        param[i].buf = bufferPtr;
-        param[i].ind = bufferLength;  
-      }
-      else{ //bindIndicator did not match any cases
-        error =  "BIND INDICATOR FOR PARAMETER " + std::to_string(i+1) + "IS INVALID\n";
-        return -1;
-      }
-      //link to doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnbndpm.htm
-      sqlReturnCode = SQLBindParameter(
-              stmth, //SQLHSTMT statement handle
-              i + 1, //SQLSMALLINT Parameter Number
-              param[i].io, //SQLSMALLINT InputOutputType 
-              param[i].valueType, //SQLSMALLINT Value Type -C data type of Parameter
-              param[i].paramType, //SQLSMALLINT Parameter Type -SQL data type of the parameter
-              param[i].paramSize, //SQLINTEGER Parameter Size -Precision of the param
-              param[i].decDigits, //SQLDecimal Digits -Scale of the param
-              param[i].buf,      //ParameterValuePtr -Points to buffer that contains actual data for param. OutParams are placed here.
-              0,                //SQLLEN BufferLength (Not Used in CLI)
-              &param[i].ind);  // SQLLEN* StrLen_or_IndPtr -length of the parameter marker value stored at ParameterValuePtr.
-      
-      DEBUG(this,"SQLBindParameter(%d) TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d] INDEX[%i]\n", sqlReturnCode, param[i].paramType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind, i)
-      
-      if (sqlReturnCode != SQL_SUCCESS){
-        error = "SQLBindParmeter FAILED\n" + this->returnErrMsg(SQL_HANDLE_STMT);
-        return -1;
-      }
+int DbStmt::fetchData() {
+  SQLRETURN sqlReturnCode = SQL_SUCCESS;
+  // Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnfetch.htm
+  while(true) 
+  {
+    SQLRETURN returnCode = SQLFetch(stmth);
+    if(returnCode != SQL_SUCCESS && returnCode != SQL_SUCCESS_WITH_INFO)  // error occurred!
+      break;
+    if(returnCode != SQL_SUCCESS) // may be warning messages
+      sqlReturnCode = returnCode;
+    resultSetItem* rowOfResultSetInC = (resultSetItem*)calloc(colCount, sizeof(resultSetItem)); 
+    for(int col = 0; col < colCount; col++)
+    {
+      int colLen = 0;
+      int ind = 0;
+      if(dbColumn[col].sqlType == SQL_CLOB) {  // TODO: check return code
+        SQLHANDLE stmtLoc, stmtLocFree;
         
-    }
-    return 0;
-  }
-  
-  int DbStmt::fetchSp(Napi::Env env, Napi::Array *array) {
-    for(int i = 0, j = 0; i < paramCount; i++) {
-      db2ParameterDescription* p = &param[i];
-      if(p->io != SQL_PARAM_INPUT) {
-        if(p->valueType == SQL_C_BIGINT)  // Integer
-          array->Set(j, Napi::Number::New(env, *(int64_t*)p->buf).Int32Value());
-        else if(p->valueType == SQL_C_DOUBLE)  // Decimal
-          array->Set(j, Napi::Number::New(env, *(double*)p->buf));
-        else if(p->valueType == SQL_C_BIT)  // Boolean
-          array->Set(j, Napi::Boolean::New(env, *(bool*)p->buf));
-        else
-          array->Set(j, Napi::String::New(env, (char*)p->buf));
-        j++;
+        returnCode = SQLAllocStmt(connh, &stmtLoc);
+        returnCode = SQLAllocStmt(connh, &stmtLocFree);
+
+        returnCode = SQLGetLength(stmtLoc, SQL_C_CLOB_LOCATOR, dbColumn[col].clobLoc, &colLen, &ind);
+
+        rowOfResultSetInC[col].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
+        rowOfResultSetInC[col].rlength = colLen;
+        returnCode = SQLGetCol(stmth, col + 1, SQL_C_CLOB, rowOfResultSetInC[col].data, colLen, &ind);
+
+        SQLCHAR *freeLocStmt = (SQLCHAR *)"FREE LOCATOR ?";
+        returnCode = SQLSetParam(stmtLocFree, 1, SQL_C_CLOB_LOCATOR, SQL_CLOB_LOCATOR, 0, 0, &dbColumn[col].clobLoc, NULL);
+        returnCode = SQLExecDirect(stmtLocFree, freeLocStmt, SQL_NTS);
+
+        returnCode = SQLFreeStmt(stmtLoc, SQL_DROP);
+        returnCode = SQLFreeStmt(stmtLocFree, SQL_DROP);
+      }
+      else if(dbColumn[col].rlength == SQL_NTS) { // SQL_NTS = -3
+        colLen = strlen(bindingRowInC[col]);
+        rowOfResultSetInC[col].data = (SQLCHAR*)calloc(colLen + 1, sizeof(SQLCHAR));
+        memcpy(rowOfResultSetInC[col].data, bindingRowInC[col], colLen * sizeof(SQLCHAR));
+        rowOfResultSetInC[col].rlength = SQL_NTS;
+      }
+      else if(dbColumn[col].rlength == SQL_NULL_DATA) { // SQL_NULL_DATA = -1
+        rowOfResultSetInC[col].data = NULL;
+        rowOfResultSetInC[col].rlength = SQL_NULL_DATA;
+      }
+      else if(dbColumn[col].rlength < 0) { // inconsistent data
+        rowOfResultSetInC[col].data = strdup("-");
+        rowOfResultSetInC[col].rlength = SQL_NTS;
+      }
+      else {
+        colLen = dbColumn[col].rlength;
+        rowOfResultSetInC[col].data = (SQLCHAR*)calloc(colLen, sizeof(SQLCHAR));
+        memcpy(rowOfResultSetInC[col].data, bindingRowInC[col], colLen * sizeof(SQLCHAR));
+        rowOfResultSetInC[col].rlength = colLen;
       }
     }
-    freeSp();
-    return 0;
+    resultSetInC.push_back(rowOfResultSetInC);
   }
-  
-  
-  int DbStmt::fetch(Napi::Env env, Napi::Object* row) {
+  return sqlReturnCode;
+}
+
+int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array) {
+  for(std::size_t row = 0; row < resultSetInC.size(); row++)
+  {
+    Napi::Object rowInJs = Napi::Object::New(env);
     for(int col = 0; col < colCount; col++)
     {
       Napi::Value value;
-      if(dbColumn[col].rlength == SQL_NULL_DATA){
+      Napi::Value nvalue;
+      if(resultSetInC[row][col].rlength == SQL_NULL_DATA)
         value = env.Null();
-      }
       else {
         switch(dbColumn[col].sqlType) {
           case SQL_VARBINARY :
-          case SQL_BINARY : //Buffers are returned for Binary, Varbinary, Blob types.
+          case SQL_BINARY : 
           case SQL_BLOB :
-            value = Napi::Buffer<char>::New(env, bindingRowInC[col], dbColumn[col].rlength);
+          {
+            SQLCHAR *binaryData = new SQLCHAR[resultSetInC[row][col].rlength]; // have to save the data on the heap
+            memcpy((SQLCHAR *) binaryData, resultSetInC[row][col].data, resultSetInC[row][col].rlength);
+            value = Napi::Buffer<SQLCHAR>::New(env, binaryData, resultSetInC[row][col].rlength, [](Napi::Env env, void* finalizeData) {
+              delete[] (SQLCHAR*)finalizeData;
+            });
             break;
+          }
+          case SQL_SMALLINT :
+          case SQL_INTEGER :
+            if(asNumber == true){
+              nvalue = Napi::String::New(env, resultSetInC[row][col].data);
+              value = Napi::Number::New(env, nvalue.ToNumber());            
+              break;
+            }
+          case SQL_DECIMAL :
+          case SQL_NUMERIC :
+            if(asNumber == true && dbColumn[col].colPrecise <= 15){
+              nvalue = Napi::String::New(env, resultSetInC[row][col].data);
+              value = Napi::Number::New(env, nvalue.ToNumber());            
+              break;
+            }
           default : 
-            value = Napi::String::New(env,bindingRowInC[col]);
+            value = Napi::String::New(env, resultSetInC[row][col].data);
             break;
         }
       }
-      row->Set(Napi::String::New(env , (char const*)dbColumn[col].name), value );
+      rowInJs.Set(Napi::String::New(env, (char const*)dbColumn[col].name), value);  //Build a JS row
+      free(resultSetInC[row][col].data);  //Free current column field of the row
     }
-    return 0;
+    array->Set(row, rowInJs);  //Build the JS object of the result set
+    free(resultSetInC[row]);  //Free current row of the C array of the result set
   }
+  resultSetInC.clear();  //Free the C array of the result set
+  return 0;
+}
 
-  void DbStmt::printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
-  {
-    if(isDebug == true) 
-    { 
-      SQLCHAR buffer[SQL_MAX_MESSAGE_LENGTH + 1];
-      SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
-      SQLINTEGER sqlcode;
-      SQLSMALLINT length;
-      while( SQLError(henv, hdbc, hstmt, sqlstate, &sqlcode, buffer, SQL_MAX_MESSAGE_LENGTH + 1, &length) == SQL_SUCCESS )
-      {
-        printf("\n **** ERROR *****\n");
-        printf("SQLSTATE: %s\n", sqlstate);
-        printf("Native Error Code: %ld\n", sqlcode);
-        printf("%s \n", buffer);
+void DbStmt::freeColumns() {
+  if(colDescAllocated == true)
+    freeColumnDescriptions();
+  if(bindingRowAllocated == true) 
+    freeBindingRow();
+}
+
+void DbStmt::freeBindingRow() {
+  for(int col = 0; col < colCount && bindingRowInC[col]; col++)
+    free(bindingRowInC[col]); 
+  free(bindingRowInC);
+  bindingRowAllocated = false; 
+}
+
+void DbStmt::freeSp() {
+  if(param) {
+    for(int i = 0; i < paramCount; i++)
+      free(param[i].buf);
+    free(param);
+    param = NULL;
+  }
+}
+
+int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string& error) {
+
+  Napi::Array object;
+  int bindIndicator, io;
+  SQLRETURN sqlReturnCode;
+  Napi::Value ioValue, bindValue;
+  freeSp();
+  
+  paramCount = params->Length();
+  param = (db2ParameterDescription*)calloc(paramCount, sizeof(db2ParameterDescription));
+
+  for(SQLSMALLINT i = 0; i < paramCount; i++) {
+
+    object = params->Get(i).As<Napi::Array>();  //Get a  ? parameter from the array.
+    ioValue = object.Get(1);
+    bindValue = object.Get(2);
+
+    //validate io
+    if(! ioValue.IsNumber()){
+      error =  "IO TYPE OF PARAMETER " + std::to_string(i+1) + " IS INVALID";
+      return -1;
+    }
+
+    io = ioValue.ToNumber().Int32Value();  //convert from Napi::Value to an int
+
+    if(io != SQL_PARAM_INPUT && io != SQL_PARAM_OUTPUT && io != SQL_PARAM_INPUT_OUTPUT){
+      error =  "IO TYPE OF PARAMETER " + std::to_string(i+1) + " IS INVALID. SHOULD EQUAL PARAM INPUT, OUTPUT, OR INPUT_OUTPUT";
+      return -1;
+    }
+
+    //validate bindIndicator
+    if(! bindValue.IsNumber()){
+      error =  "BIND INDICATOR TYPE OF PARAMETER " + std::to_string(i+1) + " IS INVALID\n";
+      return -1;
+    }
+
+    param[i].io = io;
+    bindIndicator = bindValue.ToNumber().Int32Value();  //convert from Napi::Value to an int
+
+    //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfndescprm.htm
+    sqlReturnCode = SQLDescribeParam(
+                        stmth, //SQLHSTMT StatementHandle 
+                        i + 1, //SQLSMALLINT ParameterNumber
+                        &param[i].paramType, //SQLSMALLINT* DataTypePtr -Pointer to buffer to return data type (Output)
+                        &param[i].paramSize, //SQLINTEGER*  ParameterSizePtr -Pointer to buffer to return size (Output)
+                        &param[i].decDigits, //SQLSMALLINT* DecimalDigitsPtr -Pointer to buffer to return # dec digits (Output)
+                        &param[i].nullable); //SQLSMALLINT* NullablePtr -Pointer to buffer to return if nullable (Output)
+
+    if (sqlReturnCode != SQL_SUCCESS){
+      DEBUG(this,"SQLDescribeParam(%d)\n", sqlReturnCode)
+      error = "SQLDescribeParm FAILED\n" + this->returnErrMsg(SQL_HANDLE_STMT);
+      return -1;
+    }    
+    Napi::Value value = object.Get((uint32_t)0); // have to cast otherwise it complains about ambiguity
+    
+    //validate the value is not undefined
+    if(value.IsUndefined()){ // if value is undefined convert it to null
+      error =  "VALUE OF PARAMETER " + std::to_string(i+1) + " IS UNDEFINED\n";
+      return -1;
+    }
+
+    if(bindIndicator == 0 || bindIndicator == 1) { //Parameter is string or clob
+      std::string string = value.ToString().Utf8Value();
+      const char* cString = string.c_str();
+      param[i].valueType = SQL_C_CHAR;
+      if(param[i].io == SQL_PARAM_INPUT) {
+        param[i].buf = strdup(cString);
+        if(bindIndicator == 0) {//CLOB
+          param[i].ind = strlen(cString);
+          }
+        else if(bindIndicator == 1){ //NTS
+          param[i].ind = SQL_NTS;
+        }
+      }
+      else if(param[i].io == SQL_PARAM_OUTPUT) {
+        param[i].buf = (char*)calloc(param[i].paramSize + 1, sizeof(char));
+        param[i].ind = param[i].paramSize;
+      }
+      else if(param[i].io == SQL_PARAM_INPUT_OUTPUT) {
+        param[i].buf = (char*)calloc(param[i].paramSize + 1, sizeof(char));
+        strcpy((char*)param[i].buf, cString);
+        if(bindIndicator == 0) //CLOB
+          param[i].ind = strlen(cString);
+        else if(bindIndicator == 1) //NTS
+          param[i].ind = SQL_NTS;
       }
     }
+    else if(bindIndicator == 2) { //Parameter is Integer
+      int64_t *number = (int64_t*)malloc(sizeof(int64_t));
+      *number = value.ToNumber().Int32Value();
+      param[i].valueType = SQL_C_BIGINT;
+      param[i].buf = number;
+      param[i].ind = 0;
+    }
+    else if(bindIndicator == 3 || value.IsNull()) { //Parameter is NULL
+      param[i].valueType = SQL_C_DEFAULT;
+      param[i].ind = SQL_NULL_DATA;
+      void *dummy = nullptr;
+      param[i].buf = &dummy;
+    }
+    else if(bindIndicator == 4 || value.IsNumber()) { //Parameter is Decimal
+      double *number = (double*)malloc(sizeof(double));
+      *number = value.ToNumber();
+      param[i].valueType = SQL_C_DOUBLE;
+      param[i].buf = number;
+      param[i].ind = sizeof(double);
+      param[i].decDigits = 7;
+      param[i].paramSize = sizeof(double);
+    }
+    else if(bindIndicator == 5 || value.IsBoolean()) { //Parameter is Boolean
+      bool *boolean = (bool*)malloc(sizeof(bool));
+      *boolean = value.ToBoolean();
+      param[i].valueType = SQL_C_BIT;
+      param[i].buf = boolean;
+      param[i].ind = 0;
+    }
+    else if(bindIndicator == SQL_BINARY || bindIndicator == SQL_BLOB || value.IsBuffer()){ //Parameter is blob/binary
+      //convert into Napi::Buffer
+      Napi::Buffer<char> buffer = value.As<Napi::Buffer<char>>();
+      int bufferLength = buffer.Length();
+      param[i].valueType = SQL_C_BINARY;
+      //get a pointer to the buffer
+      char* bufferPtr = buffer.Data();
+      param[i].buf = bufferPtr;
+      param[i].ind = bufferLength;  
+    }
+    else{ //bindIndicator did not match any cases
+      error =  "BIND INDICATOR FOR PARAMETER " + std::to_string(i+1) + "IS INVALID\n";
+      return -1;
+    }
+    //link to doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnbndpm.htm
+    sqlReturnCode = SQLBindParameter(
+            stmth, //SQLHSTMT statement handle
+            i + 1, //SQLSMALLINT Parameter Number
+            param[i].io, //SQLSMALLINT InputOutputType 
+            param[i].valueType, //SQLSMALLINT Value Type -C data type of Parameter
+            param[i].paramType, //SQLSMALLINT Parameter Type -SQL data type of the parameter
+            param[i].paramSize, //SQLINTEGER Parameter Size -Precision of the param
+            param[i].decDigits, //SQLDecimal Digits -Scale of the param
+            param[i].buf,      //ParameterValuePtr -Points to buffer that contains actual data for param. OutParams are placed here.
+            0,                //SQLLEN BufferLength (Not Used in CLI)
+            &param[i].ind);  // SQLLEN* StrLen_or_IndPtr -length of the parameter marker value stored at ParameterValuePtr.
+    
+    DEBUG(this,"SQLBindParameter(%d) TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d] INDEX[%i]\n", sqlReturnCode, param[i].paramType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind, i)
+    
+    if (sqlReturnCode != SQL_SUCCESS){
+      error = "SQLBindParmeter FAILED\n" + this->returnErrMsg(SQL_HANDLE_STMT);
+      return -1;
+    }
+      
   }
-  
-  void DbStmt::printErrorToLog()
+  return 0;
+}
+
+int DbStmt::fetchSp(Napi::Env env, Napi::Array *array) {
+  for(int i = 0, j = 0; i < paramCount; i++) {
+    db2ParameterDescription* p = &param[i];
+    if(p->io != SQL_PARAM_INPUT) {
+      if(p->valueType == SQL_C_BIGINT)  // Integer
+        array->Set(j, Napi::Number::New(env, *(int64_t*)p->buf).Int32Value());
+      else if(p->valueType == SQL_C_DOUBLE)  // Decimal
+        array->Set(j, Napi::Number::New(env, *(double*)p->buf));
+      else if(p->valueType == SQL_C_BIT)  // Boolean
+        array->Set(j, Napi::Boolean::New(env, *(bool*)p->buf));
+      else
+        array->Set(j, Napi::String::New(env, (char*)p->buf));
+      j++;
+    }
+  }
+  freeSp();
+  return 0;
+}
+
+
+int DbStmt::fetch(Napi::Env env, Napi::Object* row) {
+  for(int col = 0; col < colCount; col++)
   {
+    Napi::Value value;
+    if(dbColumn[col].rlength == SQL_NULL_DATA){ // SQL_NULL_DATA = -1
+      value = env.Null();
+    }
+    else if(dbColumn[col].rlength < 0 && dbColumn[col].rlength != SQL_NTS) { // inconsistent data
+      value = Napi::String::New(env, "-");
+    }
+    else {
+      switch(dbColumn[col].sqlType) {
+        case SQL_VARBINARY :
+        case SQL_BINARY : //Buffers are returned for Binary, Varbinary, Blob types.
+        case SQL_BLOB :
+          value = Napi::Buffer<char>::New(env, bindingRowInC[col], dbColumn[col].rlength);
+          break;
+        default : 
+          value = Napi::String::New(env, bindingRowInC[col]);
+          break;
+      }
+    }
+    row->Set(Napi::String::New(env , (char const*)dbColumn[col].name), value );
+  }
+  return 0;
+}
+
+void DbStmt::printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
+{
+  if(isDebug == true) 
+  { 
     SQLCHAR buffer[SQL_MAX_MESSAGE_LENGTH + 1];
     SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
     SQLINTEGER sqlcode;
     SQLSMALLINT length;
-
-    SQLRETURN sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT, stmth, 1, sqlstate, &sqlcode, buffer, SQL_MAX_MESSAGE_LENGTH + 1, &length); 
-    if (sqlReturnCode == SQL_SUCCESS) {
-      if(buffer[length-1] == '\n') {
-        SQLCHAR *p = &buffer[length-1];
-        *p = '\0';
-      }
-      sprintf((char*)msg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, buffer);
+    while( SQLError(henv, hdbc, hstmt, sqlstate, &sqlcode, buffer, SQL_MAX_MESSAGE_LENGTH + 1, &length) == SQL_SUCCESS )
+    {
+      printf("\n **** ERROR *****\n");
+      printf("SQLSTATE: %s\n", sqlstate);
+      printf("Native Error Code: %ld\n", sqlcode);
+      printf("%s \n", buffer);
     }
   }
-  
-  void DbStmt::throwErrMsg(int handleType, Napi::Env env) 
-  {
-    SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
-    SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
-    SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
-    SQLINTEGER sqlcode = 0;
-    SQLSMALLINT length = 0;
-    SQLCHAR *p = NULL;
+}
 
-    memset(msg, '\0', SQL_MAX_MESSAGE_LENGTH + 1);
-    memset(sqlstate, '\0', SQL_SQLSTATE_SIZE + 1);
-    memset(errMsg, '\0', SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10);
-    SQLRETURN sqlReturnCode = -1;
-    
-    if(handleType == SQL_HANDLE_STMT && stmtAllocated == true) {
-      //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfndrec.htm
-      sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT, //SQLSMALLINT gtype -Handle Type
-                                    stmth, //SQLINTEGER handle -hadnle for info is wanted
-                                    1, //SQLSMALLINT recNUM -Indicates which error record to return (if multiple)
-                                    sqlstate, //SQLCHAR* szSQLSTATE -SQLSTATE as a string of 5 characters terminated by a null character. (Output)
-                                    &sqlcode, //SQLINTEGER* pfNativeError -Error Code (Output)
-                                    msg, //SQLCHAR* szErrorMsg -Pointer to buffer msg text (Output)
-                                    SQL_MAX_MESSAGE_LENGTH + 1, //SQLSMALLINT cbErorMsgMax -Max length of the buffer szErrorMsg
-                                    &length); //SQLSMALLINT* pcbErrorMsg -Pointer total # bytes to return to szErrorMsg (Output)  
-      printError(envh, connh, stmth);
+void DbStmt::printErrorToLog()
+{
+  SQLCHAR buffer[SQL_MAX_MESSAGE_LENGTH + 1];
+  SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
+  SQLINTEGER sqlcode;
+  SQLSMALLINT length;
+
+  SQLRETURN sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT, stmth, 1, sqlstate, &sqlcode, buffer, SQL_MAX_MESSAGE_LENGTH + 1, &length); 
+  if (sqlReturnCode == SQL_SUCCESS) {
+    if(buffer[length-1] == '\n') {
+      SQLCHAR *p = &buffer[length-1];
+      *p = '\0';
     }
-    else{
-      return;
-    }
-    
-    if  (sqlReturnCode == SQL_SUCCESS) {
-      if (msg[length-1] == '\n') {
-        p = &msg[length-1];
-        *p = '\0';
-      }
-      sprintf((char *)errMsg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, msg);
-    }
-    Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
+    sprintf((char*)msg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, buffer);
+  }
+}
+
+void DbStmt::throwErrMsg(int handleType, Napi::Env env) 
+{
+  SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
+  SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
+  SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
+  SQLINTEGER sqlcode = 0;
+  SQLSMALLINT length = 0;
+  SQLCHAR *p = NULL;
+
+  memset(msg, '\0', SQL_MAX_MESSAGE_LENGTH + 1);
+  memset(sqlstate, '\0', SQL_SQLSTATE_SIZE + 1);
+  memset(errMsg, '\0', SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10);
+  SQLRETURN sqlReturnCode = -1;
+  
+  if(handleType == SQL_HANDLE_STMT && stmtAllocated == true) {
+    //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfndrec.htm
+    sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT, //SQLSMALLINT gtype -Handle Type
+                                  stmth, //SQLINTEGER handle -hadnle for info is wanted
+                                  1, //SQLSMALLINT recNUM -Indicates which error record to return (if multiple)
+                                  sqlstate, //SQLCHAR* szSQLSTATE -SQLSTATE as a string of 5 characters terminated by a null character. (Output)
+                                  &sqlcode, //SQLINTEGER* pfNativeError -Error Code (Output)
+                                  msg, //SQLCHAR* szErrorMsg -Pointer to buffer msg text (Output)
+                                  SQL_MAX_MESSAGE_LENGTH + 1, //SQLSMALLINT cbErorMsgMax -Max length of the buffer szErrorMsg
+                                  &length); //SQLSMALLINT* pcbErrorMsg -Pointer total # bytes to return to szErrorMsg (Output)  
+    printError(envh, connh, stmth);
+  }
+  else{
     return;
   }
   
-  void DbStmt::throwErrMsg(int code, const char* msg, Napi::Env env)
-  {
-    SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
-    sprintf((char *)errMsg, "SQLSTATE=PAERR SQLCODE=%d %s", code, msg);
-    Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
-    return;
+  if  (sqlReturnCode == SQL_SUCCESS) {
+    if (msg[length-1] == '\n') {
+      p = &msg[length-1];
+      *p = '\0';
+    }
+    sprintf((char *)errMsg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, msg);
   }
-  //experimental way to actually return error messages in callbacks
-   std::string DbStmt::returnErrMsg(int handleType)
-  {
-    SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
-    SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
-    SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
-    SQLINTEGER sqlcode = 0;
-    SQLSMALLINT length = 0;
-    SQLCHAR *p = NULL;
-    std::string error;
+  Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
+  return;
+}
 
-    memset(msg, '\0', SQL_MAX_MESSAGE_LENGTH + 1);
-    memset(sqlstate, '\0', SQL_SQLSTATE_SIZE + 1);
-    memset(errMsg, '\0', SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10);
-    SQLRETURN sqlReturnCode = -1;
-    
-    if(handleType == SQL_HANDLE_STMT && stmtAllocated == true) {
-      sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT, stmth, 1, sqlstate, &sqlcode, msg, SQL_MAX_MESSAGE_LENGTH + 1, &length); 
-      printError(envh, connh, stmth);
-    }
-    else{
-      error = "";
-      return error;
-    }
-    if  (sqlReturnCode == SQL_SUCCESS) {
-      if (msg[length-1] == '\n') {
-        p = &msg[length-1];
-        *p = '\0';
-      }
-      sprintf((char *)errMsg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, msg);
-    }
-    //  return Napi::String::New(env, errMsg).Utf8Value();
-    error = errMsg;
+void DbStmt::throwErrMsg(int code, const char* msg, Napi::Env env)
+{
+  SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
+  sprintf((char *)errMsg, "SQLSTATE=PAERR SQLCODE=%d %s", code, msg);
+  Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
+  return;
+}
+//experimental way to actually return error messages in callbacks
+  std::string DbStmt::returnErrMsg(int handleType)
+{
+  SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
+  SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
+  SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
+  SQLINTEGER sqlcode = 0;
+  SQLSMALLINT length = 0;
+  SQLCHAR *p = NULL;
+  std::string error;
+
+  memset(msg, '\0', SQL_MAX_MESSAGE_LENGTH + 1);
+  memset(sqlstate, '\0', SQL_SQLSTATE_SIZE + 1);
+  memset(errMsg, '\0', SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10);
+  SQLRETURN sqlReturnCode = -1;
+  
+  if(handleType == SQL_HANDLE_STMT && stmtAllocated == true) {
+    sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT, stmth, 1, sqlstate, &sqlcode, msg, SQL_MAX_MESSAGE_LENGTH + 1, &length); 
+    printError(envh, connh, stmth);
+  }
+  else{
+    error = "";
     return error;
   }
+  if  (sqlReturnCode == SQL_SUCCESS) {
+    if (msg[length-1] == '\n') {
+      p = &msg[length-1];
+      *p = '\0';
+    }
+    sprintf((char *)errMsg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, msg);
+  }
+  //  return Napi::String::New(env, errMsg).Utf8Value();
+  error = errMsg;
+  return error;
+}
