@@ -43,50 +43,50 @@ Napi::Object DbStmt::Init(Napi::Env env, Napi::Object exports)
   Napi::HandleScope scope(env);
 
   Napi::Function constructorFunc = DefineClass(env, "dbstmt", {
-                                                                  InstanceMethod("setStmtAttr", &DbStmt::SetStmtAttr),
-                                                                  InstanceMethod("getStmtAttr", &DbStmt::GetStmtAttr),
+    InstanceMethod("setStmtAttr", &DbStmt::SetStmtAttr),
+    InstanceMethod("getStmtAttr", &DbStmt::GetStmtAttr),
 
-                                                                  InstanceMethod("exec", &DbStmt::Exec),
-                                                                  InstanceMethod("execSync", &DbStmt::ExecSync),
+    InstanceMethod("exec", &DbStmt::Exec),
+    InstanceMethod("execSync", &DbStmt::ExecSync),
 
-                                                                  InstanceMethod("prepare", &DbStmt::Prepare),
-                                                                  InstanceMethod("prepareSync", &DbStmt::PrepareSync),
+    InstanceMethod("prepare", &DbStmt::Prepare),
+    InstanceMethod("prepareSync", &DbStmt::PrepareSync),
 
-                                                                  InstanceMethod("bindParam", &DbStmt::BindParam),
-                                                                  InstanceMethod("bindParamSync", &DbStmt::BindParamSync),
+    InstanceMethod("bindParam", &DbStmt::BindParam),
+    InstanceMethod("bindParamSync", &DbStmt::BindParamSync),
 
-                                                                  InstanceMethod("execute", &DbStmt::Execute),
-                                                                  InstanceMethod("executeSync", &DbStmt::ExecuteSync),
+    InstanceMethod("execute", &DbStmt::Execute),
+    InstanceMethod("executeSync", &DbStmt::ExecuteSync),
 
-                                                                  InstanceMethod("fetch", &DbStmt::Fetch),
-                                                                  InstanceMethod("fetchSync", &DbStmt::FetchSync),
+    InstanceMethod("fetch", &DbStmt::Fetch),
+    InstanceMethod("fetchSync", &DbStmt::FetchSync),
 
-                                                                  InstanceMethod("fetchAll", &DbStmt::FetchAll),
-                                                                  InstanceMethod("fetchAllSync", &DbStmt::FetchAllSync),
+    InstanceMethod("fetchAll", &DbStmt::FetchAll),
+    InstanceMethod("fetchAllSync", &DbStmt::FetchAllSync),
 
-                                                                  InstanceMethod("nextResult", &DbStmt::NextResult),
-                                                                  InstanceMethod("closeCursor", &DbStmt::CloseCursor),
-                                                                  InstanceMethod("reset", &DbStmt::Reset),
+    InstanceMethod("nextResult", &DbStmt::NextResult),
+    InstanceMethod("closeCursor", &DbStmt::CloseCursor),
+    InstanceMethod("reset", &DbStmt::Reset),
 
-                                                                  InstanceMethod("commit", &DbStmt::Commit),
-                                                                  InstanceMethod("rollback", &DbStmt::Rollback),
+    InstanceMethod("commit", &DbStmt::Commit),
+    InstanceMethod("rollback", &DbStmt::Rollback),
 
-                                                                  InstanceMethod("numFields", &DbStmt::NumFields),
-                                                                  InstanceMethod("numRows", &DbStmt::NumRows),
+    InstanceMethod("numFields", &DbStmt::NumFields),
+    InstanceMethod("numRows", &DbStmt::NumRows),
 
-                                                                  InstanceMethod("fieldType", &DbStmt::FieldType),
-                                                                  InstanceMethod("fieldWidth", &DbStmt::FieldWidth),
-                                                                  InstanceMethod("fieldName", &DbStmt::FieldName),
-                                                                  InstanceMethod("fieldPrecise", &DbStmt::FieldPrecise),
-                                                                  InstanceMethod("fieldScale", &DbStmt::FieldScale),
-                                                                  InstanceMethod("fieldNullable", &DbStmt::FieldNullable),
+    InstanceMethod("fieldType", &DbStmt::FieldType),
+    InstanceMethod("fieldWidth", &DbStmt::FieldWidth),
+    InstanceMethod("fieldName", &DbStmt::FieldName),
+    InstanceMethod("fieldPrecise", &DbStmt::FieldPrecise),
+    InstanceMethod("fieldScale", &DbStmt::FieldScale),
+    InstanceMethod("fieldNullable", &DbStmt::FieldNullable),
 
-                                                                  InstanceMethod("stmtError", &DbStmt::StmtError),
-                                                                  InstanceMethod("getStmtDiag", &DbStmt::StmtError),
-                                                                  InstanceMethod("close", &DbStmt::Close),
+    InstanceMethod("stmtError", &DbStmt::StmtError),
+    InstanceMethod("getStmtDiag", &DbStmt::StmtError),
+    InstanceMethod("close", &DbStmt::Close),
 
-                                                                  InstanceMethod("asNumber", &DbStmt::AsNumber),
-                                                              });
+    InstanceMethod("asNumber", &DbStmt::AsNumber),
+  });
 
   constructor = Napi::Persistent(constructorFunc);
   constructor.SuppressDestruct();
@@ -480,7 +480,7 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo &info)
   if (length == 2)
   {
     callbackArguments.push_back(results);
-    callbackArguments.push_back(Napi::Value(Env().Null()));
+    callbackArguments.push_back(env.Null());
     cb.MakeCallback(env.Global(), callbackArguments);
     this->freeColumns();
     return env.Null();
@@ -895,7 +895,6 @@ public:
   {
     Napi::Env env = Env();
     Napi::HandleScope scope(env);
-
     std::vector<napi_value> callbackArguments;
 
     // param && paramCount are only set during bindParams
@@ -903,29 +902,23 @@ public:
     // And get any output Params from the Stored Procedures if available.
     if (dbStatementObject->param && dbStatementObject->paramCount > 0)
     { // executeAsync(function(array) {...})
-
       Napi::Array results = Napi::Array::New(env);
       dbStatementObject->fetchSp(env, &results);
 
       if (results.Length() > 0)
-      {
-        //callback signature function(result, error)
+      { // return output params
         callbackArguments.push_back(results);
-        callbackArguments.push_back(env.Null());
       }
       else
       { // no output params to return
-        //callback signature function(result, error)
-        callbackArguments.push_back(env.Null());
         callbackArguments.push_back(env.Null());
       }
     }
     else
     { //Paramters were not bound
-      //callback signature function(result, error)
-      callbackArguments.push_back(env.Null());
       callbackArguments.push_back(env.Null());
     }
+    callbackArguments.push_back(env.Null());
     Callback().Call(callbackArguments);
   }
 
@@ -1185,8 +1178,7 @@ public:
     dbStatementObject->fetch(env, &row);
     //callback signature function(row, error)
     callbackArguments.push_back(row);
-    if (sqlReturnCode != SQL_SUCCESS) // warning messages available
-      callbackArguments.push_back(Napi::String::New(env, dbStatementObject->returnErrMsg(SQL_HANDLE_STMT)));
+    callbackArguments.push_back(Napi::Number::New(env, sqlReturnCode));
 
     Callback().Call(callbackArguments);
   }
@@ -1311,40 +1303,34 @@ Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo &info)
   //Perform Fetch
   sqlReturnCode = SQLFetch(this->stmth);
   DEBUG(this, "SQLFetch(%d).\n", sqlReturnCode);
-
-  if (sqlReturnCode == SQL_SUCCESS || sqlReturnCode == SQL_SUCCESS_WITH_INFO)
+  //handle if an error occured
+  if (sqlReturnCode == SQL_ERROR)
+  {
+    //SQL_ERROR or SQL_SUCCESS DID not occur
+    if (length == 1 || length == 3)
+    { //run the callback signature function(row, returnCode)
+      callbackArguments.push_back(env.Null());
+      callbackArguments.push_back(Napi::Number::New(env, sqlReturnCode));
+      cb.MakeCallback(env.Global(), callbackArguments);
+    }
+    //No callback was specified return the Return Code
+    return Napi::Number::New(env, sqlReturnCode); // SQL_NO_DATA_FOUND indicate the end of the result set.
+  }
+  else
   {
     Napi::Object row = Napi::Object::New(env);
     this->fetch(env, &row);
     if (length == 1 || length == 3)
-    { // Run call back to handle the fetched row.
-      //Callback signature function(row, returnCode)
+    { // Run call back signature function(row, returnCode)
       callbackArguments.push_back(row);
       callbackArguments.push_back(Napi::Number::New(env, sqlReturnCode));
       cb.MakeCallback(env.Global(), callbackArguments);
-      return Napi::Number::New(env, sqlReturnCode);
     }
     else
-    {
-      //callback was not given return row object
+    { //callback was not given return row object
       return row;
     }
   }
-  if (sqlReturnCode == SQL_ERROR)
-  {
-    this->throwErrMsg(SQL_HANDLE_STMT, env);
-  }
-
-  //SQL_ERROR or SQL_SUCCESS DID not occur
-  if (length == 1 || length == 3)
-  { //run the callback flow
-    //Callback signature function(row, returnCode)
-    callbackArguments.push_back(env.Null());
-    callbackArguments.push_back(Napi::Number::New(env, sqlReturnCode));
-    cb.MakeCallback(env.Global(), callbackArguments);
-  }
-  //No callback was specified return the Return Code
-  return Napi::Number::New(env, sqlReturnCode); // SQL_NO_DATA_FOUND indicate the end of the result set.
 }
 
 /******************************************************************************
@@ -1397,8 +1383,7 @@ public:
     dbStatementObject->buildJsObject(env, &results);
     //callback signature function(result, error)
     callbackArguments.push_back(results);
-    if (returnCode != SQL_SUCCESS) // warning messages available
-      callbackArguments.push_back(Napi::String::New(env, dbStatementObject->returnErrMsg(SQL_HANDLE_STMT)));
+    callbackArguments.push_back(env.Null());
 
     Callback().Call(callbackArguments);
   }

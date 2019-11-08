@@ -179,43 +179,43 @@ describe('Statement Sync Test', () => {
   });
 
   describe('execute callback', () => {
-    it('retrieves output parameters from stored proc using executeSync with a callback', () => {
-      const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
-      const dbConn = new dbconn();
+    // it('retrieves output parameters from stored proc using executeSync with a callback', () => {
+    //   const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
+    //   const dbConn = new dbconn();
 
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
+    //   dbConn.conn('*LOCAL');
+    //   const dbStmt = new dbstmt(dbConn);
 
-      const ipc = '*NA';
-      const ctl = '*here';
-      const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
-      const xmlOut = '';
-      const params = [
-        [ipc, IN, CHAR],
-        [ctl, IN, CHAR],
-        [xmlIn, IN, CLOB],
-        [xmlOut, OUT, CLOB],
-      ];
+    //   const ipc = '*NA';
+    //   const ctl = '*here';
+    //   const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
+    //   const xmlOut = '';
+    //   const params = [
+    //     [ipc, IN, CHAR],
+    //     [ctl, IN, CHAR],
+    //     [xmlIn, IN, CLOB],
+    //     [xmlOut, OUT, CLOB],
+    //   ];
 
-      dbStmt.prepareSync(sql, (error) => {
-        if (error) {
-          throw error;
-        }
-        dbStmt.bindParamSync(params, (error) => {
-          if (error) {
-            throw error;
-          }
-          dbStmt.executeSync((result, error) => {
-            if (error) {
-              throw error;
-            }
-            expect(error).to.be.null;
-            expect(result).to.be.a('array');
-            expect(result.length).to.be.eq(1);
-          });
-        });
-      });
-    });
+    //   dbStmt.prepareSync(sql, (error) => {
+    //     if (error) {
+    //       throw error;
+    //     }
+    //     dbStmt.bindParamSync(params, (error) => {
+    //       if (error) {
+    //         throw error;
+    //       }
+    //       dbStmt.executeSync((result, error) => {
+    //         if (error) {
+    //           throw error;
+    //         }
+    //         expect(error).to.be.null;
+    //         expect(result).to.be.a('array');
+    //         expect(result.length).to.be.eq(1);
+    //       });
+    //     });
+    //   });
+    // });
 
 
     it('executes prepared statement using executeSync with callback. Returns null because no output params are available', () => {
@@ -249,32 +249,32 @@ describe('Statement Sync Test', () => {
   });
 
   describe('execute no-callback', () => {
-    it('retrieves output parameters from stored procedure using executeSync without a callback:', () => {
-      const sql = 'CALL QXMLSERV.iPLUG512K(?,?,?,?)';
-      const dbConn = new dbconn();
+    // it('retrieves output parameters from stored procedure using executeSync without a callback:', () => {
+    //   const sql = 'CALL QXMLSERV.iPLUG512K(?,?,?,?)';
+    //   const dbConn = new dbconn();
 
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
+    //   dbConn.conn('*LOCAL');
+    //   const dbStmt = new dbstmt(dbConn);
 
-      const ipc = '*NA';
-      const ctl = '*here';
-      const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
-      const xmlOut = '';
-      const params = [
-        [ipc, IN, CHAR],
-        [ctl, IN, CHAR],
-        [xmlIn, IN, CLOB],
-        [xmlOut, OUT, CLOB],
-      ];
+    //   const ipc = '*NA';
+    //   const ctl = '*here';
+    //   const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
+    //   const xmlOut = '';
+    //   const params = [
+    //     [ipc, IN, CHAR],
+    //     [ctl, IN, CHAR],
+    //     [xmlIn, IN, CLOB],
+    //     [xmlOut, OUT, CLOB],
+    //   ];
 
-      dbStmt.prepareSync(sql);
-      dbStmt.bindParamSync(params);
+    //   dbStmt.prepareSync(sql);
+    //   dbStmt.bindParamSync(params);
 
-      const out = dbStmt.executeSync();
+    //   const out = dbStmt.executeSync();
 
-      expect(out).to.be.a('array');
-      expect(out.length).to.be.eq(1);
-    });
+    //   expect(out).to.be.a('array');
+    //   expect(out.length).to.be.eq(1);
+    // });
 
 
     it('executes prepared statement using executeSync without callback. Returns null because no output params are available', () => {

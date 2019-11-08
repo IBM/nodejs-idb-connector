@@ -1,4 +1,4 @@
-const {expect} = require('chai');
+const { expect } = require('chai');
 const util = require('util');
 const fs = require('fs');
 const db2a = require('../lib/db2a');
@@ -62,24 +62,22 @@ describe('Data Type Test', () => {
       });
     });
 
-    /* Currently Does not pass real type not supported yet
-    it('real', (done) => {
-      let sql = 'select * from (values real( -12345.54321 )) as x (real_val)',
-        dbConn = new dbconn();
+    // it('real', (done) => {
+    //   let sql = 'select * from (values real( -12345.54321 )) as x (real_val)',
+    //     dbConn = new dbconn();
 
-      dbConn.conn('*LOCAL');
+    //   dbConn.conn('*LOCAL');
 
-      let dbStmt = new dbstmt(dbConn);
+    //   let dbStmt = new dbstmt(dbConn);
 
-      dbStmt.exec(sql, (result, error) => {
-        expect(error).to.be.null;
-        expect(result).to.be.an('array');
-        expect(result.length).to.be.greaterThan(0);
-        expect(Object.values(result[0])[0] ).to.equal("-12345.54321");
-        done();
-      });
-    });
-   */
+    //   dbStmt.exec(sql, (result, error) => {
+    //     expect(error).to.be.null;
+    //     expect(result).to.be.an('array');
+    //     expect(result.length).to.be.greaterThan(0);
+    //     expect(Object.values(result[0])[0] ).to.equal("-12345.54321");
+    //     done();
+    //   });
+    // });
   });
 
 
@@ -102,7 +100,7 @@ describe('Data Type Test', () => {
           dbStmt.closeCursor();
           dbStmt.exec(sql3, (result, error) => {
             dbStmt.closeCursor();
-            dbStmt.exec(sql4, (result, error) => {});
+            dbStmt.exec(sql4, (result, error) => { });
           });
         });
       });
@@ -286,4 +284,132 @@ describe('Data Type Test', () => {
       });
     });
   });
+
+  describe('inconsitent data', () => {
+    it('handle ABC/10 error in exec', (done) => {
+      const sql = `SELECT 'ABC'/10 AS DIVERR from sysibm.sysdummy1`;
+      const dbConn = new dbconn();
+
+      dbConn.conn('*LOCAL');
+
+      const dbStmt = new dbstmt(dbConn);
+
+      dbStmt.exec(sql, (result, error) => {
+        if (error) {
+          console.log(util.inspect(error));
+          throw error;
+        }
+        expect(error).to.be.null;
+        expect(result).to.be.an('array');
+        expect(result[0].DIVERR).to.equal('-');
+        done();
+      });
+    });
+
+    it('handle ABC/10 error in fetch', (done) => {
+      const sql = `SELECT 'ABC'/10 AS DIVERR from sysibm.sysdummy1`;
+      const dbConn = new dbconn();
+
+      dbConn.conn('*LOCAL');
+
+      const dbStmt = new dbstmt(dbConn);
+      dbStmt.prepare(sql, (error) => {
+        dbStmt.execute((outParams, error) => {
+          dbStmt.fetch((result, error) => {
+            expect(error).to.equal(1);
+            expect(result).to.be.an('object');
+            expect(result.DIVERR).to.equal('-');
+            done();
+          });
+        });
+      });
+    });
+
+    it('handle ABC/10 error in fetchAll', (done) => {
+      const sql = `SELECT 'ABC'/10 AS DIVERR from sysibm.sysdummy1`;
+      const dbConn = new dbconn();
+
+      dbConn.conn('*LOCAL');
+
+      const dbStmt = new dbstmt(dbConn);
+
+      dbStmt.prepare(sql, (error) => {
+        dbStmt.execute((outParams, error) => {
+          dbStmt.fetchAll((result, error) => {
+            if (error) {
+              console.log(util.inspect(error));
+              throw error;
+            }
+            expect(error).to.be.null;
+            expect(result).to.be.an('array');
+            expect(result[0].DIVERR).to.equal('-');
+            done();
+          });
+        });
+      });
+    });
+
+    it('handle ABC/10 error in execSync', (done) => {
+      const sql = `SELECT 'ABC'/10 AS DIVERR from sysibm.sysdummy1`;
+      const dbConn = new dbconn();
+
+      dbConn.conn('*LOCAL');
+
+      const dbStmt = new dbstmt(dbConn);
+
+      dbStmt.execSync(sql, (result, error) => {
+        if (error) {
+          console.log(util.inspect(error));
+          throw error;
+        }
+        expect(error).to.be.null;
+        expect(result).to.be.an('array');
+        expect(result[0].DIVERR).to.equal('-');
+        done();
+      });
+    });
+
+    it('handle ABC/10 error in fetchSync', (done) => {
+      const sql = `SELECT 'ABC'/10 AS DIVERR from sysibm.sysdummy1`;
+      const dbConn = new dbconn();
+      dbConn.conn('*LOCAL');
+
+      const dbStmt = new dbstmt(dbConn);
+      dbStmt.prepareSync(sql, (error) => {
+        dbStmt.executeSync((out, error) => {
+          dbStmt.fetchSync((result, error) => {
+            expect(error).to.equal(1);
+            expect(result).to.be.an('object');
+            expect(result.DIVERR).to.equal('-');
+            done();
+          });
+        });
+      });
+    });
+
+    it('handle ABC/10 error in fetchAllSync', (done) => {
+      const sql = `SELECT 'ABC'/10 AS DIVERR from sysibm.sysdummy1`;
+      const dbConn = new dbconn();
+
+      dbConn.conn('*LOCAL');
+
+      const dbStmt = new dbstmt(dbConn);
+
+      dbStmt.prepareSync(sql, (error) => {
+        dbStmt.executeSync((outParams, error) => {
+          dbStmt.fetchAllSync((result, error) => {
+            if (error) {
+              console.log(util.inspect(error));
+              throw error;
+            }
+            expect(error).to.be.null;
+            expect(result).to.be.an('array');
+            expect(result[0].DIVERR).to.equal('-');
+            done();
+          });
+        });
+      });
+    });
+  });
+
 });

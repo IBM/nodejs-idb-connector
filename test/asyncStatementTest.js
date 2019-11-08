@@ -89,108 +89,63 @@ describe('Statement Async Test', () => {
         });
       });
     });
+  });
 
+  describe('async execute', () => {
+  //   it('retrieves output params from stored proc', (done) => {
+  //     const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
+  //     const dbConn = new dbconn();
 
-    describe('async execute', () => {
-      it('retrieves output params from stored proc', (done) => {
-        const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
-        const dbConn = new dbconn();
+  //     dbConn.conn('*LOCAL');
+  //     const dbStmt = new dbstmt(dbConn);
 
-        dbConn.conn('*LOCAL');
-        const dbStmt = new dbstmt(dbConn);
+  //     const ipc = '*NA';
+  //     const ctl = '*here';
+  //     const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
+  //     const xmlOut = '';
+  //     const params = [
+  //       [ipc, IN, CHAR],
+  //       [ctl, IN, CHAR],
+  //       [xmlIn, IN, CLOB],
+  //       [xmlOut, OUT, CLOB],
+  //     ];
 
-        const ipc = '*NA';
-        const ctl = '*here';
-        const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
-        const xmlOut = '';
-        const params = [
-          [ipc, IN, CHAR],
-          [ctl, IN, CHAR],
-          [xmlIn, IN, CLOB],
-          [xmlOut, OUT, CLOB],
-        ];
+  //     dbStmt.prepare(sql, (error) => {
+  //       if (error) {
+  //         throw error;
+  //       }
+  //       dbStmt.bindParam(params, (error) => {
+  //         if (error) {
+  //           throw error;
+  //         }
+  //         dbStmt.execute((out, error) => {
+  //           if (error) {
+  //             throw error;
+  //           }
+  //           expect(error).to.be.null;
+  //           expect(out).to.be.a('array');
+  //           expect(out.length).to.be.eq(1);
+  //           done();
+  //         });
+  //       });
+  //     });
+  //   });
 
-        dbStmt.prepare(sql, (error) => {
-          if (error) {
-            throw error;
-          }
-          dbStmt.bindParam(params, (error) => {
-            if (error) {
-              throw error;
-            }
-            dbStmt.execute((out, error) => {
-              if (error) {
-                throw error;
-              }
-              expect(error).to.be.null;
-              expect(out).to.be.a('array');
-              expect(out.length).to.be.eq(1);
-              done();
-            });
-          });
-        });
-      });
+    it('executes prepared statement returns null because no output params are available', (done) => {
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT WHERE BALDUE > ?';
+      const dbConn = new dbconn();
+      const params = [
+        [10.00, IN, NUMERIC],
+      ];
 
-      it('executes prepared statement returns null because no output params are available', (done) => {
-        const sql = 'SELECT * FROM QIWS.QCUSTCDT WHERE BALDUE > ?';
-        const dbConn = new dbconn();
-        const params = [
-          [10.00, IN, NUMERIC],
-        ];
+      dbConn.conn('*LOCAL');
+      const dbStmt = new dbstmt(dbConn);
 
-        dbConn.conn('*LOCAL');
-        const dbStmt = new dbstmt(dbConn);
-
-        dbStmt.prepare(sql, (error) => {
-          if (error) {
-            throw error;
-          }
-          dbStmt.bindParam(params, (error) => {
-            if (error) {
-              throw error;
-            }
-            dbStmt.execute((out, error) => {
-              if (error) {
-                throw error;
-              }
-              expect(error).to.be.null;
-              expect(out).to.be.null;
-              done();
-            });
-          });
-        });
-      });
-    });
-
-    describe('async exec', () => {
-      it('performs action of given SQL String', (done) => {
-        const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-        const dbConn = new dbconn();
-
-        dbConn.conn('*LOCAL');
-        const dbStmt = new dbstmt(dbConn);
-
-        dbStmt.exec(sql, (result, error) => {
-          if (error) {
-            throw error;
-          }
-          expect(error).to.be.null;
-          expect(result).to.be.an('array');
-          expect(result.length).to.be.greaterThan(0);
-          done();
-        });
-      });
-    });
-
-    describe('async fetchAll', () => {
-      it('retrieves all rows from execute function:', (done) => {
-        const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-        const dbConn = new dbconn();
-
-        dbConn.conn('*LOCAL');
-        const dbStmt = new dbstmt(dbConn);
-
-        dbStmt.prepare(sql, (error) => {
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
+          throw error;
+        }
+        dbStmt.bindParam(params, (error) => {
           if (error) {
             throw error;
           }
@@ -198,45 +153,89 @@ describe('Statement Async Test', () => {
             if (error) {
               throw error;
             }
-            dbStmt.fetchAll((result, error) => {
-              if (error) {
-                throw error;
-              }
-              expect(error).to.be.null;
-              expect(result).to.be.a('array');
-              expect(result.length).to.be.greaterThan(0);
-              done();
-            });
+            expect(error).to.be.null;
+            expect(out).to.be.null;
+            done();
           });
         });
       });
     });
+  });
 
+  describe('async exec', () => {
+    it('performs action of given SQL String', (done) => {
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
 
-    describe('async fetch', () => {
-      it('retrieves one row from result set:', (done) => {
-        const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-        const dbConn = new dbconn();
+      dbConn.conn('*LOCAL');
+      const dbStmt = new dbstmt(dbConn);
 
-        dbConn.conn('*LOCAL');
-        const dbStmt = new dbstmt(dbConn);
+      dbStmt.exec(sql, (result, error) => {
+        if (error) {
+          throw error;
+        }
+        expect(error).to.be.null;
+        expect(result).to.be.an('array');
+        expect(result.length).to.be.greaterThan(0);
+        done();
+      });
+    });
+  });
 
-        dbStmt.prepare(sql, (error) => {
+  describe('async fetchAll', () => {
+    it('retrieves all rows from execute function:', (done) => {
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
+
+      dbConn.conn('*LOCAL');
+      const dbStmt = new dbstmt(dbConn);
+
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
+          throw error;
+        }
+        dbStmt.execute((out, error) => {
           if (error) {
             throw error;
           }
-          dbStmt.execute((out, error) => {
+          dbStmt.fetchAll((result, error) => {
             if (error) {
               throw error;
             }
-            dbStmt.fetch((row, returnCode) => {
-              if (returnCode !== 0) { // SQL_SUCCESS
-                throw new Error('Rreturn Code was Not SQL SUCESS');
-              }
-              expect(returnCode).to.equal(0);
-              expect(row).to.be.a('object');
-              done();
-            });
+            expect(error).to.be.null;
+            expect(result).to.be.a('array');
+            expect(result.length).to.be.greaterThan(0);
+            done();
+          });
+        });
+      });
+    });
+  });
+
+
+  describe('async fetch', () => {
+    it('retrieves one row from result set:', (done) => {
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+      const dbConn = new dbconn();
+
+      dbConn.conn('*LOCAL');
+      const dbStmt = new dbstmt(dbConn);
+
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
+          throw error;
+        }
+        dbStmt.execute((out, error) => {
+          if (error) {
+            throw error;
+          }
+          dbStmt.fetch((row, returnCode) => {
+            if (returnCode !== 0) { // SQL_SUCCESS
+              throw new Error('Rreturn Code was Not SQL SUCESS');
+            }
+            expect(returnCode).to.equal(0);
+            expect(row).to.be.a('object');
+            done();
           });
         });
       });
