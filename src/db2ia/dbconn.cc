@@ -110,7 +110,7 @@ Napi::Value DbConn::SetConnAttr(const Napi::CallbackInfo &info)
   }
   if (sqlReturnCode != SQL_SUCCESS)
   {
-    this->throwErrMsg(SQL_HANDLE_DBC, env);
+    throwErrMsg(SQL_HANDLE_DBC, connh, env);
     return env.Null();
   }
   return Napi::Boolean::New(env, 1);
@@ -171,7 +171,7 @@ Napi::Value DbConn::GetConnAttr(const Napi::CallbackInfo &info)
   }
   if (sqlReturnCode != SQL_SUCCESS)
   {
-    this->throwErrMsg(SQL_HANDLE_DBC, env);
+    throwErrMsg(SQL_HANDLE_DBC, connh, env);
   }
   return env.Null();
 }
@@ -263,7 +263,7 @@ void DbConn::Conn(const Napi::CallbackInfo &info)
   }
   if (sqlReturnCode != SQL_SUCCESS)
   {
-    this->throwErrMsg(SQL_HANDLE_DBC, env);
+    throwErrMsg(SQL_HANDLE_DBC, connh, env);
     SQLFreeConnect(this->connh);
     return;
   }
@@ -379,7 +379,7 @@ Napi::Value DbConn::ValidStmt(const Napi::CallbackInfo &info)
                                          &outLen);         //SQLINTGER* TextLength2 -number of bytes available to return in OutStatementText
   if (sqlReturnCode != SQL_SUCCESS)
   {
-    this->throwErrMsg(SQL_HANDLE_DBC, env);
+    throwErrMsg(SQL_HANDLE_DBC, connh, env);
     return env.Null();
   }
   if (outLen < sizeof(outSqlSt))

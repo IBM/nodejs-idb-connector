@@ -14,6 +14,8 @@
 #include <as400_protos.h> // For SQLOverrideCCSID400()
 #include "napi.h"
 
+#include "dberror.h"
+
 #define MAX_COLNAME_WIDTH 256
 #define MAX_COL_WIDTH 32766
 #define SP_PARAM_MAX 128
@@ -26,24 +28,6 @@
 #define CONN_NOT_READY 8012
 #define STMT_NOT_READY 8013
 #define RSSET_NOT_READY 8014
-
-#define DEBUG(object, f_, ...)   \
-  if (object->isDebug)           \
-  {                              \
-    printf((f_), ##__VA_ARGS__); \
-  }
-#define CHECK(condition, errorCode, errorMessage, env)     \
-  if ((condition))                                         \
-  {                                                        \
-    this->throwErrMsg((errorCode), (errorMessage), (env)); \
-    return;                                                \
-  }
-#define CHECK_WITH_RETURN(condition, errorCode, errorMessage, env, returnValue) \
-  if ((condition))                                                              \
-  {                                                                             \
-    this->throwErrMsg((errorCode), (errorMessage), (env));                      \
-    return (returnValue);                                                       \
-  }
 
 class DbConn : public Napi::ObjectWrap<DbConn>
 {
@@ -70,68 +54,4 @@ private:
   static Napi::FunctionReference constructor;
   static SQLHENV envh;
   SQLHDBC connh;
-
-  void throwErrMsg(int handleType, Napi::Env env)
-  {
-    SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
-    SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
-    SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
-    SQLINTEGER sqlcode = 0;
-    SQLSMALLINT length = 0;
-    SQLCHAR *p = NULL;
-
-    memset(msg, '\0', SQL_MAX_MESSAGE_LENGTH + 1);
-    memset(sqlstate, '\0', SQL_SQLSTATE_SIZE + 1);
-    memset(errMsg, '\0', SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10);
-    SQLRETURN rc = -1;
-
-    if (handleType == SQL_HANDLE_DBC && connAllocated == true)
-    {
-      rc = SQLGetDiagRec(SQL_HANDLE_DBC, connh, 1, sqlstate, &sqlcode, msg, SQL_MAX_MESSAGE_LENGTH + 1, &length);
-      printError(envh, connh, SQL_NULL_HSTMT);
-    }
-    else if (handleType == SQL_HANDLE_ENV)
-    {
-      rc = SQLGetDiagRec(SQL_HANDLE_ENV, envh, 1, sqlstate, &sqlcode, msg, SQL_MAX_MESSAGE_LENGTH + 1, &length);
-      printError(envh, SQL_NULL_HDBC, SQL_NULL_HSTMT);
-    }
-    else
-      return;
-    if (rc == SQL_SUCCESS)
-    {
-      if (msg[length - 1] == '\n')
-      {
-        p = &msg[length - 1];
-        *p = '\0';
-      }
-      sprintf((char *)errMsg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, msg);
-    }
-    Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
-  }
-
-  void throwErrMsg(int code, const char *msg, Napi::Env env)
-  {
-    SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
-    sprintf((char *)errMsg, "SQLSTATE=PAERR SQLCODE=%d %s", code, msg);
-    Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
-    return;
-  }
-
-  void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
-  {
-    if (isDebug == true)
-    {
-      SQLCHAR buffer[SQL_MAX_MESSAGE_LENGTH + 1];
-      SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
-      SQLINTEGER sqlcode;
-      SQLSMALLINT length;
-      while (SQLError(henv, hdbc, hstmt, sqlstate, &sqlcode, buffer, SQL_MAX_MESSAGE_LENGTH + 1, &length) == SQL_SUCCESS)
-      {
-        printf("\n **** ERROR *****\n");
-        printf("SQLSTATE: %s\n", sqlstate);
-        printf("Native Error Code: %ld\n", sqlcode);
-        printf("%s \n", buffer);
-      }
-    }
-  }
 };

@@ -8,12 +8,6 @@
 #include "dbconn.h"
 #include <vector>
 
-#define LOG(a)               \
-  if ((a))                   \
-  {                          \
-    this->printErrorToLog(); \
-    return;                  \
-  }
 
 struct db2ColumnDescription
 {
@@ -43,13 +37,6 @@ struct resultSetItem
 {
   SQLCHAR *data;
   SQLINTEGER rlength;
-};
-
-struct sqlError
-{
-  SQLCHAR sqlState[SQL_SQLSTATE_SIZE + 1];
-  SQLINTEGER sqlCode;
-  SQLCHAR message[SQL_MAX_MESSAGE_LENGTH + 1];
 };
 
 class DbStmt : public Napi::ObjectWrap<DbStmt>
@@ -123,12 +110,6 @@ private:
   int bindParams(Napi::Env env, Napi::Array *params, std::string &error);
   int fetchSp(Napi::Env env, Napi::Array *array);
   int fetch(Napi::Env env, Napi::Object *row);
-  void printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt);
-  void printErrorToLog();
-  void throwErrMsg(int handleType, Napi::Env env);
-  void throwErrMsg(int code, const char *msg, Napi::Env env);
-  std::string returnErrMsg(int handleType);
-  struct sqlError returnErrObj();
 
   bool stmtAllocated = false;
   bool resultSetAvailable = false;

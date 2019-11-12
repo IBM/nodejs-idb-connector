@@ -25,7 +25,7 @@ DbStmt::DbStmt(const Napi::CallbackInfo &info) : Napi::ObjectWrap<DbStmt>(info)
   if (sqlReturnCode != SQL_SUCCESS)
   {
     SQLFreeStmt(stmth, SQL_CLOSE);
-    this->throwErrMsg(SQL_HANDLE_DBC, env);
+    throwErrMsg(SQL_HANDLE_STMT, stmth, env);
     return;
   }
 
@@ -176,7 +176,7 @@ Napi::Value DbStmt::SetStmtAttr(const Napi::CallbackInfo &info)
 
   if (sqlReturnCode != SQL_SUCCESS)
   {
-    this->throwErrMsg(SQL_HANDLE_STMT, env);
+    throwErrMsg(SQL_HANDLE_STMT, stmth, env);
   }
   return Napi::Boolean::New(env, 1);
 }
@@ -232,7 +232,7 @@ Napi::Value DbStmt::GetStmtAttr(const Napi::CallbackInfo &info)
   }
 
   // sqlReturnCode != SQL_SUCCESS
-  this->throwErrMsg(SQL_HANDLE_STMT, env);
+  throwErrMsg(SQL_HANDLE_STMT, stmth, env);
   return env.Null();
 }
 
@@ -269,7 +269,7 @@ public:
     DEBUG(dbStatementObject, "SQLExecDirect(%d): %s\n", sqlReturnCode, sqlStatement);
     if (sqlReturnCode == SQL_SUCCESS_WITH_INFO)
     {
-      struct sqlError errObj = dbStatementObject->returnErrObj();
+      sqlError errObj = returnErrObj(SQL_HANDLE_STMT, dbStatementObject->stmth);
       if (!strcmp(errObj.sqlState, "0100C") && errObj.sqlCode == 466)
       {
         // Stored Procedures with Result Sets
@@ -278,7 +278,7 @@ public:
     }
     else if (sqlReturnCode != SQL_SUCCESS)
     {
-      std::string errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
+      std::string errorMessage = returnErrMsg(SQL_HANDLE_STMT, dbStatementObject->stmth);
       SetError(errorMessage);
       return;
     }
@@ -421,7 +421,7 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo &info)
   //check if an error occured
   if (sqlReturnCode == SQL_SUCCESS_WITH_INFO)
   {
-    struct sqlError errObj = this->returnErrObj();
+    sqlError errObj = returnErrObj(SQL_HANDLE_STMT, stmth);
     if (!strcmp(errObj.sqlState, "0100C") && errObj.sqlCode == 466)
     {
       // Stored Procedures with Result Sets
@@ -432,7 +432,7 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo &info)
   {
     if (length == 2)
     { // callback signature function(result , error)
-      std::string errorMessage = this->returnErrMsg(SQL_HANDLE_STMT);
+      std::string errorMessage = returnErrMsg(SQL_HANDLE_STMT, stmth);
       Napi::Error error = Napi::Error::New(env, errorMessage);
       callbackArguments.push_back(Napi::Value(Env().Null()));
       callbackArguments.push_back(error.Value());
@@ -441,7 +441,7 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo &info)
     }
     else
     { //no callback provided throw the error
-      this->throwErrMsg(SQL_HANDLE_STMT, env);
+      throwErrMsg(SQL_HANDLE_STMT, stmth, env);
       return env.Null();
     }
   }
@@ -523,7 +523,7 @@ public:
 
     if (sqlReturnCode != SQL_SUCCESS)
     {
-      std::string errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
+      std::string errorMessage = returnErrMsg(SQL_HANDLE_STMT, dbStatementObject->stmth);
       if (errorMessage.length() != 0)
       {
         SetError(errorMessage);
@@ -640,7 +640,7 @@ void DbStmt::PrepareSync(const Napi::CallbackInfo &info)
   if (sqlReturnCode != SQL_SUCCESS)
   {
     DEBUG(this, "PrepareSync() Failed.\n");
-    std::string errorMessage = this->returnErrMsg(SQL_HANDLE_STMT);
+    std::string errorMessage = returnErrMsg(SQL_HANDLE_STMT, stmth);
     Napi::Error error = Napi::Error::New(env, errorMessage);
     Napi::Value errorValue = error.Value();
 
@@ -849,7 +849,7 @@ public:
 
     if (sqlReturnCode == SQL_SUCCESS_WITH_INFO)
     {
-      struct sqlError errObj = dbStatementObject->returnErrObj();
+      sqlError errObj = returnErrObj(SQL_HANDLE_STMT, dbStatementObject->stmth);
       if (!strcmp(errObj.sqlState, "0100C") && errObj.sqlCode == 466)
       {
         // Stored Procedures with Result Sets
@@ -858,7 +858,7 @@ public:
     }
     else if (sqlReturnCode != SQL_SUCCESS)
     {
-      std::string errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
+      std::string errorMessage = returnErrMsg(SQL_HANDLE_STMT, dbStatementObject->stmth);
       if (errorMessage.length() != 0)
       {
         SetError(errorMessage);
@@ -1003,7 +1003,7 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo &info)
   //Check if errors occured
   if (sqlReturnCode == SQL_SUCCESS_WITH_INFO)
   {
-    struct sqlError errObj = this->returnErrObj();
+    sqlError errObj = returnErrObj(SQL_HANDLE_STMT, stmth);
     if (!strcmp(errObj.sqlState, "0100C") && errObj.sqlCode == 466)
     {
       // Stored Procedures with Result Sets
@@ -1014,7 +1014,7 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo &info)
   {
     if (length == 1)
     { // callback signature function(result , error)
-      std::string errorMessage = this->returnErrMsg(SQL_HANDLE_STMT);
+      std::string errorMessage = returnErrMsg(SQL_HANDLE_STMT, stmth);
       Napi::Error error = Napi::Error::New(env, errorMessage);
       callbackArguments.push_back(Napi::Value(Env().Null()));
       callbackArguments.push_back(error.Value());
@@ -1023,7 +1023,7 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo &info)
     }
     else
     { //no callback provided throw the error
-      this->throwErrMsg(SQL_HANDLE_STMT, env);
+      throwErrMsg(SQL_HANDLE_STMT, stmth, env);
       return env.Null();
     }
   }
@@ -1032,7 +1032,7 @@ Napi::Value DbStmt::ExecuteSync(const Napi::CallbackInfo &info)
   DEBUG(this, "SQLNumResultsCols(%d) Has Results\n", sqlReturnCode)
   if (sqlReturnCode != SQL_SUCCESS)
   {
-    this->throwErrMsg(SQL_HANDLE_STMT, env);
+    throwErrMsg(SQL_HANDLE_STMT, stmth, env);
   }
   if (this->colCount > 0)
   { /* there is a result set*/
@@ -1139,7 +1139,7 @@ public:
         //handle if an error occured
         if (sqlReturnCode == SQL_ERROR)
         {
-          std::string errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
+          std::string errorMessage = returnErrMsg(SQL_HANDLE_STMT, dbStatementObject->stmth);
           SetError(errorMessage);
           return;
         }
@@ -1153,7 +1153,7 @@ public:
     //handle if an error occured
     if (sqlReturnCode == SQL_ERROR)
     {
-      std::string errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
+      std::string errorMessage = returnErrMsg(SQL_HANDLE_STMT, dbStatementObject->stmth);
       SetError(errorMessage);
       return;
     }
@@ -1294,7 +1294,7 @@ Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo &info)
       DEBUG(this, "SQLFetchScroll(%d) orient = %d, offset = %d.\n", sqlReturnCode, orient, offset);
       if (sqlReturnCode == SQL_ERROR)
       {
-        this->throwErrMsg(SQL_HANDLE_STMT, env);
+        throwErrMsg(SQL_HANDLE_STMT, stmth, env);
       }
     }
     DEBUG(this, "Cursor is not Scrollable\n");
@@ -1358,7 +1358,7 @@ public:
     returnCode = dbStatementObject->fetchData();
     if (returnCode == SQL_ERROR)
     {
-      std::string errorMessage = dbStatementObject->returnErrMsg(SQL_HANDLE_STMT);
+      std::string errorMessage = returnErrMsg(SQL_HANDLE_STMT, dbStatementObject->stmth);
       SetError(errorMessage);
       return;
     }
@@ -1467,12 +1467,12 @@ Napi::Value DbStmt::FetchAllSync(const Napi::CallbackInfo &info)
   {
     if (length == 1)
     {
-      std::string errorMessage = this->returnErrMsg(SQL_HANDLE_STMT);
+      std::string errorMessage = returnErrMsg(SQL_HANDLE_STMT, stmth);
       callbackArguments.push_back(env.Null());
       callbackArguments.push_back(Napi::Error::New(env, errorMessage).Value());
       return env.Null();
     }
-    this->throwErrMsg(SQL_HANDLE_DBC, env);
+    throwErrMsg(SQL_HANDLE_STMT, stmth, env);
   }
 
   if (this->buildJsObject(env, &results) < 0)
@@ -1691,7 +1691,7 @@ Napi::Value DbStmt::NumFields(const Napi::CallbackInfo &info)
                                              &colCount);  //SQLSMALLINT* pccol -Number of columns in result (OUTPUT)
   if (sqlReturnCode != SQL_SUCCESS)
   {
-    this->throwErrMsg(SQL_ERROR, "SQLNumResultCols() failed.", env);
+    throwCustomMsg(SQL_ERROR, "SQLNumResultCols() failed.", env);
     return env.Null();
   }
 
@@ -1720,7 +1720,7 @@ Napi::Value DbStmt::NumRows(const Napi::CallbackInfo &info)
   //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnrowc.htm
   if (SQLRowCount(this->stmth, &rowCount) != SQL_SUCCESS)
   {
-    this->throwErrMsg(SQL_ERROR, "SQLRowCount() failed.", env);
+    throwCustomMsg(SQL_ERROR, "SQLRowCount() failed.", env);
     return env.Null();
   }
   return Napi::Number::New(env, rowCount);
@@ -1965,30 +1965,28 @@ void DbStmt::StmtError(const Napi::CallbackInfo &info)
     return;
   }
 
-  SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
-  SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
+  sqlError errObj;
   char errorMessage[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
 
-  SQLINTEGER sqlcode = 0;
+  SQLINTEGER sqlReturnCode = SQL_SUCCESS;
   SQLSMALLINT length = 0;
   SQLCHAR *p = NULL;
 
-  // MI: Do we really need to set every value in each buffer to '\0'?
-  // memset(msg, '\0', SQL_MAX_MESSAGE_LENGTH + 1);
-  // memset(sqlstate, '\0', SQL_SQLSTATE_SIZE + 1);
-  // memset(errorMessage, '\0', SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10);
-
-  SQLRETURN sqlReturnCode = SQLGetDiagRec(hType, handle, recno, sqlstate, &sqlcode, msg, SQL_MAX_MESSAGE_LENGTH + 1, &length);
+  sqlReturnCode = SQLGetDiagRec(hType,                      //SQLSMALLINT gtype -Handle Type
+                                handle,                     //SQLINTEGER handle -hadnle for info is wanted
+                                recno,                      //SQLSMALLINT recNUM -Indicates which error record to return (if multiple)
+                                errObj.sqlState,            //SQLCHAR* szSQLSTATE -SQLSTATE as a string of 5 characters terminated by a null character. (Output)
+                                &errObj.sqlCode,            //SQLINTEGER* pfNativeError -Error Code (Output)
+                                errObj.message,             //SQLCHAR* szErrorMsg -Pointer to buffer msg text (Output)
+                                SQL_MAX_MESSAGE_LENGTH + 1, //SQLSMALLINT cbErorMsgMax -Max length of the buffer szErrorMsg
+                                &length);                   //SQLSMALLINT* pcbErrorMsg -Pointer total # bytes to return to szErrorMsg (Output)
 
   // handle all possible return codes
   switch (sqlReturnCode)
   {
   case SQL_SUCCESS:
-    if (msg[length - 1] == '\n')
-    {
-      p = &msg[length - 1];
-      *p = '\0';
-    }
+    if (errObj.message[length - 1] == '\n')
+      errObj.message[length - 1] = '\0';
     break;
   case SQL_SUCCESS_WITH_INFO: // TODO
   case SQL_ERROR:             // TODO
@@ -1996,7 +1994,7 @@ void DbStmt::StmtError(const Napi::CallbackInfo &info)
     break;
   }
 
-  sprintf(errorMessage, "SQLSTATE=%s SQLCODE=%d : %s", sqlstate, (int)sqlcode, msg);
+  sprintf(errorMessage, "SQLSTATE=%s SQLCODE=%d : %s", errObj.sqlState, (int)errObj.sqlCode, errObj.message);
   callbackArguments.push_back(Napi::String::New(env, errorMessage));
   callback.Call(callbackArguments);
 }
@@ -2034,9 +2032,9 @@ int DbStmt::populateColumnDescriptions(Napi::Env env)
     {
       freeColumnDescriptions();
       if (env != NULL)
-        throwErrMsg(SQL_ERROR, "SQLDescribeCol() failed.", env);
+        throwCustomMsg(SQL_ERROR, "SQLDescribeCol() failed.", env);
       else
-        printErrorToLog();
+        printErrorToLog(stmth, msg);
       return -1;
     }
   }
@@ -2153,9 +2151,9 @@ int DbStmt::bindColData(Napi::Env env)
     {
       freeBindingRow();
       if (env != NULL)
-        throwErrMsg(SQL_ERROR, "SQLBindCol() failed.", env);
+        throwCustomMsg(SQL_ERROR, "SQLBindCol() failed.", env);
       else
-        printErrorToLog();
+        printErrorToLog(stmth, msg);
       return -1;
     }
   }
@@ -2371,7 +2369,7 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
     if (sqlReturnCode != SQL_SUCCESS)
     {
       DEBUG(this, "SQLDescribeParam(%d)\n", sqlReturnCode)
-      error = "SQLDescribeParm FAILED\n" + this->returnErrMsg(SQL_HANDLE_STMT);
+      error = "SQLDescribeParm FAILED\n" + returnErrMsg(SQL_HANDLE_STMT, stmth);
       return -1;
     }
     Napi::Value value = object.Get((uint32_t)0); // have to cast otherwise it complains about ambiguity
@@ -2481,7 +2479,7 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
 
     if (sqlReturnCode != SQL_SUCCESS)
     {
-      error = "SQLBindParmeter FAILED\n" + this->returnErrMsg(SQL_HANDLE_STMT);
+      error = "SQLBindParmeter FAILED\n" + returnErrMsg(SQL_HANDLE_STMT, stmth);
       return -1;
     }
   }
@@ -2540,148 +2538,4 @@ int DbStmt::fetch(Napi::Env env, Napi::Object *row)
     row->Set(Napi::String::New(env, (char const *)dbColumn[col].name), value);
   }
   return 0;
-}
-
-void DbStmt::printError(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt)
-{
-  if (isDebug == true)
-  {
-    SQLCHAR buffer[SQL_MAX_MESSAGE_LENGTH + 1];
-    SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
-    SQLINTEGER sqlcode;
-    SQLSMALLINT length;
-    while (SQLError(henv, hdbc, hstmt, sqlstate, &sqlcode, buffer, SQL_MAX_MESSAGE_LENGTH + 1, &length) == SQL_SUCCESS)
-    {
-      printf("\n **** ERROR *****\n");
-      printf("SQLSTATE: %s\n", sqlstate);
-      printf("Native Error Code: %ld\n", sqlcode);
-      printf("%s \n", buffer);
-    }
-  }
-}
-
-void DbStmt::printErrorToLog()
-{
-  SQLCHAR buffer[SQL_MAX_MESSAGE_LENGTH + 1];
-  SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
-  SQLINTEGER sqlcode;
-  SQLSMALLINT length;
-
-  SQLRETURN sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT, stmth, 1, sqlstate, &sqlcode, buffer, SQL_MAX_MESSAGE_LENGTH + 1, &length);
-  if (sqlReturnCode == SQL_SUCCESS)
-  {
-    if (buffer[length - 1] == '\n')
-    {
-      SQLCHAR *p = &buffer[length - 1];
-      *p = '\0';
-    }
-    sprintf((char *)msg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, buffer);
-  }
-}
-
-void DbStmt::throwErrMsg(int handleType, Napi::Env env)
-{
-  SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
-  SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
-  SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
-  SQLINTEGER sqlcode = 0;
-  SQLSMALLINT length = 0;
-  SQLCHAR *p = NULL;
-
-  memset(msg, '\0', SQL_MAX_MESSAGE_LENGTH + 1);
-  memset(sqlstate, '\0', SQL_SQLSTATE_SIZE + 1);
-  memset(errMsg, '\0', SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10);
-  SQLRETURN sqlReturnCode = -1;
-
-  if (handleType == SQL_HANDLE_STMT && stmtAllocated == true)
-  {
-    //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfndrec.htm
-    sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT,            //SQLSMALLINT gtype -Handle Type
-                                  stmth,                      //SQLINTEGER handle -hadnle for info is wanted
-                                  1,                          //SQLSMALLINT recNUM -Indicates which error record to return (if multiple)
-                                  sqlstate,                   //SQLCHAR* szSQLSTATE -SQLSTATE as a string of 5 characters terminated by a null character. (Output)
-                                  &sqlcode,                   //SQLINTEGER* pfNativeError -Error Code (Output)
-                                  msg,                        //SQLCHAR* szErrorMsg -Pointer to buffer msg text (Output)
-                                  SQL_MAX_MESSAGE_LENGTH + 1, //SQLSMALLINT cbErorMsgMax -Max length of the buffer szErrorMsg
-                                  &length);                   //SQLSMALLINT* pcbErrorMsg -Pointer total # bytes to return to szErrorMsg (Output)
-    printError(envh, connh, stmth);
-
-    if (sqlReturnCode == SQL_SUCCESS)
-    {
-      if (msg[length - 1] == '\n')
-      {
-        p = &msg[length - 1];
-        *p = '\0';
-      }
-      sprintf((char *)errMsg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, msg);
-    }
-    Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
-  }
-}
-
-void DbStmt::throwErrMsg(int code, const char *msg, Napi::Env env)
-{
-  SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
-  sprintf((char *)errMsg, "SQLSTATE=PAERR SQLCODE=%d %s", code, msg);
-  Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
-}
-
-//experimental way to actually return error messages in callbacks
-std::string DbStmt::returnErrMsg(int handleType)
-{
-  SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
-  SQLCHAR sqlstate[SQL_SQLSTATE_SIZE + 1];
-  SQLCHAR errMsg[SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10];
-  SQLINTEGER sqlcode = 0;
-  SQLSMALLINT length = 0;
-  SQLCHAR *p = NULL;
-  std::string error;
-
-  memset(msg, '\0', SQL_MAX_MESSAGE_LENGTH + 1);
-  memset(sqlstate, '\0', SQL_SQLSTATE_SIZE + 1);
-  memset(errMsg, '\0', SQL_MAX_MESSAGE_LENGTH + SQL_SQLSTATE_SIZE + 10);
-  SQLRETURN sqlReturnCode = -1;
-
-  if (handleType == SQL_HANDLE_STMT && stmtAllocated == true)
-  {
-    sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT, stmth, 1, sqlstate, &sqlcode, msg, SQL_MAX_MESSAGE_LENGTH + 1, &length);
-    printError(envh, connh, stmth);
-  }
-  else
-  {
-    error = "";
-    return error;
-  }
-  if (sqlReturnCode == SQL_SUCCESS)
-  {
-    if (msg[length - 1] == '\n')
-    {
-      p = &msg[length - 1];
-      *p = '\0';
-    }
-    sprintf((char *)errMsg, "SQLSTATE=%s SQLCODE=%d %s", sqlstate, (int)sqlcode, msg);
-  }
-  //  return Napi::String::New(env, errMsg).Utf8Value();
-  error = errMsg;
-  return error;
-}
-
-struct sqlError DbStmt::returnErrObj()
-{
-  struct sqlError errObj;
-  SQLSMALLINT length = 0;
-  SQLRETURN sqlReturnCode = -1;
-
-  if (stmtAllocated == true)
-  {
-    sqlReturnCode = SQLGetDiagRec(SQL_HANDLE_STMT,            //SQLSMALLINT gtype -Handle Type
-                                  stmth,                      //SQLINTEGER handle -hadnle for info is wanted
-                                  1,                          //SQLSMALLINT recNUM -Indicates which error record to return (if multiple)
-                                  errObj.sqlState,            //SQLCHAR* szSQLSTATE -SQLSTATE as a string of 5 characters terminated by a null character. (Output)
-                                  &errObj.sqlCode,            //SQLINTEGER* pfNativeError -Error Code (Output)
-                                  errObj.message,             //SQLCHAR* szErrorMsg -Pointer to buffer msg text (Output)
-                                  SQL_MAX_MESSAGE_LENGTH + 1, //SQLSMALLINT cbErorMsgMax -Max length of the buffer szErrorMsg
-                                  &length);                   //SQLSMALLINT* pcbErrorMsg -Pointer total # bytes to return to szErrorMsg (Output)
-  }
-  return errObj;
 }
