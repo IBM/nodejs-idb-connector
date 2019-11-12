@@ -8,15 +8,29 @@ const {
 } = db2a;
 
 describe('Data Type Test', () => {
+  var dbConn, dbStmt;
+
+  before(() => {
+    dbConn = new dbconn();
+    dbConn.conn('*LOCAL');
+  });
+
+  after(() => {
+    dbConn.disconn();
+    dbConn.close();
+  });
+
+  beforeEach(() => {
+    dbStmt = new dbstmt(dbConn);
+  });
+
+  afterEach(() => {
+    dbStmt.close();
+  });
+
   describe('select number types', () => {
     it('smallint', (done) => {
       const sql = 'select * from (values smallint( -32768 )) as x (smallint_val)';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.exec(sql, (result, error) => {
         expect(error).to.be.null;
         expect(result).to.be.an('array');
@@ -29,12 +43,6 @@ describe('Data Type Test', () => {
 
     it('int', (done) => {
       const sql = 'select * from (values int( -2147483648 )) as x (int_val)';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.exec(sql, (result, error) => {
         expect(error).to.be.null;
         expect(result).to.be.an('array');
@@ -47,12 +55,6 @@ describe('Data Type Test', () => {
 
     it('bigint', (done) => {
       const sql = 'select * from (values bigint( -9223372036854775808 )) as x (bigint_val)';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.exec(sql, (result, error) => {
         expect(error).to.be.null;
         expect(result).to.be.an('array');
@@ -61,6 +63,7 @@ describe('Data Type Test', () => {
         done();
       });
     });
+
 
     // it('real', (done) => {
     //   let sql = 'select * from (values real( -12345.54321 )) as x (real_val)',
@@ -82,17 +85,13 @@ describe('Data Type Test', () => {
 
 
   describe('bind parameters blob/binary/varbinary', () => {
-    before(() => {
+    before((done) => {
       const user = (process.env.USER).toUpperCase();
       const sql = `CREATE SCHEMA ${user}`;
       const sql2 = `CREATE OR REPLACE TABLE ${user}.BLOBTEST(BLOB_COLUMN BLOB(512k))`;
       const sql3 = `CREATE OR REPLACE TABLE ${user}.BINARYTEST(BINARY_COLUMN BINARY(3000))`;
       const sql4 = `CREATE OR REPLACE TABLE ${user}.VARBINARYTEST(VARBINARY_COLUMN VARBINARY(3000))`;
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
-
+      dbStmt = new dbstmt(dbConn);
       dbStmt.exec(sql, (result, error) => {
         // if Schema already exsists will error but ignore
         dbStmt.closeCursor();
@@ -100,7 +99,10 @@ describe('Data Type Test', () => {
           dbStmt.closeCursor();
           dbStmt.exec(sql3, (result, error) => {
             dbStmt.closeCursor();
-            dbStmt.exec(sql4, (result, error) => { });
+            dbStmt.exec(sql4, (result, error) => {
+              dbStmt.close();
+              done();
+            });
           });
         });
       });
@@ -148,7 +150,6 @@ describe('Data Type Test', () => {
       // Table which only contains one BLOB(10) Field
       const sql = `INSERT INTO ${user}.BINARYTEST(BINARY_COLUMN) VALUES(?)`;
       const dbConn = new dbconn();
-
       fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
         if (error) {
           throw error;
@@ -182,14 +183,11 @@ describe('Data Type Test', () => {
       const user = (process.env.USER).toUpperCase();
       // Table which only contains one VARBINARY(10) Field
       const sql = `INSERT INTO ${user}.VARBINARYTEST(VARBINARY_COLUMN) VALUES(?)`;
-      const dbConn = new dbconn();
 
       fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
         if (error) {
           throw error;
         }
-        dbConn.conn('*LOCAL');
-        const dbStmt = new dbstmt(dbConn);
 
         dbStmt.prepare(sql, (error) => {
           if (error) {
@@ -217,12 +215,6 @@ describe('Data Type Test', () => {
   describe('exec read blob test', () => {
     it('performs action of given SQL String', (done) => {
       const sql = 'SELECT CAST(\'test\' AS BLOB(10k)) FROM SYSIBM.SYSDUMMY1';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.exec(sql, (result, error) => {
         if (error) {
           console.log(util.inspect(error));
@@ -241,12 +233,6 @@ describe('Data Type Test', () => {
   describe('exec read binary test', () => {
     it('performs action of given SQL String', (done) => {
       const sql = 'SELECT CAST(\'test\' AS BINARY(10)) FROM SYSIBM.SYSDUMMY1';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.exec(sql, (result, error) => {
         if (error) {
           console.log(util.inspect(error));
@@ -265,12 +251,6 @@ describe('Data Type Test', () => {
   describe('exec read varbinary test', () => {
     it('performs action of given SQL String', (done) => {
       const sql = 'SELECT CAST(\'test\' AS VARBINARY(10)) FROM SYSIBM.SYSDUMMY1';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.exec(sql, (result, error) => {
         if (error) {
           console.log(util.inspect(error));
@@ -288,12 +268,6 @@ describe('Data Type Test', () => {
   describe('inconsitent data', () => {
     it('handle ABC/10 error in exec', (done) => {
       const sql = `SELECT 'ABC'/10 AS DIVERR from sysibm.sysdummy1`;
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.exec(sql, (result, error) => {
         if (error) {
           console.log(util.inspect(error));
@@ -308,11 +282,6 @@ describe('Data Type Test', () => {
 
     it('handle ABC/10 error in fetch', (done) => {
       const sql = `SELECT 'ABC'/10 AS DIVERR from sysibm.sysdummy1`;
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-
-      const dbStmt = new dbstmt(dbConn);
       dbStmt.prepare(sql, (error) => {
         dbStmt.execute((outParams, error) => {
           dbStmt.fetch((result, error) => {
@@ -327,12 +296,6 @@ describe('Data Type Test', () => {
 
     it('handle ABC/10 error in fetchAll', (done) => {
       const sql = `SELECT 'ABC'/10 AS DIVERR from sysibm.sysdummy1`;
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.prepare(sql, (error) => {
         dbStmt.execute((outParams, error) => {
           dbStmt.fetchAll((result, error) => {
@@ -351,12 +314,6 @@ describe('Data Type Test', () => {
 
     it('handle ABC/10 error in execSync', (done) => {
       const sql = `SELECT 'ABC'/10 AS DIVERR from sysibm.sysdummy1`;
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.execSync(sql, (result, error) => {
         if (error) {
           console.log(util.inspect(error));
@@ -389,12 +346,6 @@ describe('Data Type Test', () => {
 
     it('handle ABC/10 error in fetchAllSync', (done) => {
       const sql = `SELECT 'ABC'/10 AS DIVERR from sysibm.sysdummy1`;
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.prepareSync(sql, (error) => {
         dbStmt.executeSync((outParams, error) => {
           dbStmt.fetchAllSync((result, error) => {
@@ -411,5 +362,4 @@ describe('Data Type Test', () => {
       });
     });
   });
-
 });
