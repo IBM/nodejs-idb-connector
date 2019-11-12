@@ -13,7 +13,7 @@ const {
 } = db2a;
 
 describe('Misc Test', () => {
-    var dbConn, dbStmt;
+    let dbConn, dbStmt;
 
     before(() => {
         dbConn = new dbconn();
@@ -49,8 +49,8 @@ describe('Misc Test', () => {
             dbStmt.prepareSync("select schema_name from qsys2.sysschemas limit 10");
             dbStmt.executeSync();
 
-            var rows = [];
-            var orientation = SQL_FETCH_RELATIVE;
+            let rows = [];
+            let orientation = SQL_FETCH_RELATIVE;
             do {
                 dbStmt.fetchSync(orientation, 9, function (row, error) {
                     if (error != SQL_ERROR && error != SQL_NO_DATA_FOUND)
@@ -61,6 +61,69 @@ describe('Misc Test', () => {
             } while (rc != SQL_ERROR && rc != SQL_NO_DATA_FOUND)
             expect(rows.length).to.equal(1);
             done();
+        });
+    });
+
+    describe('The stored procedure with result set issue', () => {
+        let user = (process.env.USER).toUpperCase();
+        let sql = `CALL ${user}.SPWITHRS`;
+        let crtSP = `CREATE OR REPLACE PROCEDURE ${user}.SPWITHRS()     
+                        LANGUAGE SQL                                       
+                        DYNAMIC RESULT SETS 1
+                        BEGIN ATOMIC 
+                        DECLARE C1 CURSOR FOR
+
+                        SELECT * FROM QIWS.QCUSTCDT LIMIT 5;
+
+                        OPEN C1 ;
+                        
+                        SET RESULT SETS WITH RETURN TO CLIENT CURSOR C1 ;
+                        
+                        END`;
+
+        before((done) => {
+            dbStmt = new dbstmt(dbConn);
+            dbStmt.exec(crtSP, (result, err) => {
+                if (err) throw err;
+                dbStmt.close();
+                done();
+            });
+        });
+
+        it(`execSync a stored procedure with result set`, (done) => {
+            dbStmt.execSync(sql, (result) => {
+                expect(result.length).to.equal(5);
+                done();
+            });
+        });
+
+        it(`exec a stored procedure with result set`, (done) => {
+            dbStmt.exec(sql, (result, err) => {
+                expect(result.length).to.equal(5);
+                done();
+            });
+        });
+
+        it(`fetchAllSync a stored procedure with result set`, (done) => {
+            dbStmt.prepareSync(sql, (err) => {
+                dbStmt.executeSync((err) => {
+                    dbStmt.fetchAllSync((result, err) => {
+                        expect(result.length).to.equal(5);
+                        done();
+                    });
+                });
+            });
+        });
+
+        it(`fetchAll a stored procedure with result set`, (done) => {
+            dbStmt.prepareSync(sql, (err) => {
+                dbStmt.executeSync((err) => {
+                    dbStmt.fetchAllSync((result, err) => {
+                        expect(result.length).to.equal(5);
+                        done();
+                    });
+                });
+            });
         });
     });
 });
