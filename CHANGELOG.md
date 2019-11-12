@@ -1,4 +1,9 @@
 # idb-connector changelog
+## 1.2.4
+- [dbstmt] detect inconsistent data (#94)
+- [dberror] move all debugging functions to dberror.h
+- [test] add more test cases
+
 ## 1.2.3
 - [dbstmt] fix a memory leak issue (#90)
 - [dbstmt] use more meaningful variable names in code
