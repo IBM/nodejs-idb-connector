@@ -68,7 +68,7 @@ describe('Connection Test', () => {
       const attr = db2a.SQL_ATTR_AUTOCOMMIT;
       const connection = new dbconn();
       const result = connection.getConnAttr(attr);
-
+      connection.close();
       expect(result).to.be.a('number');
     });
 
@@ -76,7 +76,7 @@ describe('Connection Test', () => {
       const attr = db2a.SQL_ATTR_DBC_DEFAULT_LIB;
       const connection = new dbconn();
       const result = connection.getConnAttr(attr);
-
+      connection.close();
       expect(result).to.be.a('string');
     });
   });
@@ -101,6 +101,8 @@ describe('Connection Test', () => {
 
       result = connection.getConnAttr(attr);
       expect(result).to.equal(db2a.SQL_FALSE);
+
+      connection.close();
     });
 
     it('setConnAttr(SQL_ATTR_INFO_APPLNAME, "NODEJSTEST") should return true', () => {
@@ -108,7 +110,7 @@ describe('Connection Test', () => {
       const value = 'NODEJSTEST';
       const connection = new dbconn();
       const result = connection.setConnAttr(attr, value);
-
+      connection.close();
       expect(result).to.be.true;
     });
   });
@@ -123,7 +125,7 @@ describe('Connection Test', () => {
       expect(result).to.equal(choice);
       choice = !choice;
       result = connection.debug(choice);
-
+      connection.close();
       expect(result).to.equal(choice);
     });
   });
@@ -134,7 +136,7 @@ describe('Connection Test', () => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
       const connection = new dbconn();
       const result = connection.validStmt(sql);
-
+      connection.close();
       expect(result).to.equal(sql);
     });
 
@@ -143,7 +145,7 @@ describe('Connection Test', () => {
         const sql = 'SELECT * FORM QIWS.QCUSTCDT';
         const connection = new dbconn();
         const result = connection.validStmt(sql);
-
+        connection.close();
         expect(result).to.equal(null);
       } catch (e) { }
     });

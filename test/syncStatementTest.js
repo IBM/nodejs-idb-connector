@@ -1,4 +1,4 @@
-const {expect} = require('chai');
+const { expect } = require('chai');
 const util = require('util');
 const db2a = require('../lib/db2a');
 
@@ -7,14 +7,29 @@ const {
 } = db2a;
 
 describe('Statement Sync Test', () => {
+  var dbConn, dbStmt;
+
+  before(() => {
+    dbConn = new dbconn();
+    dbConn.conn('*LOCAL');
+  });
+
+  after(() => {
+    dbConn.disconn();
+    dbConn.close();
+  });
+
+  beforeEach(() => {
+    dbStmt = new dbstmt(dbConn);
+  });
+
+  afterEach(() => {
+    dbStmt.close();
+  });
+
   describe('prepare callback', () => {
     it('Prepares valid SQL and sends it to the DBMS, if fail, error is returned. ', () => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.prepareSync(sql, (error) => {
         if (error) {
           throw error;
@@ -27,11 +42,6 @@ describe('Statement Sync Test', () => {
   describe('prepare no-callback', () => {
     it('Prepares valid SQL and sends it to the DBMS, if fail, error is returned. ', () => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.prepareSync(sql);
     });
   });
@@ -39,15 +49,6 @@ describe('Statement Sync Test', () => {
   describe('bindParams callback', () => {
     it('associate parameter markers in an SQL statement to app variables', () => {
       const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
-      const dbConn = new dbconn();
-      const dbConn2 = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      dbConn2.conn('*LOCAL');
-
-      let dbStmt = new dbstmt(dbConn);
-      const dbStmt2 = new dbstmt(dbConn2);
-
       const params = [
         [9997, IN, NUMERIC], // CUSNUM
         ['Doe', IN, CHAR], // LASTNAME
@@ -61,6 +62,10 @@ describe('Statement Sync Test', () => {
         [250, IN, NUMERIC], // BAL DUE
         [0.00, IN, NUMERIC], // CREDIT DUE
       ];
+
+      const dbConn2 = new dbconn();
+      dbConn2.conn('*LOCAL');
+      const dbStmt2 = new dbstmt(dbConn2);
 
       const result = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
       let rowsBefore = result[0]['00001'];
@@ -88,7 +93,6 @@ describe('Statement Sync Test', () => {
             let rowsAfter = result2[0]['00001'];
 
             rowsAfter = Number(rowsAfter);
-            dbStmt.close();
 
             expect(rowsAfter).to.equal(rowsBefore + 1);
           });
@@ -100,8 +104,6 @@ describe('Statement Sync Test', () => {
   describe('bindParams no-callback', () => {
     it('associate parameter markers in an SQL statement to app variables', () => {
       const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
-      const dbConn = new dbconn();
-      const dbConn2 = new dbconn();
       const params = [
         [9997, IN, NUMERIC], // CUSNUM
         ['Doe', IN, CHAR], // LASTNAME
@@ -115,9 +117,9 @@ describe('Statement Sync Test', () => {
         [250, IN, NUMERIC], // BAL DUE
         [0.00, IN, NUMERIC], // CREDIT DUE
       ];
-      dbConn.conn('*LOCAL');
+
+      const dbConn2 = new dbconn();
       dbConn2.conn('*LOCAL');
-      let dbStmt = new dbstmt(dbConn);
       const dbStmt2 = new dbstmt(dbConn2);
       // first get count of current rows
       const result = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
@@ -146,11 +148,6 @@ describe('Statement Sync Test', () => {
   describe('exec callback', () => {
     it('performs action of given SQL String', () => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.execSync(sql, (result, error) => {
         if (error) {
           throw error;
@@ -166,11 +163,6 @@ describe('Statement Sync Test', () => {
   describe('exec no-callback', () => {
     it('performs action of given SQL String', () => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
-
       const result = dbStmt.execSync(sql);
       expect(result).to.be.an('array');
       expect(result.length).to.be.greaterThan(0);
@@ -181,11 +173,6 @@ describe('Statement Sync Test', () => {
   describe('execute callback', () => {
     // it('retrieves output parameters from stored proc using executeSync with a callback', () => {
     //   const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
-    //   const dbConn = new dbconn();
-
-    //   dbConn.conn('*LOCAL');
-    //   const dbStmt = new dbstmt(dbConn);
-
     //   const ipc = '*NA';
     //   const ctl = '*here';
     //   const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
@@ -220,14 +207,9 @@ describe('Statement Sync Test', () => {
 
     it('executes prepared statement using executeSync with callback. Returns null because no output params are available', () => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT WHERE BALDUE > ?';
-      const dbConn = new dbconn();
       const params = [
         [10.00, IN, NUMERIC],
       ];
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
-
       dbStmt.prepareSync(sql, (error) => {
         if (error) {
           throw error;
@@ -251,11 +233,6 @@ describe('Statement Sync Test', () => {
   describe('execute no-callback', () => {
     // it('retrieves output parameters from stored procedure using executeSync without a callback:', () => {
     //   const sql = 'CALL QXMLSERV.iPLUG512K(?,?,?,?)';
-    //   const dbConn = new dbconn();
-
-    //   dbConn.conn('*LOCAL');
-    //   const dbStmt = new dbstmt(dbConn);
-
     //   const ipc = '*NA';
     //   const ctl = '*here';
     //   const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
@@ -279,13 +256,9 @@ describe('Statement Sync Test', () => {
 
     it('executes prepared statement using executeSync without callback. Returns null because no output params are available', () => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT WHERE BALDUE > ?';
-      const dbConn = new dbconn();
       const params = [
         [10.00, IN, NUMERIC],
       ];
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepareSync(sql);
       dbStmt.bindParamSync(params);
@@ -298,10 +271,6 @@ describe('Statement Sync Test', () => {
   describe('fetchAll callback', () => {
     it('retrieves results from execute function:', () => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepareSync(sql, (error) => {
         if (error) {
@@ -328,10 +297,6 @@ describe('Statement Sync Test', () => {
   describe('fetchAll no-callback', () => {
     it('retrieves results from execute function:', () => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepareSync(sql);
       dbStmt.executeSync();
@@ -344,10 +309,6 @@ describe('Statement Sync Test', () => {
   describe('fetch callback', () => {
     it('retrieves results from execute function:', () => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepareSync(sql, (error) => {
         if (error) {
@@ -372,10 +333,6 @@ describe('Statement Sync Test', () => {
   describe('fetch no-callback', () => {
     it('retrieves results from execute function:', () => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepareSync(sql);
       dbStmt.executeSync();

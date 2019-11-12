@@ -1,4 +1,4 @@
-const {expect} = require('chai');
+const { expect } = require('chai');
 const db2a = require('../lib/db2a');
 
 const {
@@ -7,14 +7,31 @@ const {
 
 // Test Statement Misc
 describe('Statement Misc Test', () => {
+  var dbConn, dbStmt;
+
+  before(() => {
+    dbConn = new dbconn();
+    dbConn.conn('*LOCAL');
+  });
+
+  after(() => {
+    dbConn.disconn();
+    dbConn.close();
+  });
+
+  beforeEach(() => {
+    dbStmt = new dbstmt(dbConn);
+  });
+
+  afterEach(() => {
+    dbStmt.close();
+  });
+
   describe('setStmtAttr & getStmtAttr', () => {
     it('setStmtAttr(attribute, value) then getStmtAttr(attribute) should equal value', () => {
       const attr = db2a.SQL_ATTR_FOR_FETCH_ONLY;
       let value = db2a.SQL_TRUE;
-      const dbConn = new dbconn();
 
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
       let result = dbStmt.setStmtAttr(attr, value);
 
       expect(result).to.be.true;
@@ -37,9 +54,6 @@ describe('Statement Misc Test', () => {
   describe('nextResult', () => {
     it('Determines whether there is more information available on the statement', () => {
       let sql = 'SELECT * FROM QIWS.QCUSTCDT';
-        let dbConn = new dbconn();
-        dbConn.conn('*LOCAL');
-        let dbStmt = new dbstmt(dbConn);
         dbStmt.prepare(sql);
         dbStmt.execute();
       let result = dbStmt.nextResult();
@@ -51,10 +65,6 @@ describe('Statement Misc Test', () => {
   describe('rollback', () => {
     it('Rollback all changes to the database that have been made on the connection', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepare(sql, (error) => {
         if (error) {
@@ -76,9 +86,6 @@ describe('Statement Misc Test', () => {
   describe('commit', () => {
     it('adds all changes to the database that have been made on the connection since connect time ', (done) => {
       const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
-      const dbConn = new dbconn();
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       const params = [
         [9997, IN, NUMERIC], // CUSNUM
@@ -119,10 +126,6 @@ describe('Statement Misc Test', () => {
   describe('numFields', () => {
     it('retrieves number of fields contained in result', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepare(sql, (error) => {
         if (error) {
@@ -144,10 +147,6 @@ describe('Statement Misc Test', () => {
   describe('numRows', () => {
     it('retrieves number of rows that were effected by a Querry', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepare(sql, (error) => {
         if (error) {
@@ -169,10 +168,7 @@ describe('Statement Misc Test', () => {
   describe('fieldType', () => {
     it('requires an int index parameter, returns the data type of the indicated column', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
 
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
       dbStmt.prepare(sql, (error) => {
         if (error) {
           throw error;
@@ -196,10 +192,7 @@ describe('Statement Misc Test', () => {
   describe('fieldWidth', () => {
     it('requires an int index parameter, returns the field width of the indicated column', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
 
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
       dbStmt.prepare(sql, (error) => {
         if (error) {
           throw error;
@@ -223,10 +216,6 @@ describe('Statement Misc Test', () => {
   describe('fieldNullable', () => {
     it('requires an int index parameter, returns t/f if the indicated column can be Null', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepare(sql, (error) => {
         if (error) {
@@ -251,10 +240,6 @@ describe('Statement Misc Test', () => {
   describe('fieldName', () => {
     it('requires an int index parameter,returns name of the indicated column ', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepare(sql, (error) => {
         if (error) {
@@ -279,10 +264,6 @@ describe('Statement Misc Test', () => {
   describe('fieldPrecise', () => {
     it('requires an int index parameter, returns the precision of the indicated column', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepare(sql, (error) => {
         if (error) {
@@ -307,10 +288,6 @@ describe('Statement Misc Test', () => {
   describe('fieldScale', () => {
     it('requires an int index parameter, returns the scale of the indicated column', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.prepare(sql, (error) => {
         if (error) {
@@ -336,10 +313,7 @@ describe('Statement Misc Test', () => {
     it('Returns the diagnostic information ', (done) => {
       const sql = 'SELECT * FROM NOT.THERE';
       const expectedError = 'SQLSTATE=42704 SQLCODE=-204';
-      const dbConn = new dbconn();
 
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
       dbStmt.exec(sql, (out, error) => {
         dbStmt.stmtError(db2a.SQL_HANDLE_STMT, 1, (rs) => {
           expect(rs).to.include(expectedError);
@@ -353,10 +327,6 @@ describe('Statement Misc Test', () => {
   describe('closeCursor', () => {
     it('closes any cursor associated with the dbstmt object and discards any pending results. ', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.exec(sql, () => {
         const result = dbStmt.closeCursor();
@@ -370,10 +340,6 @@ describe('Statement Misc Test', () => {
   describe('reset', () => {
     it('Reset the dbstmt object. ', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.exec(sql, () => {
         const result = dbStmt.reset();
@@ -387,10 +353,6 @@ describe('Statement Misc Test', () => {
   describe('close', () => {
     it('frees the statement object. ', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT';
-      const dbConn = new dbconn();
-
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
 
       dbStmt.exec(sql, (result, error) => {
         const isClose = dbStmt.close();
@@ -402,36 +364,31 @@ describe('Statement Misc Test', () => {
 
   describe('asNumber', () => {
     it('should default to false', () => {
-      const dbConn = new dbconn();
-  
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
       let result = dbStmt.asNumber();
       expect(result).to.be.false;
     });
-  
-  
+
+
     it('when false should return numbers as strings', (done) => {
       const sql = `select 
         cast(-32768 as SMALLINT) MIN_SMALLINT,
         cast(+32767 as SMALLINT) MAX_SMALLINT
          from sysibm.sysdummy1`;
-      const dbConn = new dbconn();
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
-      
+
       dbStmt.asNumber(false);
-      
+
       dbStmt.exec(sql, (result, error) => {
         expect(error).to.be.null;
         expect(result).to.be.an('array');
         expect(result.length).to.be.greaterThan(0);
-        expect(result).to.eql([{"MIN_SMALLINT":"-32768",
-                            "MAX_SMALLINT":"32767"}]);     
+        expect(result).to.eql([{
+          "MIN_SMALLINT": "-32768",
+          "MAX_SMALLINT": "32767"
+        }]);
         done();
       });
     });
-  
+
     it('when true should return numbers when safe to do so', (done) => {
       const sql = `select 
         cast(-32768 as SMALLINT) MIN_SMALLINT,
@@ -445,26 +402,24 @@ describe('Statement Misc Test', () => {
         cast(+9223372036854775807 as BIGINT) MAX_BIGINT,
         cast(9999999999999999 as DECIMAL(16,0)) as DEC_NOT_SAFE_16_0
          from sysibm.sysdummy1`;
-      const dbConn = new dbconn();
-      dbConn.conn('*LOCAL');
-      const dbStmt = new dbstmt(dbConn);
-      
+
       dbStmt.asNumber(true);
-  
+
       dbStmt.exec(sql, (result, error) => {
         expect(error).to.be.null;
         expect(result).to.be.an('array');
         expect(result.length).to.be.greaterThan(0);
-        expect(result).to.eql([{"MIN_SMALLINT":-32768,
-                            "MAX_SMALLINT":32767,
-                            "MIN_INT":-2147483648,
-                            "MAX_INT":2147483647,
-                            "DEC_SAFE_15_0": 999999999999999,
-                            "DEC_SAFE_15_15":0.999999999999999,
-                            "MIN_BIGINT": "-9223372036854775808",
-                            "MAX_BIGINT": "9223372036854775807",
-                            "DEC_NOT_SAFE_16_0":"9999999999999999"
-                        }]);     
+        expect(result).to.eql([{
+          "MIN_SMALLINT": -32768,
+          "MAX_SMALLINT": 32767,
+          "MIN_INT": -2147483648,
+          "MAX_INT": 2147483647,
+          "DEC_SAFE_15_0": 999999999999999,
+          "DEC_SAFE_15_15": 0.999999999999999,
+          "MIN_BIGINT": "-9223372036854775808",
+          "MAX_BIGINT": "9223372036854775807",
+          "DEC_NOT_SAFE_16_0": "9999999999999999"
+        }]);
         done();
       });
     });
