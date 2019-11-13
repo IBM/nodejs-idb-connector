@@ -85,29 +85,20 @@ describe('Data Type Test', () => {
 
 
   describe('bind parameters blob/binary/varbinary', () => {
-    before((done) => {
+    it('create tables for test', (done) => {
       const user = (process.env.USER).toUpperCase();
-      const sql = `CREATE SCHEMA ${user}`;
-      const sql2 = `CREATE OR REPLACE TABLE ${user}.BLOBTEST(BLOB_COLUMN BLOB(512k))`;
-      const sql3 = `CREATE OR REPLACE TABLE ${user}.BINARYTEST(BINARY_COLUMN BINARY(3000))`;
-      const sql4 = `CREATE OR REPLACE TABLE ${user}.VARBINARYTEST(VARBINARY_COLUMN VARBINARY(3000))`;
-      dbStmt = new dbstmt(dbConn);
-      dbStmt.exec(sql, (result, error) => {
-        // if Schema already exsists will error but ignore
+      const sql = [
+        `CREATE SCHEMA ${user}`,
+        `CREATE OR REPLACE TABLE ${user}.BLOBTEST(BLOB_COLUMN BLOB(512k))`,
+        `CREATE OR REPLACE TABLE ${user}.BINARYTEST(BINARY_COLUMN BINARY(5000))`,
+        `CREATE OR REPLACE TABLE ${user}.VARBINTEST(VARBINARY_COLUMN VARBINARY(5000))`
+      ];
+      for (let i = 0; i < sql.length; i++) {
+        dbStmt.execSync(sql[i], (result, err) => {});
         dbStmt.closeCursor();
-        dbStmt.exec(sql2, (result, error) => {
-          dbStmt.closeCursor();
-          dbStmt.exec(sql3, (result, error) => {
-            dbStmt.closeCursor();
-            dbStmt.exec(sql4, (result, error) => {
-              dbStmt.close();
-              done();
-            });
-          });
-        });
-      });
+      }
+      done();
     });
-
 
     it('runs SQLExecute and to bind blob', (done) => {
       const user = (process.env.USER).toUpperCase();
@@ -182,7 +173,7 @@ describe('Data Type Test', () => {
     it('runs SQLExecute and to bind varbinary', (done) => {
       const user = (process.env.USER).toUpperCase();
       // Table which only contains one VARBINARY(10) Field
-      const sql = `INSERT INTO ${user}.VARBINARYTEST(VARBINARY_COLUMN) VALUES(?)`;
+      const sql = `INSERT INTO ${user}.VARBINTEST(VARBINARY_COLUMN) VALUES(?)`;
 
       fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
         if (error) {

@@ -103,39 +103,39 @@ describe('Statement Async Test', () => {
   });
 
   describe('async execute', () => {
-    //   it('retrieves output params from stored proc', (done) => {
-    //     const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
-    //     const ipc = '*NA';
-    //     const ctl = '*here';
-    //     const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
-    //     const xmlOut = '';
-    //     const params = [
-    //       [ipc, IN, CHAR],
-    //       [ctl, IN, CHAR],
-    //       [xmlIn, IN, CLOB],
-    //       [xmlOut, OUT, CLOB],
-    //     ];
+      it('retrieves output params from stored proc', (done) => {
+        const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
+        const ipc = '*NA';
+        const ctl = '*here';
+        const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
+        const xmlOut = '';
+        const params = [
+          [ipc, IN, CHAR],
+          [ctl, IN, CHAR],
+          [xmlIn, IN, CLOB],
+          [xmlOut, OUT, CLOB],
+        ];
 
-    //     dbStmt.prepare(sql, (error) => {
-    //       if (error) {
-    //         throw error;
-    //       }
-    //       dbStmt.bindParam(params, (error) => {
-    //         if (error) {
-    //           throw error;
-    //         }
-    //         dbStmt.execute((out, error) => {
-    //           if (error) {
-    //             throw error;
-    //           }
-    //           expect(error).to.be.null;
-    //           expect(out).to.be.a('array');
-    //           expect(out.length).to.be.eq(1);
-    //           done();
-    //         });
-    //       });
-    //     });
-    //   });
+        dbStmt.prepare(sql, (error) => {
+          if (error) {
+            throw error;
+          }
+          dbStmt.bindParam(params, (error) => {
+            if (error) {
+              throw error;
+            }
+            dbStmt.execute((out, error) => {
+              if (error) {
+                throw error;
+              }
+              expect(error).to.be.null;
+              expect(out).to.be.a('array');
+              expect(out.length).to.be.eq(1);
+              done();
+            });
+          });
+        });
+      });
 
     it('executes prepared statement returns null because no output params are available', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT WHERE BALDUE > ?';

@@ -171,38 +171,38 @@ describe('Statement Sync Test', () => {
   });
 
   describe('execute callback', () => {
-    // it('retrieves output parameters from stored proc using executeSync with a callback', () => {
-    //   const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
-    //   const ipc = '*NA';
-    //   const ctl = '*here';
-    //   const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
-    //   const xmlOut = '';
-    //   const params = [
-    //     [ipc, IN, CHAR],
-    //     [ctl, IN, CHAR],
-    //     [xmlIn, IN, CLOB],
-    //     [xmlOut, OUT, CLOB],
-    //   ];
+    it('retrieves output parameters from stored proc using executeSync with a callback', () => {
+      const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
+      const ipc = '*NA';
+      const ctl = '*here';
+      const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
+      const xmlOut = '';
+      const params = [
+        [ipc, IN, CHAR],
+        [ctl, IN, CHAR],
+        [xmlIn, IN, CLOB],
+        [xmlOut, OUT, CLOB],
+      ];
 
-    //   dbStmt.prepareSync(sql, (error) => {
-    //     if (error) {
-    //       throw error;
-    //     }
-    //     dbStmt.bindParamSync(params, (error) => {
-    //       if (error) {
-    //         throw error;
-    //       }
-    //       dbStmt.executeSync((result, error) => {
-    //         if (error) {
-    //           throw error;
-    //         }
-    //         expect(error).to.be.null;
-    //         expect(result).to.be.a('array');
-    //         expect(result.length).to.be.eq(1);
-    //       });
-    //     });
-    //   });
-    // });
+      dbStmt.prepareSync(sql, (error) => {
+        if (error) {
+          throw error;
+        }
+        dbStmt.bindParamSync(params, (error) => {
+          if (error) {
+            throw error;
+          }
+          dbStmt.executeSync((result, error) => {
+            if (error) {
+              throw error;
+            }
+            expect(error).to.be.null;
+            expect(result).to.be.a('array');
+            expect(result.length).to.be.eq(1);
+          });
+        });
+      });
+    });
 
 
     it('executes prepared statement using executeSync with callback. Returns null because no output params are available', () => {
