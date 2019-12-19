@@ -93,3 +93,9 @@ static void throwCustomMsg(int code, const char *msg, Napi::Env env)
     sprintf((char *)errMsg, "SQLSTATE=PAERR SQLCODE=%d %s", code, msg);
     Napi::Error::New(env, Napi::String::New(env, errMsg)).ThrowAsJavaScriptException();
 }
+
+static bool SQLErrorEquals(int handleType, SQLINTEGER handle, const char *sqlState, SQLINTEGER sqlCode)
+{
+    sqlError errObj = returnErrObj(handleType, handle);
+    return errObj.sqlCode == sqlCode && !strncmp(errObj.sqlState, sqlState, SQL_SQLSTATE_SIZE);
+}
