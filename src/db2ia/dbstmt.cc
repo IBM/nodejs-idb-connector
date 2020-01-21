@@ -2266,6 +2266,9 @@ int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array)
           }
         case SQL_DECIMAL:
         case SQL_NUMERIC:
+        case SQL_REAL:
+        case SQL_FLOAT:
+        case SQL_DOUBLE:
           if (asNumber == true && dbColumn[col].colPrecise <= 15)
           {
             nvalue = Napi::String::New(env, resultSetInC[row][col].data);
