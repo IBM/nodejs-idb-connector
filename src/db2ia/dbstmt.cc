@@ -270,6 +270,7 @@ public:
     if (sqlReturnCode == SQL_SUCCESS_WITH_INFO)
     {
       sqlError errObj = returnErrObj(SQL_HANDLE_STMT, dbStatementObject->stmth);
+      DEBUG(dbStatementObject, "SQLExecDirect SUCCESS_WITH_INFO (%d) %s\n", errObj.sqlCode, errObj.sqlState);
       if (!strcmp(errObj.sqlState, "0100C") && errObj.sqlCode == 466)
       {
         // Stored Procedures with Result Sets
@@ -422,6 +423,7 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo &info)
   if (sqlReturnCode == SQL_SUCCESS_WITH_INFO)
   {
     sqlError errObj = returnErrObj(SQL_HANDLE_STMT, stmth);
+    DEBUG(this, "SQLExecDirect SUCCESS_WITH_INFO (%d) %s\n", errObj.sqlCode, errObj.sqlState);
     if (!strcmp(errObj.sqlState, "0100C") && errObj.sqlCode == 466)
     {
       // Stored Procedures with Result Sets
@@ -2025,8 +2027,8 @@ int DbStmt::populateColumnDescriptions(Napi::Env env)
                                    &dbColumn[col].colScale,   //SQLSMALLINT* pibScale -Scale of column as defined in db2 (Output)
                                    &dbColumn[col].colNull);   //SQLSMALLINT* pfNullable -Indactes whether null is allowed (Output)
 
-    DEBUG(this, "SQLDescribeCol(%d)\tindex[%d]\tsqlType[%d]\tcolScale[%d]\tcolPrecise[%d]\n",
-          sqlReturnCode, col, dbColumn[col].sqlType, dbColumn[col].colScale, dbColumn[col].colPrecise)
+    DEBUG(this, "DescCol(%d)\tindex[%d]\tType[%s]\tScale[%d]\tPrecise[%d]\n",
+          sqlReturnCode, col, getSQLType(dbColumn[col].sqlType), dbColumn[col].colScale, dbColumn[col].colPrecise)
 
     if (sqlReturnCode != SQL_SUCCESS)
     {
@@ -2061,7 +2063,7 @@ int DbStmt::bindColData(Napi::Env env)
 
   SQLRETURN sqlReturnCode;
   SQLINTEGER maxColLen = 0;
-  //bindingRowInC defined in dbstmt.h as type SQLCHAR**
+  /* 'bindingRowInC' is defined in dbstmt.h as type 'SQLCHAR**' */
   bindingRowInC = (SQLCHAR **)calloc(colCount, sizeof(SQLCHAR *));
   for (int col = 0; col < colCount; col++)
   {
@@ -2096,17 +2098,17 @@ int DbStmt::bindColData(Napi::Env env)
     break;
     case SQL_DECIMAL:
     case SQL_NUMERIC:
-    case SQL_FLOAT:
-    case SQL_DOUBLE:
     {
       maxColLen = dbColumn[col].colPrecise + dbColumn[col].colScale + 3;
       bindingRowInC[col] = (SQLCHAR *)calloc(maxColLen, sizeof(SQLCHAR));
       sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
     }
     break;
+    case SQL_FLOAT:
+    case SQL_DOUBLE:
     case SQL_REAL:
     {
-      maxColLen = 30; // The ISO synonym for real is float(24).
+      maxColLen = 18;
       bindingRowInC[col] = (SQLCHAR *)calloc(maxColLen, sizeof(SQLCHAR));
       sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
     }

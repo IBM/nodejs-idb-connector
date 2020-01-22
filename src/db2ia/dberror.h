@@ -99,3 +99,72 @@ static bool SQLErrorEquals(int handleType, SQLINTEGER handle, const char *sqlSta
     sqlError errObj = returnErrObj(handleType, handle);
     return errObj.sqlCode == sqlCode && !strncmp(errObj.sqlState, sqlState, SQL_SQLSTATE_SIZE);
 }
+
+static const char* getSQLType(int sqlType)
+{
+    switch (sqlType)
+    {
+    case SQL_CHAR:
+        return "CHAR";
+    case SQL_NUMERIC:
+        return "NUMERIC";
+    case SQL_DECIMAL:
+        return "DECIMAL";
+    case SQL_INTEGER:
+        return "INTEGER";
+    case SQL_SMALLINT:
+        return "SMALLINT";
+    case SQL_FLOAT:
+        return "FLOAT";
+    case SQL_REAL:
+        return "REAL";
+    case SQL_DOUBLE:
+        return "DOUBLE";
+    case SQL_DATETIME:
+        return "DATETIME";
+    case SQL_VARCHAR:
+        return "VARCHAR";
+    case SQL_BLOB:
+        return "BLOB";
+    case SQL_CLOB:
+        return "CLOB";
+    case SQL_DBCLOB:
+        return "DBCLOB";
+    case SQL_DATALINK:
+        return "DATALINK";
+    case SQL_WCHAR:
+        return "WCHAR";
+    case SQL_WVARCHAR:
+        return "WVARCHAR";
+    case SQL_BIGINT:
+        return "BIGINT";
+    case SQL_BLOB_LOCATOR:
+        return "BLOB_LOCATOR";
+    case SQL_CLOB_LOCATOR:
+        return "CLOB_LOCATOR";
+    case SQL_DBCLOB_LOCATOR:
+        return "DBCLOB_LOCATOR";
+    case SQL_UTF8_CHAR:
+        return "UTF8_CHAR";
+    case SQL_GRAPHIC:
+        return "GRAPHIC";
+    case SQL_BINARY:
+        return "BINARY";
+    case SQL_VARBINARY:
+        return "VARBINARY";
+    case SQL_DATE:
+        return "DATE";
+    case SQL_TIME:
+        return "TIME";
+    case SQL_TIMESTAMP:
+        return "TIMESTAMP";
+    case SQL_ALL_TYPES:
+        return "ALL_TYPES";
+    case SQL_DECFLOAT:
+        return "DECFLOAT";
+    case SQL_XML:
+        return "XML";
+    default:
+        return "UNKNOWN";
+    }
+}
