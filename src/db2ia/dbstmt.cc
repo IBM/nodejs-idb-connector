@@ -1972,7 +1972,6 @@ void DbStmt::StmtError(const Napi::CallbackInfo &info)
 
   SQLINTEGER sqlReturnCode = SQL_SUCCESS;
   SQLSMALLINT length = 0;
-  SQLCHAR *p = NULL;
 
   sqlReturnCode = SQLGetDiagRec(hType,                      //SQLSMALLINT gtype -Handle Type
                                 handle,                     //SQLINTEGER handle -hadnle for info is wanted
@@ -2069,7 +2068,7 @@ int DbStmt::bindColData(Napi::Env env)
   {
     switch (dbColumn[col].sqlType)
     {
-    case SQL_SMALLINT:
+    case SQL_SMALLINT:  // -32768 to +32767
     {
       maxColLen = 7;
       bindingRowInC[col] = (SQLCHAR *)calloc(maxColLen, sizeof(SQLCHAR));
@@ -2082,33 +2081,34 @@ int DbStmt::bindColData(Napi::Env env)
                                  &dbColumn[col].rlength);        //SQLINTEGER* pcbValue -Pointer to value for # bytes avail to return in rgbValue buffer (Output)
     }
     break;
-    case SQL_INTEGER:
+    case SQL_INTEGER:  // -2147483648 to +2147483647
     {
-      maxColLen = 12;
+      maxColLen = 13;
       bindingRowInC[col] = (SQLCHAR *)calloc(maxColLen, sizeof(SQLCHAR));
       sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
     }
     break;
-    case SQL_BIGINT:
+    case SQL_BIGINT:  // -9223372036854775808 to +9223372036854775807
     {
       maxColLen = 21;
       bindingRowInC[col] = (SQLCHAR *)calloc(maxColLen, sizeof(SQLCHAR));
       sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
     }
     break;
-    case SQL_DECIMAL:
+    case SQL_DECIMAL:  // -(10^n) + 1 to +(10^n) - 1
     case SQL_NUMERIC:
     {
-      maxColLen = dbColumn[col].colPrecise + dbColumn[col].colScale + 3;
+      maxColLen = dbColumn[col].colPrecise + 4;
       bindingRowInC[col] = (SQLCHAR *)calloc(maxColLen, sizeof(SQLCHAR));
       sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
     }
     break;
-    case SQL_FLOAT:
-    case SQL_DOUBLE:
-    case SQL_REAL:
+    case SQL_REAL:     // FLOAT(24) Precision = 7
+    case SQL_FLOAT:    // FLOAT(24) Precision = 7 or FLOAT(53) Precision = 15
+    case SQL_DOUBLE:   // Precision = 31
+    case SQL_DECFLOAT: // Precision = 34
     {
-      maxColLen = 18;
+      maxColLen = 50;
       bindingRowInC[col] = (SQLCHAR *)calloc(maxColLen, sizeof(SQLCHAR));
       sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
     }
@@ -2258,19 +2258,21 @@ int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array)
           });
           break;
         }
-        case SQL_SMALLINT:
-        case SQL_INTEGER:
+        case SQL_SMALLINT: // -32768 to +32767
+        case SQL_INTEGER:  // -2147483648 to +2147483647
+        // case SQL_BIGINT:   // -9223372036854775808 to +9223372036854775807
+        case SQL_REAL:     // FLOAT(24) Precision = 7
+        case SQL_FLOAT:    // FLOAT(24) Precision = 7 / FLOAT(53) Precision = 15
+        case SQL_DOUBLE:   // Precision = 31
+        // case SQL_DECFLOAT: // Precision = 34
           if (asNumber == true)
           {
             nvalue = Napi::String::New(env, resultSetInC[row][col].data);
             value = Napi::Number::New(env, nvalue.ToNumber());
             break;
           }
-        case SQL_DECIMAL:
+        case SQL_DECIMAL:  // -(10^n) + 1 to +(10^n) - 1
         case SQL_NUMERIC:
-        case SQL_REAL:
-        case SQL_FLOAT:
-        case SQL_DOUBLE:
           if (asNumber == true && dbColumn[col].colPrecise <= 15)
           {
             nvalue = Napi::String::New(env, resultSetInC[row][col].data);
