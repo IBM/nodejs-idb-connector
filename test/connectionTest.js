@@ -159,5 +159,11 @@ describe('Connection Test', () => {
 
       expect(result).to.be.true;
     });
+    it('disconnects if connected and frees the connection object ', () => {
+      const connection = new dbconn();
+      connection.conn('*LOCAL');
+      const result = connection.close();
+      expect(result).to.be.true;
+    });
   });
 });
