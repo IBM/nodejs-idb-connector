@@ -315,7 +315,7 @@ Napi::Value DbConn::Disconnect(const Napi::CallbackInfo &info)
 
 /*
  *  DbConn::Close
- *    Description: Frees the connection object. DbConn::Disconnect() must be called before calling this function.
+ *    Description: Frees the connection object.
  *    Parameters: 
  *      const Napi::CallbackInfo& info:
  *        The information passed by Napi from the JavaScript call, including
@@ -332,6 +332,9 @@ Napi::Value DbConn::Close(const Napi::CallbackInfo &info)
 
   if (this->connAllocated)
   {
+    if (this->connected) {
+      this->Disconnect(env);
+    }
     DEBUG(this, "SQLFreeConnect: conn obj [%p] handler [%d]\n", this, this->connh);
     //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnfconn.htm
     sqlReturnCode = SQLFreeConnect(this->connh); //SQLHDBC hdbc -Connection Handle
