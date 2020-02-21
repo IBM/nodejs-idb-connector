@@ -2182,10 +2182,9 @@ int DbStmt::fetchData()
       int ind = 0;
       if (dbColumn[col].sqlType == SQL_CLOB)
       { // TODO: check return code
-        SQLHANDLE stmtLoc, stmtLocFree;
+        SQLHANDLE stmtLoc;
 
         returnCode = SQLAllocStmt(connh, &stmtLoc);
-        returnCode = SQLAllocStmt(connh, &stmtLocFree);
 
         returnCode = SQLGetLength(stmtLoc, SQL_C_CLOB_LOCATOR, dbColumn[col].clobLoc, &colLen, &ind);
 
@@ -2193,12 +2192,16 @@ int DbStmt::fetchData()
         rowOfResultSetInC[col].rlength = colLen;
         returnCode = SQLGetCol(stmth, col + 1, SQL_C_CLOB, rowOfResultSetInC[col].data, colLen, &ind);
 
-        SQLCHAR *freeLocStmt = (SQLCHAR *)"FREE LOCATOR ?";
-        returnCode = SQLSetParam(stmtLocFree, 1, SQL_C_CLOB_LOCATOR, SQL_CLOB_LOCATOR, 0, 0, &dbColumn[col].clobLoc, NULL);
-        returnCode = SQLExecDirect(stmtLocFree, freeLocStmt, SQL_NTS);
-
         returnCode = SQLFreeStmt(stmtLoc, SQL_DROP);
-        returnCode = SQLFreeStmt(stmtLocFree, SQL_DROP);
+
+        // TODO: This could be done more efficiently since SQL_ATTR_FREE_LOCATOR
+        //       accepts an array of locators to free.
+        int rc2 = SQLSetConnectAttr(connh, SQL_ATTR_FREE_LOCATORS, &dbColumn[col].clobLoc, 1);
+        if(rc2 != SQL_SUCCESS)
+        {
+          DEBUG(this, "SQLSetConnectAttr(%d, %d, %d, 1) returned %d\n", connh,
+                SQL_ATTR_FREE_LOCATORS, dbColumn[col].clobLoc);
+        }
       }
       else if (dbColumn[col].rlength == SQL_NTS)
       { // SQL_NTS = -3
