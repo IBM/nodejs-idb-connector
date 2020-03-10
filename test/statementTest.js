@@ -87,19 +87,7 @@ describe('Statement Misc Test', () => {
     it('adds all changes to the database that have been made on the connection since connect time ', (done) => {
       const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
 
-      const params = [
-        [9997, IN, NUMERIC], // CUSNUM
-        ['Johnson', IN, CHAR], // LASTNAME
-        ['A J', IN, CHAR], // INITIAL
-        ['453 Example', IN, CHAR], // ADDRESS
-        ['Fort', IN, CHAR], // CITY
-        ['TN', IN, CHAR], // STATE
-        [37211, IN, NUMERIC], // ZIP
-        [1000, IN, NUMERIC], // CREDIT LIMIT
-        [1, IN, NUMERIC], // change
-        [150, IN, NUMERIC], // BAL DUE
-        [0.00, IN, NUMERIC], // CREDIT DUE
-      ];
+      const params = [9997, 'Doe', 'J D', '123 Broadway', 'Hope', 'WA', 98101, 2000, 1, 250, 0.00];
 
       dbStmt.prepare(sql, (error) => {
         if (error) {

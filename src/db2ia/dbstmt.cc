@@ -55,6 +55,9 @@ Napi::Object DbStmt::Init(Napi::Env env, Napi::Object exports)
     InstanceMethod("bindParam", &DbStmt::BindParam),
     InstanceMethod("bindParamSync", &DbStmt::BindParamSync),
 
+    InstanceMethod("bindParameters", &DbStmt::BindParameters),
+    InstanceMethod("bindParametersSync", &DbStmt::BindParametersSync),
+
     InstanceMethod("execute", &DbStmt::Execute),
     InstanceMethod("executeSync", &DbStmt::ExecuteSync),
 
@@ -789,6 +792,156 @@ void DbStmt::BindParamSync(const Napi::CallbackInfo &info)
 
   CHECK(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statment handler is not initialized.", env)
   CHECK(length != 1 && length != 2, INVALID_PARAM_NUM, "The bindParamSync() method accepts only one or two parameters.", env)
+  CHECK(!info[0].IsArray(), INVALID_PARAM_TYPE, "Parameter 1 Must be an Array", env)
+  if (length == 2)
+  {
+    CHECK(!info[1].IsFunction(), INVALID_PARAM_TYPE, "Parameter 2 must be a Function", env)
+    cb = info[1].As<Napi::Function>();
+  }
+
+  Napi::Array parametersToBind = info[0].As<Napi::Array>();
+  // Errors are checked for and thrown in this->bindParams
+  int returnCode = this->bindParams(env, &parametersToBind, errorMsg);
+  DEBUG(this, "bindParams(%d)\n", returnCode);
+  //check if an error occured while binding
+  if (returnCode != 0)
+  {
+    Napi::Error error = Napi::Error::New(env, errorMsg);
+    if (length == 2)
+    {
+      //callback signature function(error)
+      callbackArguments.push_back(error.Value());
+      cb.Call(callbackArguments);
+      return;
+    }
+    error.ThrowAsJavaScriptException();
+  }
+  //if callback was defined make the callback
+  if (length == 2)
+  {
+    //callback signature function(error)
+    callbackArguments.push_back(Env().Null());
+    cb.Call(callbackArguments);
+    return;
+  }
+}
+
+/*
+ *  BindParametersAsyncWorker
+ *    Description:
+ *      Asynchronous worker class that runs the 'BindParameters' workflow. Runs
+ *      asynchronous code in the Execute() function, and then compiles the
+ *      results, calls the callback function, and cleans up memory in OnOk().
+ */
+class BindParametersAsyncWorker : public Napi::AsyncWorker
+{
+public:
+  BindParametersAsyncWorker(DbStmt *dbStatementObject,
+                       Napi::Array &parametersToBind,
+                       Napi::Function &callback) : Napi::AsyncWorker(callback),
+                                                   dbStatementObject(dbStatementObject),
+                                                   parametersToBind(Napi::Persistent(parametersToBind)) {}
+  ~BindParametersAsyncWorker() {}
+
+  // Executed inside the worker-thread.
+  void Execute()
+  {
+    // no-op
+  }
+
+  // Executed when the async work is complete
+  void OnOK()
+  {
+    Napi::Env env = Env();
+    Napi::HandleScope scope(Env());
+    Napi::Array array = this->parametersToBind.Value();
+    std::vector<napi_value> callbackArguments;
+    std::string error;
+
+    int returnCode = dbStatementObject->bindParams(env, &array, error);
+    //check if errors Occured.
+    if (returnCode != 0)
+    {
+      //callback signature function(error)
+      callbackArguments.push_back(Napi::Error::New(env, error).Value());
+      Callback().Call(callbackArguments);
+      return;
+    }
+    parametersToBind.Reset(); // unsure if needed, might auto refcount to 0
+    //callback signature function(error)
+    callbackArguments.push_back(Env().Null());
+    Callback().Call(callbackArguments);
+  }
+
+private:
+  DbStmt *dbStatementObject;
+  Napi::Reference<Napi::Array> parametersToBind;
+};
+
+/*
+ *  DbStmt::BindParameters
+ *    Syntex: bindParameters(array ParamList, function Callback(error))
+ *    Description:
+ *      The entry point for running the "BindParameters" workflow asynchronously.
+ *      Run after a statement is prepared with the "Prepare" workflow.
+ *      Handles passed in data before calling the BindParametersAsyncWorker,
+ *      which returns to the JavaScript environment through a callback.
+ *    Parameters:
+ *      const Napi::CallbackInfo& info:
+ *        The information passed by Napi from the JavaScript call. Contains 2 parameters,
+ * 
+ *        info[0]: [Array]: An array of the data to bind to the prepared statement.
+ *        info[1]: [Function]: The callback function, with
+ *                 arguments passed to it in the format function(error):
+ *                 error:  the error that was encountered, or null if no error.
+ */
+void DbStmt::BindParameters(const Napi::CallbackInfo &info)
+{
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env);
+
+  DEBUG(this, "BindParameters().\n");
+  CHECK(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statment handler is not initialized.", env)
+  CHECK(info.Length() != 2, INVALID_PARAM_NUM, "The bindParameters() method accepts only two parameters.", env)
+  CHECK(!info[0].IsArray(), INVALID_PARAM_TYPE, "Expected Parameter 1 to be a Array", env);
+  CHECK(!info[1].IsFunction(), INVALID_PARAM_TYPE, "Expected Parameter 2 to be a Function", env);
+
+  Napi::Array parametersToBind = info[0].As<Napi::Array>();
+  Napi::Function callback = info[1].As<Napi::Function>();
+
+  BindParametersAsyncWorker *worker = new BindParametersAsyncWorker(this, parametersToBind, callback);
+  worker->Queue();
+}
+
+/*
+ *  DbStmt::BindParametersSync
+ *    Syntex: bindParametersSync(array ParamList), bindParametersSync(array ParamList, function Callback(error))
+ *    Description:
+ *      Runs the "BindParameters" workflow synchronously, blocking the Node.js event
+ *      loop.
+ *    Parameters:
+ *      const Napi::CallbackInfo& info:
+ *        The information passed by Napi from the JavaScript call, including
+ *        arguments from the JavaScript function. In JavaScript, the exported
+ *        function takes one or two arguments, stored on the info object:
+ *          info[0]: [Array]: An array of the data to bind to the prepared statement.
+ *          info[1]: [Function] (Optional): The callback function, with
+ *                   arguments passed to it in the format function(error):
+ *                      error:  the error that was encountered, or null if no error.
+ */
+void DbStmt::BindParametersSync(const Napi::CallbackInfo &info)
+{
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env); // This wasn't done in original
+  int length = info.Length();
+  Napi::Function cb;
+  std::vector<napi_value> callbackArguments;
+  std::string errorMsg;
+
+  DEBUG(this, "BindParametersSync().\n");
+
+  CHECK(this->stmtAllocated == false, STMT_NOT_READY, "The SQL Statment handler is not initialized.", env)
+  CHECK(length != 1 && length != 2, INVALID_PARAM_NUM, "The bindParametersSync() method accepts only one or two parameters.", env)
   CHECK(!info[0].IsArray(), INVALID_PARAM_TYPE, "Parameter 1 Must be an Array", env)
   if (length == 2)
   {
@@ -2326,7 +2479,7 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
   Napi::Array object;
   int bindIndicator, io;
   SQLRETURN sqlReturnCode;
-  Napi::Value ioValue, bindValue;
+  Napi::Value value, ioValue, bindValue;
   freeSp();
 
   paramCount = params->Length();
@@ -2334,36 +2487,6 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
 
   for (SQLSMALLINT i = 0; i < paramCount; i++)
   {
-
-    object = params->Get(i).As<Napi::Array>(); //Get a  ? parameter from the array.
-    ioValue = object.Get(1);
-    bindValue = object.Get(2);
-
-    //validate io
-    if (!ioValue.IsNumber())
-    {
-      error = "IO TYPE OF PARAMETER " + std::to_string(i + 1) + " IS INVALID";
-      return -1;
-    }
-
-    io = ioValue.ToNumber().Int32Value(); //convert from Napi::Value to an int
-
-    if (io != SQL_PARAM_INPUT && io != SQL_PARAM_OUTPUT && io != SQL_PARAM_INPUT_OUTPUT)
-    {
-      error = "IO TYPE OF PARAMETER " + std::to_string(i + 1) + " IS INVALID. SHOULD EQUAL PARAM INPUT, OUTPUT, OR INPUT_OUTPUT";
-      return -1;
-    }
-
-    //validate bindIndicator
-    if (!bindValue.IsNumber())
-    {
-      error = "BIND INDICATOR TYPE OF PARAMETER " + std::to_string(i + 1) + " IS INVALID\n";
-      return -1;
-    }
-
-    param[i].io = io;
-    bindIndicator = bindValue.ToNumber().Int32Value(); //convert from Napi::Value to an int
-
     //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfndescprm.htm
     sqlReturnCode = SQLDescribeParam(
         stmth,               //SQLHSTMT StatementHandle
@@ -2379,96 +2502,241 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
       error = "SQLDescribeParm FAILED\n" + returnErrMsg(SQL_HANDLE_STMT, stmth);
       return -1;
     }
-    Napi::Value value = object.Get((uint32_t)0); // have to cast otherwise it complains about ambiguity
 
-    //validate the value is not undefined
-    if (value.IsUndefined())
-    { // if value is undefined convert it to null
-      error = "VALUE OF PARAMETER " + std::to_string(i + 1) + " IS UNDEFINED\n";
-      return -1;
-    }
+    if(params->Get(i).IsArray()) // For old BindParams APIs, parameters are 2-D array.
+    {
+      object = params->Get(i).As<Napi::Array>(); //Get a ? parameter from the array.
+      value = object.Get((uint32_t)0);  // have to cast otherwise it complains about ambiguity
+      ioValue = object.Get(1);
+      bindValue = object.Get(2);
 
-    if (bindIndicator == 0 || bindIndicator == 1)
-    { //Parameter is string or clob
-      std::string string = value.ToString().Utf8Value();
-      const char *cString = string.c_str();
-      param[i].valueType = SQL_C_CHAR;
-      if (param[i].io == SQL_PARAM_INPUT)
+      //validate io
+      if (!ioValue.IsNumber())
       {
-        param[i].buf = strdup(cString);
-        if (bindIndicator == 0)
-        { //CLOB
-          param[i].ind = strlen(cString);
+        error = "IO TYPE OF PARAMETER " + std::to_string(i + 1) + " IS INVALID";
+        return -1;
+      }
+
+      io = ioValue.ToNumber().Int32Value(); //convert from Napi::Value to an int
+
+      if (io != SQL_PARAM_INPUT && io != SQL_PARAM_OUTPUT && io != SQL_PARAM_INPUT_OUTPUT)
+      {
+        error = "IO TYPE OF PARAMETER " + std::to_string(i + 1) + " IS INVALID. SHOULD EQUAL PARAM INPUT, OUTPUT, OR INPUT_OUTPUT";
+        return -1;
+      }
+
+      //validate bindIndicator
+      if (!bindValue.IsNumber())
+      {
+        error = "BIND INDICATOR TYPE OF PARAMETER " + std::to_string(i + 1) + " IS INVALID\n";
+        return -1;
+      }
+      
+      param[i].io = io;
+      bindIndicator = bindValue.ToNumber().Int32Value(); //convert from Napi::Value to an int
+
+      //validate the value is not undefined
+      if (value.IsUndefined())
+      { // if value is undefined convert it to null
+        error = "VALUE OF PARAMETER " + std::to_string(i + 1) + " IS UNDEFINED\n";
+        return -1;
+      }
+
+      if (bindIndicator == 0 || bindIndicator == 1)
+      { //Parameter is string or clob
+        std::string string = value.ToString().Utf8Value();
+        const char *cString = string.c_str();
+        param[i].valueType = SQL_C_CHAR;
+        if (param[i].io == SQL_PARAM_INPUT)
+        {
+          param[i].buf = strdup(cString);
+          if (bindIndicator == 0)
+          { //CLOB
+            param[i].ind = strlen(cString);
+          }
+          else if (bindIndicator == 1)
+          { //NTS
+            param[i].ind = SQL_NTS;
+          }
         }
-        else if (bindIndicator == 1)
-        { //NTS
-          param[i].ind = SQL_NTS;
+        else if (param[i].io == SQL_PARAM_OUTPUT)
+        {
+          param[i].buf = (char *)calloc(param[i].paramSize + 1, sizeof(char));
+          param[i].ind = param[i].paramSize;
+        }
+        else if (param[i].io == SQL_PARAM_INPUT_OUTPUT)
+        {
+          param[i].buf = (char *)calloc(param[i].paramSize + 1, sizeof(char));
+          strcpy((char *)param[i].buf, cString);
+          if (bindIndicator == 0) //CLOB
+            param[i].ind = strlen(cString);
+          else if (bindIndicator == 1) //NTS
+            param[i].ind = SQL_NTS;
         }
       }
-      else if (param[i].io == SQL_PARAM_OUTPUT)
+      else if (bindIndicator == 2)
+      { //Parameter is Integer
+        int64_t *number = (int64_t *)malloc(sizeof(int64_t));
+        *number = value.ToNumber().Int32Value();
+        param[i].valueType = SQL_C_BIGINT;
+        param[i].buf = number;
+        param[i].ind = 0;
+      }
+      else if (bindIndicator == 3 || value.IsNull())
+      { //Parameter is NULL
+        param[i].valueType = SQL_C_DEFAULT;
+        param[i].ind = SQL_NULL_DATA;
+        void *dummy = nullptr;
+        param[i].buf = &dummy;
+      }
+      else if (bindIndicator == 4 || value.IsNumber())
+      { //Parameter is Decimal
+        double *number = (double *)malloc(sizeof(double));
+        *number = value.ToNumber();
+        param[i].valueType = SQL_C_DOUBLE;
+        param[i].buf = number;
+        param[i].ind = sizeof(double);
+        param[i].decDigits = 7;
+        param[i].paramSize = sizeof(double);
+      }
+      else if (bindIndicator == 5 || value.IsBoolean())
+      { //Parameter is Boolean
+        bool *boolean = (bool *)malloc(sizeof(bool));
+        *boolean = value.ToBoolean();
+        param[i].valueType = SQL_C_BIT;
+        param[i].buf = boolean;
+        param[i].ind = 0;
+      }
+      else if (bindIndicator == SQL_BINARY || bindIndicator == SQL_BLOB || value.IsBuffer())
+      { //Parameter is blob/binary
+        //convert into Napi::Buffer
+        Napi::Buffer<char> buffer = value.As<Napi::Buffer<char>>();
+        int bufferLength = buffer.Length();
+        param[i].valueType = SQL_C_BINARY;
+        //get a pointer to the buffer
+        char *bufferPtr = buffer.Data();
+        param[i].buf = bufferPtr;
+        param[i].ind = bufferLength;
+      }
+      else
+      { //bindIndicator did not match any cases
+        error = "BIND INDICATOR FOR PARAMETER " + std::to_string(i + 1) + "IS INVALID\n";
+        return -1;
+      }
+    }
+    else // params->Get(i) is not array. For new BindParameters APIs, parameters are 1-D array.
+    {
+      value = params->Get(i).As<Napi::Value>();
+      param[i].io = SQL_PARAM_INPUT_OUTPUT;
+
+      // Handle null and boolean individually.
+      if (value.IsNull())
+      { //Parameter is NULL
+        param[i].valueType = SQL_C_DEFAULT;
+        param[i].ind = SQL_NULL_DATA;
+        void *dummy = nullptr;
+        param[i].buf = &dummy;
+      }
+      else if (value.IsBoolean())
+      { //Parameter is Boolean
+        bool *boolean = (bool *)malloc(sizeof(bool));
+        *boolean = value.ToBoolean();
+        param[i].valueType = SQL_C_BIT;
+        param[i].buf = boolean;
+        param[i].ind = 0;
+      }
+      else switch(param[i].paramType)
       {
+      case SQL_SMALLINT:
+      case SQL_INTEGER:
+      case SQL_BIGINT:
+      {
+        int64_t *number = (int64_t *)malloc(sizeof(int64_t));
+        if(value.IsNumber())  // input param
+          *number = value.ToNumber().Int32Value();
+        param[i].valueType = SQL_C_BIGINT;
+        param[i].buf = number;
+        param[i].ind = 0;
+      }
+      break;
+      case SQL_DECIMAL:
+      case SQL_NUMERIC:
+      case SQL_REAL:
+      case SQL_FLOAT:
+      case SQL_DOUBLE:
+      case SQL_DECFLOAT:
+      {
+        double *number = (double *)malloc(sizeof(double));
+        if(value.IsNumber())  // input param
+          *number = value.ToNumber();
+        param[i].valueType = SQL_C_DOUBLE;
+        param[i].buf = number;
+        param[i].ind = sizeof(double);
+        param[i].decDigits = 7;
+        param[i].paramSize = sizeof(double);
+      }
+      break;
+      case SQL_VARBINARY:
+      case SQL_BINARY:
+      case SQL_BLOB:
+      {
+        param[i].valueType = SQL_C_BINARY;
+        if(value.IsBuffer())
+        {
+          Napi::Buffer<char> buffer = value.As<Napi::Buffer<char>>();
+          int bufferLength = buffer.Length();
+          if(bufferLength > 0)
+          {
+            //get a pointer to the buffer
+            char *bufferPtr = buffer.Data();
+            param[i].buf = bufferPtr;
+            param[i].ind = bufferLength;
+            break;
+          }
+        }
+        if(param[i].paramSize > 0) // bufferLength == 0 or value is ''
+        {
+          param[i].buf = (char *)malloc(param[i].paramSize);;
+          param[i].ind = param[i].paramSize;
+        }
+      }
+      break;
+      case SQL_CLOB:
+      {
+        param[i].valueType = SQL_C_CHAR;
         param[i].buf = (char *)calloc(param[i].paramSize + 1, sizeof(char));
+        if(value.IsString())
+        {
+          std::string string = value.ToString().Utf8Value();
+          const char *cString = string.c_str();
+          if(strlen(cString) > 0) 
+          {
+            strcpy((char *)param[i].buf, cString);
+            param[i].ind = strlen(cString);
+            break;
+          }
+        }
+        // value is '' -> output param
         param[i].ind = param[i].paramSize;
       }
-      else if (param[i].io == SQL_PARAM_INPUT_OUTPUT)
+      break;
+      default: // SQL_CHAR / SQL_VARCHAR / SQL_WCHAR / SQL_WVARCHAR
       {
+        param[i].valueType = SQL_C_CHAR;
+        param[i].ind = SQL_NTS;
         param[i].buf = (char *)calloc(param[i].paramSize + 1, sizeof(char));
-        strcpy((char *)param[i].buf, cString);
-        if (bindIndicator == 0) //CLOB
-          param[i].ind = strlen(cString);
-        else if (bindIndicator == 1) //NTS
-          param[i].ind = SQL_NTS;
+        if(value.IsString())
+        {
+          std::string string = value.ToString().Utf8Value();
+          const char *cString = string.c_str();
+          if(strlen(cString) > 0) 
+            strcpy((char *)param[i].buf, cString);
+        }
+      }
+      break;
       }
     }
-    else if (bindIndicator == 2)
-    { //Parameter is Integer
-      int64_t *number = (int64_t *)malloc(sizeof(int64_t));
-      *number = value.ToNumber().Int32Value();
-      param[i].valueType = SQL_C_BIGINT;
-      param[i].buf = number;
-      param[i].ind = 0;
-    }
-    else if (bindIndicator == 3 || value.IsNull())
-    { //Parameter is NULL
-      param[i].valueType = SQL_C_DEFAULT;
-      param[i].ind = SQL_NULL_DATA;
-      void *dummy = nullptr;
-      param[i].buf = &dummy;
-    }
-    else if (bindIndicator == 4 || value.IsNumber())
-    { //Parameter is Decimal
-      double *number = (double *)malloc(sizeof(double));
-      *number = value.ToNumber();
-      param[i].valueType = SQL_C_DOUBLE;
-      param[i].buf = number;
-      param[i].ind = sizeof(double);
-      param[i].decDigits = 7;
-      param[i].paramSize = sizeof(double);
-    }
-    else if (bindIndicator == 5 || value.IsBoolean())
-    { //Parameter is Boolean
-      bool *boolean = (bool *)malloc(sizeof(bool));
-      *boolean = value.ToBoolean();
-      param[i].valueType = SQL_C_BIT;
-      param[i].buf = boolean;
-      param[i].ind = 0;
-    }
-    else if (bindIndicator == SQL_BINARY || bindIndicator == SQL_BLOB || value.IsBuffer())
-    { //Parameter is blob/binary
-      //convert into Napi::Buffer
-      Napi::Buffer<char> buffer = value.As<Napi::Buffer<char>>();
-      int bufferLength = buffer.Length();
-      param[i].valueType = SQL_C_BINARY;
-      //get a pointer to the buffer
-      char *bufferPtr = buffer.Data();
-      param[i].buf = bufferPtr;
-      param[i].ind = bufferLength;
-    }
-    else
-    { //bindIndicator did not match any cases
-      error = "BIND INDICATOR FOR PARAMETER " + std::to_string(i + 1) + "IS INVALID\n";
-      return -1;
-    }
+    
     //link to doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnbndpm.htm
     sqlReturnCode = SQLBindParameter(
         stmth,              //SQLHSTMT statement handle
@@ -2480,7 +2748,7 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
         param[i].decDigits, //SQLDecimal Digits -Scale of the param
         param[i].buf,       //ParameterValuePtr -Points to buffer that contains actual data for param. OutParams are placed here.
         0,                  //SQLLEN BufferLength (Not Used in CLI)
-        &param[i].ind);     // SQLLEN* StrLen_or_IndPtr -length of the parameter marker value stored at ParameterValuePtr.
+        &param[i].ind);     //SQLLEN* StrLen_or_IndPtr -length of the parameter marker value stored at ParameterValuePtr.
 
     DEBUG(this, "SQLBindParameter(%d) TYPE[%2d] SIZE[%3d] DIGI[%d] IO[%d] IND[%3d] INDEX[%i]\n", sqlReturnCode, param[i].paramType, param[i].paramSize, param[i].decDigits, param[i].io, param[i].ind, i)
 

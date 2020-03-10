@@ -79,12 +79,7 @@ Then you can _require_ in your code, as shown below.
     const xmlOut = '';
 
     statement.prepare(sql, () => {
-      statement.bindParam([
-        [ipc, IN, CHAR],
-        [ctl, IN, CHAR],
-        [xmlIn, IN, CLOB],
-        [xmlOut, OUT, CLOB],
-      ], () => {
+      statement.bindParameters([ipc, ctl, xmlIn, xmlOut], () => {
         statement.execute((out) => { // 'out' is an array of output params
           for (let i = 0; i < out.length; i += 1) {
             console.log(out[i]);

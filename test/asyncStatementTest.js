@@ -40,7 +40,7 @@ describe('Statement Async Test', () => {
     });
   });
 
-  describe('async bindParams', () => {
+  describe('async bindParams (2-D array)', () => {
     it('associate parameter markers in an SQL statement to app variables', (done) => {
       const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
       const dbConn2 = new dbconn();
@@ -102,40 +102,140 @@ describe('Statement Async Test', () => {
     });
   });
 
-  describe('async execute', () => {
-      it('retrieves output params from stored proc', (done) => {
-        const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
-        const ipc = '*NA';
-        const ctl = '*here';
-        const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
-        const xmlOut = '';
-        const params = [
-          [ipc, IN, CHAR],
-          [ctl, IN, CHAR],
-          [xmlIn, IN, CLOB],
-          [xmlOut, OUT, CLOB],
-        ];
+  describe('async bindParams (1-D array)', () => {
+    it('associate parameter markers in an SQL statement to app variables', (done) => {
+      const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
+      const dbConn2 = new dbconn();
+      dbConn2.conn('*LOCAL');
+      const dbStmt2 = new dbstmt(dbConn2);
 
-        dbStmt.prepare(sql, (error) => {
+      const params = [9997, 'Doe', 'J D', '123 Broadway', 'Hope', 'WA', 98101, 2000, 1, 250, 0.00];
+
+      dbStmt.exec('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT', (result, error) => {
+        if (error) {
+          throw error;
+        }
+        let rowsBefore = result[0]['00001'];
+        rowsBefore = Number(rowsBefore);
+        dbStmt.close();
+
+        dbStmt2.prepare(sql, (error) => {
           if (error) {
             throw error;
           }
-          dbStmt.bindParam(params, (error) => {
+          dbStmt2.bindParam(params, (error) => {
             if (error) {
               throw error;
             }
-            dbStmt.execute((out, error) => {
+            expect(error).to.be.null;
+            dbStmt2.execute((out, error) => {
               if (error) {
                 throw error;
               }
               expect(error).to.be.null;
-              expect(out).to.be.a('array');
-              expect(out.length).to.be.eq(1);
-              done();
+              dbStmt2.close();
+              dbStmt = new dbstmt(dbConn);
+              dbStmt.exec('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT',
+                (result, error) => {
+                  if (error) {
+                    throw error;
+                  }
+                  let rowsAfter = result[0]['00001'];
+                  rowsAfter = Number(rowsAfter);
+                  expect(rowsAfter).to.equal(rowsBefore + 1);
+                  done();
+                });
             });
           });
         });
       });
+    });
+  });
+
+  describe('async bindParameters (1-D array)', () => {
+    it('associate parameter markers in an SQL statement to app variables', (done) => {
+      const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
+      const dbConn2 = new dbconn();
+      dbConn2.conn('*LOCAL');
+      const dbStmt2 = new dbstmt(dbConn2);
+
+      const params = [9997, 'Doe', 'J D', '123 Broadway', 'Hope', 'WA', 98101, 2000, 1, 250, 0.00];
+
+      dbStmt.exec('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT', (result, error) => {
+        if (error) {
+          throw error;
+        }
+        let rowsBefore = result[0]['00001'];
+        rowsBefore = Number(rowsBefore);
+        dbStmt.close();
+
+        dbStmt2.prepare(sql, (error) => {
+          if (error) {
+            throw error;
+          }
+          dbStmt2.bindParameters(params, (error) => {
+            if (error) {
+              throw error;
+            }
+            expect(error).to.be.null;
+            dbStmt2.execute((out, error) => {
+              if (error) {
+                throw error;
+              }
+              expect(error).to.be.null;
+              dbStmt2.close();
+              dbStmt = new dbstmt(dbConn);
+              dbStmt.exec('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT',
+                (result, error) => {
+                  if (error) {
+                    throw error;
+                  }
+                  let rowsAfter = result[0]['00001'];
+                  rowsAfter = Number(rowsAfter);
+                  expect(rowsAfter).to.equal(rowsBefore + 1);
+                  done();
+                });
+            });
+          });
+        });
+      });
+    });
+  });
+
+  describe('async execute', () => {
+    it('retrieves output params from stored proc', (done) => {
+      const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
+      const ipc = '*NA';
+      const ctl = '*here';
+      const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
+      const xmlOut = '';
+      const params = [
+        [ipc, IN, CHAR],
+        [ctl, IN, CHAR],
+        [xmlIn, IN, CLOB],
+        [xmlOut, OUT, CLOB],
+      ];
+
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
+          throw error;
+        }
+        dbStmt.bindParam(params, (error) => {
+          if (error) {
+            throw error;
+          }
+          dbStmt.execute((out, error) => {
+            if (error) {
+              throw error;
+            }
+            expect(error).to.be.null;
+            expect(out).to.be.a('array');
+            expect(out.length).to.be.eq(1);
+            done();
+          });
+        });
+      });
+    });
 
     it('executes prepared statement returns null because no output params are available', (done) => {
       const sql = 'SELECT * FROM QIWS.QCUSTCDT WHERE BALDUE > ?';
@@ -157,6 +257,118 @@ describe('Statement Async Test', () => {
             }
             expect(error).to.be.null;
             expect(out).to.be.null;
+            done();
+          });
+        });
+      });
+    });
+  });
+
+  describe('async execute (1-D param array)', () => {
+    it('retrieves output params from stored proc', (done) => {
+      const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
+      const ipc = '*NA';
+      const ctl = '*here';
+      const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
+      const xmlOut = '';
+      const params = [ipc, ctl, xmlIn, xmlOut];
+
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
+          throw error;
+        }
+        dbStmt.bindParam(params, (error) => {
+          if (error) {
+            throw error;
+          }
+          dbStmt.execute((out, error) => {
+            if (error) {
+              throw error;
+            }
+            expect(error).to.be.null;
+            expect(out).to.be.a('array');
+            expect(out.length).to.be.eq(params.length);
+            done();
+          });
+        });
+      });
+    });
+
+    it('executes prepared statement returns null because no output params are available', (done) => {
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT WHERE BALDUE > ?';
+      const params = [ 10.00 ];
+
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
+          throw error;
+        }
+        dbStmt.bindParam(params, (error) => {
+          if (error) {
+            throw error;
+          }
+          dbStmt.execute((out, error) => {
+            if (error) {
+              throw error;
+            }
+            expect(error).to.be.null;
+            expect(out).to.be.a('array');
+            expect(out.length).to.be.eq(params.length);
+            done();
+          });
+        });
+      });
+    });
+  });
+
+  describe('async execute (bindParameters)', () => {
+    it('retrieves output params from stored proc', (done) => {
+      const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
+      const ipc = '*NA';
+      const ctl = '*here';
+      const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
+      const xmlOut = '';
+      const params = [ipc, ctl, xmlIn, xmlOut];
+
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
+          throw error;
+        }
+        dbStmt.bindParameters(params, (error) => {
+          if (error) {
+            throw error;
+          }
+          dbStmt.execute((out, error) => {
+            if (error) {
+              throw error;
+            }
+            expect(error).to.be.null;
+            expect(out).to.be.a('array');
+            expect(out.length).to.be.eq(params.length);
+            done();
+          });
+        });
+      });
+    });
+
+    it('executes prepared statement returns null because no output params are available', (done) => {
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT WHERE BALDUE > ?';
+      const params = [ 10.00 ];
+
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
+          throw error;
+        }
+        dbStmt.bindParameters(params, (error) => {
+          if (error) {
+            throw error;
+          }
+          dbStmt.execute((out, error) => {
+            if (error) {
+              throw error;
+            }
+            expect(error).to.be.null;
+            expect(out).to.be.a('array');
+            expect(out.length).to.be.eq(params.length);
             done();
           });
         });
