@@ -29,8 +29,10 @@
   - [dbstmt.execSync(sql [, callback])](#dbstmtexecsyncsql--callback)
   - [dbstmt.prepare(sql, callback)](#dbstmtpreparesql-callback)
   - [dbstmt.prepareSync(sql [, callback])](#dbstmtpreparesyncsql--callback)
-  - [dbstmt.bindParam(params, callback)](#dbstmtbindparamparams-callback)
-  - [dbstmt.bindParamSync(params [, callback])](#dbstmtbindparamsyncparams--callback)
+  - [dbstmt.bindParam(params, callback) [deprecated]](#dbstmtbindparamparams-callback-deprecated)
+  - [dbstmt.bindParamSync(params [, callback] [deprecated])](#dbstmtbindparamsyncparams--callback-deprecated)
+  - [dbstmt.bindParameters(params, callback)](#dbstmtbindparametersparams-callback)
+  - [dbstmt.bindParametersSync(params [, callback])](#dbstmtbindparameterssyncparams--callback)
   - [dbstmt.execute(callback)](#dbstmtexecutecallback)
   - [dbstmt.executeSync([callback])](#dbstmtexecutesynccallback)
   - [dbstmt.nextResult()](#dbstmtnextresult)
@@ -145,11 +147,7 @@ const ipc = '*NA';
 const ctl = '*here';
 const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
 const xmlOut = '';
-const params = [[ipc, IN, CHAR],
-  [ctl, IN, CHAR],
-  [xmlIn, IN, CLOB],
-  [xmlOut, OUT, CLOB],
-];
+const params = [ipc, ctl, xmlIn, xmlOut];
 
 connection.conn('*LOCAL');
 const statement = new dbstmt(connection);
@@ -158,7 +156,7 @@ statement.prepare(sql, (error) => {
   if (error) {
     throw error;
   }
-  statement.bindParam(params, (error) => {
+  statement.bindParameters(params, (error) => {
     if (error) {
       throw error;
     }
@@ -166,7 +164,7 @@ statement.prepare(sql, (error) => {
       if (error) {
         throw error;
       }
-      console.log(`Output Params:${out}\n`);
+      console.log(`Parameters: ${JSON.stringify(out)}`);
       statement.close();
       connection.disconn();
       connection.close();
@@ -192,22 +190,18 @@ const ipc = '*NA';
 const ctl = '*here';
 const xmlIn = `<xmlservice><sh>system 'wrksbs'</sh></xmlservice>`;
 const xmlOut = '';
-const params = [[ipc, IN, CHAR],
-  [ctl, IN, CHAR],
-  [xmlIn, IN, CLOB],
-  [xmlOut, OUT, CLOB],
-];
+const params = [ipc, ctl, xmlIn, xmlOut];
 
 connection.conn('*LOCAL');
 
 const statement = new dbstmt(connection);
 
 statement.prepareSync(sql);
-statement.bindParamSync(params);
+statement.bindParametersSync(params);
 
 const out = statement.executeSync();
 
-console.log(`Output Params:${out}\n`);
+console.log(`Parameters: ${JSON.stringify(out)}`);
 
 statement.close();
 connection.disconn();
@@ -800,7 +794,7 @@ If the statement handler has been used with a SELECT statement
 
 ___
 
-### dbstmt.bindParam(params, callback)
+### dbstmt.bindParam(params, callback) [deprecated]
 
 **Description:**
 
@@ -852,11 +846,9 @@ bindParam(params, callback)
 
 **Valid Scope:** In the callback function of the `prepare` function.
 
-**Example:** [Here](#async-prepare-bind-execute)
-
 ___
 
-### dbstmt.bindParamSync(params [, callback])
+### dbstmt.bindParamSync(params [, callback]) [deprecated]
 
 **Description:**
 
@@ -884,6 +876,75 @@ bindParamSync(params, callback)
 
 - **callback(error)**: `function` to process after `bindParamSync` is complete.
      - **error**: `Error object` when `bindParamSync` is unsuccessful. Otherwise `error` is set to `null`.
+
+**DB2 CLI API:** SQLBindParameter
+
+**Valid Scope:**
+
+- After calling the `prepareSync` function.
+- Before calling the `executeSync` function.
+
+___
+
+### dbstmt.bindParameters(params, callback)
+
+**Description:**
+
+Asynchronously associate (bind) parameter markers in an SQL statement to application variables.
+
+Data is transferred from the application to the Database Management System (DBMS) when `execute` function is called.
+
+Data conversion might occur when the data is transferred.
+
+This function must also be used to bind to a parameter of a stored procedure where the parameter can be: input, output, or both
+
+**Syntax:**
+
+bindParameters(params, callback)
+
+**Parameters:**
+
+- **params**: `array` representing the binding parameter list. 
+
+- **callback(error):** `function` to process after `bindParameters` is complete.
+     - **error:** `Error object` when `bindParameters` is unsuccessful. Otherwise `error` is set to `null`.
+
+**DB2 CLI API:** SQLBindParameter
+
+**Valid Scope:** In the callback function of the `prepare` function.
+
+**Example:** [Here](#async-prepare-bind-execute)
+
+___
+
+### dbstmt.bindParameterSync(params [, callback])
+
+**Description:**
+
+Synchronous version of `bindParameters`.
+
+**Syntax 1:**
+
+bindParameterSync(params)
+
+**Parmeters:**
+
+- **params**: as described in [bindParameters](#dbstmtbindparametersparams-callback)
+
+**Returns:**
+
+`void` no return type, if an error occurred it will be thrown.
+
+**Syntax 2:**
+
+bindParameterSync(params, callback)
+
+**Parameters**
+
+- **params**: as described in [bindParameters](#dbstmtbindparametersparams-callback)
+
+- **callback(error)**: `function` to process after `bindParameterSync` is complete.
+     - **error**: `Error object` when `bindParameterSync` is unsuccessful. Otherwise `error` is set to `null`.
 
 **Example:** [Here](#sync-prepare-bind-execute)
 

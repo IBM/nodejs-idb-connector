@@ -45,6 +45,7 @@ class DbStmt : public Napi::ObjectWrap<DbStmt>
   friend class ExecAsyncWorker;
   friend class PrepareAsyncWorker;
   friend class BindParamAsyncWorker;
+  friend class BindParametersAsyncWorker;
   friend class ExecuteAsyncWorker;
   friend class FetchAsyncWorker;
   friend class FetchAllAsyncWorker;
@@ -67,6 +68,9 @@ private:
 
   void BindParam(const Napi::CallbackInfo &info);
   void BindParamSync(const Napi::CallbackInfo &info);
+
+  void BindParameters(const Napi::CallbackInfo &info);
+  void BindParametersSync(const Napi::CallbackInfo &info);
 
   void Execute(const Napi::CallbackInfo &info);
   Napi::Value ExecuteSync(const Napi::CallbackInfo &info);
