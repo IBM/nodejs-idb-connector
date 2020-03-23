@@ -80,7 +80,7 @@ Then you can _require_ in your code, as shown below.
 
     statement.prepare(sql, () => {
       statement.bindParameters([ipc, ctl, xmlIn, xmlOut], () => {
-        statement.execute((out) => { // 'out' is an array of output params
+        statement.execute((out) => {
           for (let i = 0; i < out.length; i += 1) {
             console.log(out[i]);
           }
