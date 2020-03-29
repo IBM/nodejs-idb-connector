@@ -1,4 +1,23 @@
 # idb-connector changelog
+## 1.2.7
+- [dbstmt] add new simplified API bindParameters ( #111 )
+- [dbstmt] fix: Free LOB locators using CLI functions ( #110 )
+
+For the details of the new API bindParameters, please refer to the manual and the new example.
+The old API bindParams will be deprecated accordingly.
+
+## 1.2.6
+- [dbstmt] Refine data length assumptions (#104)
+- [dbconn] Have dbconn.close disconnect if connected (#106)
+- [ci] Use the enhancement label for the feature template
+
+## 1.2.5
+- [dbstmt] Fix incorrect float value returned from procedures (#99)
+- [dbstmt] Enable returning SQL_DOUBLE type as a JS Number (#104)
+- [dberror] Check SQLState and SQLCode when query success with info
+- [test] Refine test cases
+- [ci] Add issue template (#100)
+
 ## 1.2.4
 - [dbstmt] detect inconsistent data (#94)
 - [dberror] move all debugging functions to dberror.h
