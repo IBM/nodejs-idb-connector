@@ -2732,8 +2732,10 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
         {
           std::string string = value.ToString().Utf8Value();
           const char *cString = string.c_str();
-          if(strlen(cString) > 0) 
+          if(strlen(cString) > 0) {
             strcpy((char *)param[i].buf, cString);
+            param[i].ind = strlen(cString);
+          }
         }
       }
       break;
