@@ -1,4 +1,7 @@
 # idb-connector changelog
+## 1.2.8
+- [dbstmt] fix: select-insert when binding strings ( #114 )
+
 ## 1.2.7
 - [dbstmt] add new simplified API bindParameters ( #111 )
 - [dbstmt] fix: Free LOB locators using CLI functions ( #110 )
