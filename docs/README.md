@@ -52,6 +52,7 @@
   - [dbstmt.fieldName(index)](#dbstmtfieldnameindex)
   - [dbstmt.fieldPrecise(index)](#dbstmtfieldpreciseindex)
   - [dbstmt.fieldScale(index)](#dbstmtfieldscaleindex)
+  - [dbstmt.fieldInfo(index)](#dbstmtfieldinfoindex)
   - [dbstmt.stmtError(callback)](#dbstmtstmterrorcallback)
   - [dbstmt.asNumber(flag)](#dbstmtasnumberflag)
 
@@ -1451,6 +1452,35 @@ fieldScale(index)
 **Returns:**
 
 `number(integer)` indicating the scale of the specified column in the result set.
+
+**DB2 CLI API:** SQLColAttribute
+
+**Valid Scope:** When the result set is available.
+___
+
+### dbstmt.fieldInfo(index)
+**Description:**
+
+If a valid index is provided, `fieldInfo` returns the information of the indicated column.
+
+**Syntax:**
+
+fieldInfo(index)
+
+**Parameters:**
+
+- **index:** `number(integer)` the column number in a result set, ordered sequentially left to right, starting at 0.
+
+**Returns:**
+
+An `object` indicating the information of the specified column in the result set. It contains following fields:
+- `Name(string)` indicating the name of the specified column in the result set.
+- `Type(number)` indicating the data type of the specified column in the result set.
+- `TypeName(string)` indicating the data type name of the specified column in the result set.
+- `Width(number)` indicating the width of the specified column in the result set.
+- `Precise(number)` indicating the precision of the specified column in the result set.
+- `Scale(number)` indicating the scale of the specified column in the result set.
+- `Nullable(boolean)` indicating if the column can be set to NULL.
 
 **DB2 CLI API:** SQLColAttribute
 

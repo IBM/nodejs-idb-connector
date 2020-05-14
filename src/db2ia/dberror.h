@@ -104,65 +104,67 @@ static const char* getSQLType(int sqlType)
 {
     switch (sqlType)
     {
-    case SQL_CHAR:
+    case SQL_CHAR:          // SQL_CHAR(SQL_CODE_DATE) = 1
         return "CHAR";
-    case SQL_NUMERIC:
+    case SQL_NUMERIC:       // SQL_NUMERIC(SQL_CODE_TIME) = 2
         return "NUMERIC";
-    case SQL_DECIMAL:
+    case SQL_DECIMAL:       // SQL_DECIMAL(SQL_CODE_TIMESTAMP) = 3
         return "DECIMAL";
-    case SQL_INTEGER:
+    case SQL_INTEGER:       // SQL_INTEGER = 4
         return "INTEGER";
-    case SQL_SMALLINT:
+    case SQL_SMALLINT:      // SQL_SMALLINT = 5
         return "SMALLINT";
-    case SQL_FLOAT:
+    case SQL_FLOAT:         // SQL_FLOAT = 6
         return "FLOAT";
-    case SQL_REAL:
+    case SQL_REAL:          // SQL_REAL = 7
         return "REAL";
-    case SQL_DOUBLE:
+    case SQL_DOUBLE:        // SQL_DOUBLE = 8
         return "DOUBLE";
-    case SQL_DATETIME:
+    case SQL_DATETIME:      // SQL_DATETIME = 9
         return "DATETIME";
-    case SQL_VARCHAR:
+    case SQL_VARCHAR:       // SQL_VARCHAR(SQL_LONGVARCHAR) = 12
         return "VARCHAR";
-    case SQL_BLOB:
+    case SQL_BLOB:          // SQL_BLOB = 13
         return "BLOB";
-    case SQL_CLOB:
+    case SQL_CLOB:          // SQL_CLOB = 14
         return "CLOB";
-    case SQL_DBCLOB:
+    case SQL_DBCLOB:        // SQL_DBCLOB = 15
         return "DBCLOB";
-    case SQL_DATALINK:
+    case SQL_DATALINK:      // SQL_DATALINK = 16
         return "DATALINK";
-    case SQL_WCHAR:
+    case SQL_WCHAR:         // SQL_WCHAR = 17
         return "WCHAR";
-    case SQL_WVARCHAR:
+    case SQL_WVARCHAR:      // SQL_WVARCHAR(SQL_WLONGVARCHAR) = 18
         return "WVARCHAR";
-    case SQL_BIGINT:
+    case SQL_BIGINT:        // SQL_BIGINT = 19
         return "BIGINT";
-    case SQL_BLOB_LOCATOR:
+    case SQL_BLOB_LOCATOR:  // SQL_BLOB_LOCATOR = 20
         return "BLOB_LOCATOR";
-    case SQL_CLOB_LOCATOR:
+    case SQL_CLOB_LOCATOR:  // SQL_CLOB_LOCATOR = 21
         return "CLOB_LOCATOR";
-    case SQL_DBCLOB_LOCATOR:
+    case SQL_DBCLOB_LOCATOR:// SQL_DBCLOB_LOCATOR = 22
         return "DBCLOB_LOCATOR";
-    case SQL_UTF8_CHAR:
+    case SQL_UTF8_CHAR:     // SQL_UTF8_CHAR = 23
         return "UTF8_CHAR";
-    case SQL_GRAPHIC:
+    case SQL_GRAPHIC:       // SQL_GRAPHIC = 95
         return "GRAPHIC";
-    case SQL_BINARY:
+    case SQL_VARGRAPHIC:    // SQL_VARGRAPHIC(SQL_LONGVARGRAPHIC) = 96
+        return "VARGRAPHIC";
+    case SQL_BINARY:        // SQL_BINARY = -2
         return "BINARY";
-    case SQL_VARBINARY:
+    case SQL_VARBINARY:     // SQL_VARBINARY(SQL_LONGVARBINARY) = -3
         return "VARBINARY";
-    case SQL_DATE:
+    case SQL_DATE:          // SQL_DATE(SQL_TYPE_DATE) = 91
         return "DATE";
-    case SQL_TIME:
+    case SQL_TIME:          // SQL_TIME(SQL_TYPE_TIME) = 92
         return "TIME";
-    case SQL_TIMESTAMP:
+    case SQL_TIMESTAMP:     // SQL_TIMESTAMP(SQL_TYPE_TIMESTAMP) = 93
         return "TIMESTAMP";
-    case SQL_ALL_TYPES:
+    case SQL_ALL_TYPES:     // SQL_ALL_TYPES = 0
         return "ALL_TYPES";
-    case SQL_DECFLOAT:
+    case SQL_DECFLOAT:      // SQL_DECFLOAT = -360
         return "DECFLOAT";
-    case SQL_XML:
+    case SQL_XML:           // SQL_XML = -370
         return "XML";
     default:
         return "UNKNOWN";

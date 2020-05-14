@@ -1,4 +1,7 @@
 # idb-connector changelog
+## 1.2.9
+- [dbstmt] add a new API fieldInfo ( #115 )
+
 ## 1.2.8
 - [dbstmt] fix: select-insert when binding strings ( #114 )
 

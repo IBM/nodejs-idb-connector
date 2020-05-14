@@ -83,6 +83,7 @@ Napi::Object DbStmt::Init(Napi::Env env, Napi::Object exports)
     InstanceMethod("fieldPrecise", &DbStmt::FieldPrecise),
     InstanceMethod("fieldScale", &DbStmt::FieldScale),
     InstanceMethod("fieldNullable", &DbStmt::FieldNullable),
+    InstanceMethod("fieldInfo", &DbStmt::FieldInfo),
 
     InstanceMethod("stmtError", &DbStmt::StmtError),
     InstanceMethod("getStmtDiag", &DbStmt::StmtError),
@@ -2051,6 +2052,43 @@ Napi::Value DbStmt::FieldNullable(const Napi::CallbackInfo &info)
   CHECK_WITH_RETURN((i >= this->colCount || i < 0), INVALID_PARAM_RANGE, "The input parameter is beyond the boundary.", env, env.Null());
 
   return Napi::Boolean::New(env, this->dbColumn[i].colNull == SQL_NULLABLE);
+}
+
+/*
+ *  DbStmt::FieldInfo
+ *    Description:
+ *      Returns all the informaton of the indicated column.
+ *    Parameters:
+ *      const Napi::CallbackInfo& info:
+ *        The information passed by Napi from the JavaScript call, including
+ *        arguments from the JavaScript function. In JavaScript, the
+ *        fieldInfo() function takes one argument, stored on the info
+ *        object.
+ *          info[0]: Number : the column number in a result set, ordered
+ *                            sequentially left to right, starting at 0.
+ *    Return: Object containing the information of the column.
+ */
+Napi::Value DbStmt::FieldInfo(const Napi::CallbackInfo &info)
+{
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env);
+
+  CHECK_WITH_RETURN((info.Length() != 1), INVALID_PARAM_NUM, "The fieldNullable() method only accepts one parameter.", env, env.Null());
+  CHECK_WITH_RETURN((!info[0].IsNumber()), INVALID_PARAM_TYPE, "Expected the first parameter to be a Number.", env, env.Null());
+  CHECK_WITH_RETURN((this->resultSetAvailable == false || this->colDescAllocated == false), RSSET_NOT_READY, "The Result set is unavailable. Try querying something first.", env, env.Null());
+
+  SQLSMALLINT i = info[0].ToNumber().Int32Value();
+  CHECK_WITH_RETURN((i >= this->colCount || i < 0), INVALID_PARAM_RANGE, "The input parameter is beyond the boundary.", env, env.Null());
+
+  Napi::Object fieldInfo = Napi::Object::New(env);
+  fieldInfo.Set(Napi::String::New(env, "Name"), Napi::String::New(env, dbColumn[i].name));
+  fieldInfo.Set(Napi::String::New(env, "Type"), Napi::Number::New(env, dbColumn[i].sqlType));
+  fieldInfo.Set(Napi::String::New(env, "TypeName"), Napi::String::New(env, getSQLType(dbColumn[i].sqlType)));
+  fieldInfo.Set(Napi::String::New(env, "Width"), Napi::Number::New(env, dbColumn[i].nameLength));
+  fieldInfo.Set(Napi::String::New(env, "Precise"), Napi::Number::New(env, dbColumn[i].colPrecise));
+  fieldInfo.Set(Napi::String::New(env, "Scale"), Napi::Number::New(env, dbColumn[i].colScale));
+  fieldInfo.Set(Napi::String::New(env, "Nullable"), Napi::Boolean::New(env, dbColumn[i].colNull == SQL_NULLABLE));
+  return fieldInfo;
 }
 
 /*
