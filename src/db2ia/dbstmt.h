@@ -97,6 +97,7 @@ private:
   Napi::Value FieldPrecise(const Napi::CallbackInfo &info);
   Napi::Value FieldScale(const Napi::CallbackInfo &info);
   Napi::Value FieldNullable(const Napi::CallbackInfo &info);
+  Napi::Value FieldInfo(const Napi::CallbackInfo &info);
 
   Napi::Value AsNumber(const Napi::CallbackInfo &info);
 

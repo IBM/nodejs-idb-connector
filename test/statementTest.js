@@ -297,6 +297,49 @@ describe('Statement Misc Test', () => {
   });
 
 
+  describe('fieldInfo', () => {
+    it('requires an int index parameter, returns the information of the indicated column', (done) => {
+      const sql = 'SELECT * FROM QIWS.QCUSTCDT';
+
+      dbStmt.prepare(sql, (error) => {
+        if (error) {
+          throw error;
+        }
+        dbStmt.execute((out, error) => {
+          if (error) {
+            throw error;
+          }
+          const col1 = dbStmt.fieldInfo(0);
+          const col2 = dbStmt.fieldInfo(1);
+          expect(col1).to.be.a('object');
+          expect(col2).to.be.a('object');
+          // console.log(JSON.stringify(col1, '', 2));
+          // console.log(JSON.stringify(col2, '', 2));
+          expect(col1).to.eql({
+            "Name": "CUSNUM",
+            "Type": 2,
+            "TypeName": "NUMERIC",
+            "Width": 7,
+            "Precise": 6,
+            "Scale": 0,
+            "Nullable": false
+          });
+          expect(col2).to.eql({
+            "Name": "LSTNAM",
+            "Type": 1,
+            "TypeName": "CHAR",
+            "Width": 7,
+            "Precise": 8,
+            "Scale": 0,
+            "Nullable": false
+          });
+          done();
+        });
+      });
+    });
+  });
+
+
   describe('stmtError', () => {
     it('Returns the diagnostic information ', (done) => {
       const sql = 'SELECT * FROM NOT.THERE';
