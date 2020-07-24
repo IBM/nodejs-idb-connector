@@ -64,9 +64,7 @@ Then you can _require_ in your code, as shown below.
 ### Example 3: Call stored procedures
 
 ```js
-    const {
-      dbconn, dbstmt, IN, OUT, CHAR, CLOB,
-    } = require('idb-connector');
+    const {dbconn, dbstmt} = require('idb-connector');
 
     const sql = 'CALL QXMLSERV.iPLUG512K(?,?,?,?)';
     const connection = new dbconn();
