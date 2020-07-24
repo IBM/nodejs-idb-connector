@@ -138,9 +138,7 @@ Calling a Stored Procedure
 
 ```javascript
 
-const {
-  dbconn, dbstmt, IN, OUT, CHAR, CLOB,
-} = require('idb-connector');
+const {dbconn, dbstmt} = require('idb-connector');
 
 const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
 const connection = new dbconn();
@@ -181,9 +179,7 @@ ___
 
 ```javascript
 
-const {
-  dbconn, dbstmt, IN, OUT, CLOB, CHAR,
-} = require('idb-connector');
+const {dbconn, dbstmt} = require('idb-connector');
 
 const sql = 'call QXMLSERV.iPLUG512K(?,?,?,?)';
 const connection = new dbconn();
