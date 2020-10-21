@@ -1,6 +1,7 @@
 # idb-connector changelog
 ## 1.2.10
-- [dbstmt] detect data length first to fix the truncation issue (#127)
+- [test] add test case for the input parameter truncation issue (#127)
+- [dbstmt] detect data length first to fix the messcode issue (#123)
 - [doc] update bindParameters examples (#121)
 
 ## 1.2.9

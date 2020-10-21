@@ -10,6 +10,8 @@ const {
     SQL_NO_DATA_FOUND,
     dbconn,
     dbstmt,
+    IN,
+    CHAR,
 } = db2a;
 
 describe('Misc Test', () => {
@@ -124,6 +126,38 @@ describe('Misc Test', () => {
                     });
                 });
             });
+        });
+    });
+
+    describe('The input parameter trunction issue', () => {
+        const sql_direct = `SELECT CITY FROM QIWS.QCUSTCDT WHERE CITY = 'Dallas2'`;
+        const sql_bind = `SELECT * FROM QIWS.QCUSTCDT WHERE CITY = ?`;
+        const params = [ [ 'Dallas2', IN, CHAR  ] ];
+
+        it(`execSync does not truncates the too long input parameter`, (done) => {
+            dbStmt.execSync(sql_direct, (result, error) => {
+                expect(error).to.be.null;
+                expect(result.length).to.equal(0);
+                done();
+            });
+        });
+
+        it(`bindParam truncates the too long input parameter`, (done) => {
+            dbStmt.prepareSync(sql_bind, (error) => {
+                expect(error).to.be.null;
+                dbStmt.bindParamSync(params, (error) => {
+                  expect(error).to.be.null;
+                  dbStmt.executeSync((out, error) => {
+                    expect(error).to.be.null;
+                    dbStmt.fetchAllSync((result, returnCode) => {
+                          expect(error).to.be.null;
+                          expect(result).to.be.a('array');
+                          expect(result.length).to.be.greaterThan(0);
+                          done();
+                      });
+                  });
+                });
+              });
         });
     });
 });

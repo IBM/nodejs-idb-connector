@@ -2590,18 +2590,17 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
       { //Parameter is string or clob
         std::string string = value.ToString().Utf8Value();
         const char *cString = string.c_str();
+        int str_length = strlen(cString);
+        if (str_length > param[i].paramSize)
+          str_length = param[i].paramSize;
         param[i].valueType = SQL_C_CHAR;
         if (param[i].io == SQL_PARAM_INPUT)
         {
-          param[i].buf = strdup(cString);
-          if (bindIndicator == 0)
-          { //CLOB
-            param[i].ind = strlen(cString);
-          }
-          else if (bindIndicator == 1)
-          { //NTS
+          param[i].buf = strndup(cString, str_length);
+          if (bindIndicator == 0) //CLOB
+            param[i].ind = str_length;
+          else if (bindIndicator == 1) //NTS
             param[i].ind = SQL_NTS;
-          }
         }
         else if (param[i].io == SQL_PARAM_OUTPUT)
         {
@@ -2611,9 +2610,9 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
         else if (param[i].io == SQL_PARAM_INPUT_OUTPUT)
         {
           param[i].buf = (char *)calloc(param[i].paramSize + 1, sizeof(char));
-          strcpy((char *)param[i].buf, cString);
+          strncpy((char *)param[i].buf, cString, str_length);
           if (bindIndicator == 0) //CLOB
-            param[i].ind = strlen(cString);
+            param[i].ind = str_length;
           else if (bindIndicator == 1) //NTS
             param[i].ind = SQL_NTS;
         }
