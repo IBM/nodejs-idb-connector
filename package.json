@@ -1,6 +1,6 @@
 {
   "name": "idb-connector",
-  "version": "1.2.9",
+  "version": "1.2.10",
   "description": "A Node.js DB2 driver for IBM i",
   "os": [
     "aix"
@@ -38,8 +38,16 @@
       "email": "abdirahim.musse@ibm.com"
     },
     {
+      "name": "Kevin Adler",
+      "email": "kadler@us.ibm.com"
+    },
+    {
       "name": "Aaron Bartell",
       "email": "aaronbartell@gmail.com"
+    },
+    {
+      "name": "Mark Irish",
+      "email": "mirish@ibm.com"
     }
   ],
   "dependencies": {

@@ -1,13 +1,17 @@
 # idb-connector changelog
+## 1.2.10
+- [dbstmt] detect data length first to fix the truncation issue (#127)
+- [doc] update bindParameters examples (#121)
+
 ## 1.2.9
-- [dbstmt] add a new API fieldInfo ( #115 )
+- [dbstmt] add a new API fieldInfo (#115)
 
 ## 1.2.8
-- [dbstmt] fix: select-insert when binding strings ( #114 )
+- [dbstmt] fix: select-insert when binding strings (#114)
 
 ## 1.2.7
-- [dbstmt] add new simplified API bindParameters ( #111 )
-- [dbstmt] fix: Free LOB locators using CLI functions ( #110 )
+- [dbstmt] add new simplified API bindParameters (#111)
+- [dbstmt] fix: Free LOB locators using CLI functions (#110)
 
 For the details of the new API bindParameters, please refer to the manual and the new example.
 The old API bindParams will be deprecated accordingly.

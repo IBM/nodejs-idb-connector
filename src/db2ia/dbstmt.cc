@@ -2474,7 +2474,10 @@ int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array)
             break;
           }
         default:
-          value = Napi::String::New(env, resultSetInC[row][col].data);
+          if (resultSetInC[row][col].rlength > 0)
+            value = Napi::String::New(env, resultSetInC[row][col].data, resultSetInC[row][col].rlength);
+          else
+            value = Napi::String::New(env, resultSetInC[row][col].data);
           break;
         }
       }
