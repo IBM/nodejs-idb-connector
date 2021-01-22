@@ -2589,32 +2589,19 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
       if (bindIndicator == 0 || bindIndicator == 1)
       { //Parameter is string or clob
         std::string string = value.ToString().Utf8Value();
+        size_t str_length = string.length();
         const char *cString = string.c_str();
-        int str_length = strlen(cString);
-        if (str_length > param[i].paramSize)
-          str_length = param[i].paramSize;
         param[i].valueType = SQL_C_CHAR;
-        if (param[i].io == SQL_PARAM_INPUT)
+
+        if (param[i].io == SQL_PARAM_INPUT || param[i].io == SQL_PARAM_INPUT_OUTPUT)
         {
-          param[i].buf = strndup(cString, str_length);
-          if (bindIndicator == 0) //CLOB
-            param[i].ind = str_length;
-          else if (bindIndicator == 1) //NTS
-            param[i].ind = SQL_NTS;
+          param[i].buf = strdup(cString);
+          param[i].ind = str_length;
         }
         else if (param[i].io == SQL_PARAM_OUTPUT)
         {
           param[i].buf = (char *)calloc(param[i].paramSize + 1, sizeof(char));
           param[i].ind = param[i].paramSize;
-        }
-        else if (param[i].io == SQL_PARAM_INPUT_OUTPUT)
-        {
-          param[i].buf = (char *)calloc(param[i].paramSize + 1, sizeof(char));
-          strncpy((char *)param[i].buf, cString, str_length);
-          if (bindIndicator == 0) //CLOB
-            param[i].ind = str_length;
-          else if (bindIndicator == 1) //NTS
-            param[i].ind = SQL_NTS;
         }
       }
       else if (bindIndicator == 2)
@@ -2766,16 +2753,20 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
       default: // SQL_CHAR / SQL_VARCHAR / SQL_WCHAR / SQL_WVARCHAR
       {
         param[i].valueType = SQL_C_CHAR;
-        param[i].ind = SQL_NTS;
-        param[i].buf = (char *)calloc(param[i].paramSize + 1, sizeof(char));
+
         if(value.IsString())
         {
           std::string string = value.ToString().Utf8Value();
+          size_t str_length = string.length();
           const char *cString = string.c_str();
-          if(strlen(cString) > 0) {
-            strcpy((char *)param[i].buf, cString);
-            param[i].ind = strlen(cString);
-          }
+
+          param[i].buf = strdup(cString);
+          param[i].ind = str_length;
+        }
+        else
+        {
+          param[i].ind = SQL_NTS;
+          param[i].buf = (char *)calloc(param[i].paramSize + 1, sizeof(char));
         }
       }
       break;
