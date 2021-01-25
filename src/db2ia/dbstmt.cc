@@ -2589,7 +2589,7 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
       if (bindIndicator == 0 || bindIndicator == 1)
       { //Parameter is string or clob
         std::string string = value.ToString().Utf8Value();
-        int str_length = string.length();
+        size_t str_length = string.length();
         const char *cString = string.c_str();
         param[i].valueType = SQL_C_CHAR;
 
