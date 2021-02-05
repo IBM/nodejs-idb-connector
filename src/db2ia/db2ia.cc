@@ -11,6 +11,10 @@
 #include "dbstmt.h"
 SQLHENV envh;
 
+#ifndef SQL_ATTR_NON_HEXCCSID
+#define SQL_ATTR_NON_HEXCCSID 10203
+#endif
+
 #endif
 
 Napi::Object InitAll(Napi::Env env, Napi::Object exports)
