@@ -48,6 +48,12 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports)
                                 SQL_ATTR_SERVER_MODE, // SQLINTEGER Attribute - Enable Server Mode by default
                                 &param,               // SQLPOINTER Value Appropriate value for Attribute
                                 0);                   //SQLINTEGER StringLength of Value in bytes if the attribute value is a character string
+  
+  // SQL_ATTR_NON_HEXCCSID will change the job CCSID to the default job CCSID if
+  // the the job CCSID is 65535. The default job CCSID is guaranteed to be a
+  // non-65535 CCSID. This would help us avoid the common error:
+  // "Character conversion between CCSID 1208 and CCSID 65535 not valid"
+  sqlReturnCode = SQLSetEnvAttr(envh, SQL_ATTR_NON_HEXCCSID, &param, 0);
 
   DbConn::Init(env, exports, envh);
   DbStmt::Init(env, exports);
