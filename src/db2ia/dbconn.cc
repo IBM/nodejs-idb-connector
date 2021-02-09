@@ -21,6 +21,7 @@ Napi::Object DbConn::Init(Napi::Env env, Napi::Object exports, SQLHENV envh2)
     InstanceMethod("validStmt", &DbConn::ValidStmt),
     InstanceMethod("debug", &DbConn::Debug),
     InstanceMethod("isConnected", &DbConn::IsConnected),
+    InstanceMethod("getJobName", &DbConn::GetJobName),
   });
 
   constructor = Napi::Persistent(constructorfunc);
@@ -434,4 +435,49 @@ Napi::Value DbConn::IsConnected(const Napi::CallbackInfo &info)
   Napi::HandleScope scope(env);
 
   return Napi::Boolean::New(env, this->connected);
+}
+
+/*
+ *  DbConn::GetJobName
+ *    Description: Retrieves the qualified job name for the connection
+ *    Parameters: 
+ *      const Napi::CallbackInfo& info:
+ *        The information passed by Napi from the JavaScript call, including
+ *        arguments from the JavaScript function. In JavaScript, the exported
+ *        function takes 0 arguments.
+ *    Returns: string the qualified job name for the connection.
+ * 
+ */
+Napi::Value DbConn::GetJobName(const Napi::CallbackInfo &info)
+{
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env);
+  CHECK_WITH_RETURN(this->connAllocated == false, CONN_NOT_READY, "Expected Connection to be allocated first, you can do so by using conn()", env, env.Null())
+  CHECK_WITH_RETURN(!this->connected, CONN_NOT_READY, "The Dbconn Object is not connected", env, env.Null());
+
+  /*
+   * https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/rzaks/rzaksjobnamesyntax.htm
+   * Job Name Syntax: number/user/name
+   * 6 digits (as chars) + '/' + 10 chars + '/' + 10 chars + '\0'  = 29 bytes
+   * e.g. 762026/QUSER/QSQSRVR
+  */
+  SQLCHAR qualifiedJobName[29];
+  SQLSMALLINT cbInfoValueMax = (SQLSMALLINT)29;
+  SQLSMALLINT pcbInfoValue;
+  https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_73/cli/rzadpfnginfo.htm
+  SQLRETURN sqlReturnCode = SQLGetInfo(
+                      this->connh, // SQLHDBC hdbc - Database connection handle
+                      SQL_CONNECTION_JOB_NAME, //SQLSMALLINT fInfoType - Type of the required information
+                      &qualifiedJobName, // SQLPOINTER rgbInfoValue - Pointer to buffer where this function stores the required information.
+                      cbInfoValueMax, // SQLSMALLINT cbInfoValueMax - 	The maximum length of the buffer pointed by rgbInfoValue pointer.
+                      &pcbInfoValue); // SQLSMALLINT *pcbInfoValue - Pointer to location where this function returns the total number of bytes available to return the required information
+
+  DEBUG(this, "SQLSQLGetInfo[%d]\n", sqlReturnCode);
+
+  if (sqlReturnCode != SQL_SUCCESS)
+  {
+    throwErrMsg(SQL_HANDLE_DBC, connh, env);
+    return env.Null();
+  }
+  return Napi::String::New(env, qualifiedJobName);
 }
