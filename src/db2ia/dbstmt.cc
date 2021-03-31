@@ -271,6 +271,14 @@ public:
                                   sqlStatement,             //SQLCHAR* szSQLStr -SQL statement string
                                   SQL_NTS);                 //SQLINTEGER cbSQlStr -Length of szSQLStr
     DEBUG(dbStatementObject, "SQLExecDirect(%d): %s\n", sqlReturnCode, sqlStatement);
+    // Return codes:
+    //  - SQL_SUCCESS
+    //  - SQL_SUCCESS_WITH_INFO
+    //  - SQL_ERROR
+    //  - SQL_INVALID_HANDLE
+    //  - SQL_NO_DATA_FOUND
+    // SQL_NO_DATA_FOUND is returned if the SQL statement is a Searched UPDATE 
+    // or Searched DELETE and no rows satisfy the search condition.
     if (sqlReturnCode == SQL_SUCCESS_WITH_INFO)
     {
       sqlError errObj = returnErrObj(SQL_HANDLE_STMT, dbStatementObject->stmth);
@@ -281,7 +289,7 @@ public:
         dbStatementObject->resultSetAvailable = true;
       }
     }
-    else if (sqlReturnCode != SQL_SUCCESS)
+    else if (sqlReturnCode != SQL_SUCCESS && sqlReturnCode != SQL_NO_DATA_FOUND)
     {
       std::string errorMessage = returnErrMsg(SQL_HANDLE_STMT, dbStatementObject->stmth);
       SetError(errorMessage);
@@ -1002,7 +1010,15 @@ public:
     //Doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnexec.htm
     sqlReturnCode = SQLExecute(dbStatementObject->stmth); //SQLHSTMT hstmt -Statement Handle
     DEBUG(dbStatementObject, "SQLExecuteAsync(%d):\n", sqlReturnCode);
-
+    // Return codes
+    //  - SQL_SUCCESS
+    //  - SQL_SUCCESS_WITH_INFO
+    //  - SQL_ERROR
+    //  - SQL_INVALID_HANDLE
+    //  - SQL_NO_DATA_FOUND
+    //  - SQL_NEED_DATA
+    // SQL_NO_DATA_FOUND is returned if the SQL statement is a Searched UPDATE
+    // or Searched DELETE and no rows satisfy the search condition.
     if (sqlReturnCode == SQL_SUCCESS_WITH_INFO)
     {
       sqlError errObj = returnErrObj(SQL_HANDLE_STMT, dbStatementObject->stmth);
@@ -1012,7 +1028,7 @@ public:
         dbStatementObject->resultSetAvailable = true;
       }
     }
-    else if (sqlReturnCode != SQL_SUCCESS)
+    else if (sqlReturnCode != SQL_SUCCESS && sqlReturnCode != SQL_NO_DATA_FOUND)
     {
       std::string errorMessage = returnErrMsg(SQL_HANDLE_STMT, dbStatementObject->stmth);
       if (errorMessage.length() != 0)
