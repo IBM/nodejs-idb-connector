@@ -1,4 +1,8 @@
 # idb-connector changelog
+## 1.2.11
+- [build] rebuild idb-connector with GCC10 to support Node.js v16.x (#141)
+- [fix] UTF-8 data not properly formed error (#129)
+
 ## 1.2.10
 - [test] add test case for the input parameter truncation issue (#127)
 - [dbstmt] detect data length first to fix the messcode issue (#123)
