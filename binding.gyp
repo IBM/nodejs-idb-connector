@@ -33,11 +33,11 @@
                 'ldflags': [ 
                   '-Wl,-bbigtoc', 
                   '-Wl,-brtl', 
-                  '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib:/opt/freeware/lib'
+                  '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib'
                 ],
                 'link_settings': {
                   'libraries': [
-                    '-L/QOpenSys/pkgs/lib:/QOpenSys/usr/lib:/opt/freeware/lib',
+                    '-L/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
                     '-ldb400'
                   ],
                 }
