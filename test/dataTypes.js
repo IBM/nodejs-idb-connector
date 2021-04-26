@@ -84,287 +84,287 @@ describe('Data Type Test', () => {
   });
 
 
-  describe('bind parameters blob/binary/varbinary', () => {
-    it('create tables for test', (done) => {
-      const user = (process.env.USER).toUpperCase();
-      const sql = [
-        `CREATE SCHEMA ${user}`,
-        `CREATE OR REPLACE TABLE ${user}.BLOBTEST(BLOB_COLUMN BLOB(512k))`,
-        `CREATE OR REPLACE TABLE ${user}.BINARYTEST(BINARY_COLUMN BINARY(5000))`,
-        `CREATE OR REPLACE TABLE ${user}.VARBINTEST(VARBINARY_COLUMN VARBINARY(5000))`
-      ];
-      for (let i = 0; i < sql.length; i++) {
-        dbStmt.execSync(sql[i], (result, err) => { });
-        dbStmt.closeCursor();
-      }
-      done();
-    });
+  // describe('bind parameters blob/binary/varbinary', () => {
+  //   it('create tables for test', (done) => {
+  //     const user = (process.env.USER).toUpperCase();
+  //     const sql = [
+  //       `CREATE SCHEMA IF NOT EXISTS ${user}`,
+  //       `CREATE OR REPLACE TABLE ${user}.BLOBTEST(BLOB_COLUMN BLOB(512k))`,
+  //       `CREATE OR REPLACE TABLE ${user}.BINARYTEST(BINARY_COLUMN BINARY(5000))`,
+  //       `CREATE OR REPLACE TABLE ${user}.VARBINTEST(VARBINARY_COLUMN VARBINARY(5000))`
+  //     ];
+  //     for (let i = 0; i < sql.length; i++) {
+  //       dbStmt.execSync(sql[i], (result, err) => { });
+  //       dbStmt.closeCursor();
+  //     }
+  //     done();
+  //   });
 
-    it('runs SQLExecute and to bind blob', (done) => {
-      const user = (process.env.USER).toUpperCase();
-      // Table which only contains one BLOB(512k) Field
-      const sql = `INSERT INTO ${user}.BLOBTEST(BLOB_COLUMN) VALUES(?)`;
-      fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
-        if (error) {
-          throw error;
-        }
-        dbStmt.prepare(sql, (error) => {
-          if (error) {
-            throw error;
-          }
-          dbStmt.bindParam([[buffer, IN, BLOB]], (error) => {
-            if (error) {
-              throw error;
-            }
-            dbStmt.execute((result, error) => {
-              if (error) {
-                console.log(util.inspect(error));
-                throw error;
-              }
-              expect(error).to.be.null;
-              done();
-            });
-          });
-        });
-      });
-    });
-
-
-    it('runs SQLExecute and to bind blob (1-D array)', (done) => {
-      const user = (process.env.USER).toUpperCase();
-      // Table which only contains one BLOB(512k) Field
-      const sql = `INSERT INTO ${user}.BLOBTEST(BLOB_COLUMN) VALUES(?)`;
-      fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
-        if (error) {
-          throw error;
-        }
-        dbStmt.prepare(sql, (error) => {
-          if (error) {
-            throw error;
-          }
-          dbStmt.bindParam([buffer], (error) => {
-            if (error) {
-              throw error;
-            }
-            dbStmt.execute((result, error) => {
-              if (error) {
-                console.log(util.inspect(error));
-                throw error;
-              }
-              expect(error).to.be.null;
-              done();
-            });
-          });
-        });
-      });
-    });
+  //   it('runs SQLExecute and to bind blob', (done) => {
+  //     const user = (process.env.USER).toUpperCase();
+  //     // Table which only contains one BLOB(512k) Field
+  //     const sql = `INSERT INTO ${user}.BLOBTEST(BLOB_COLUMN) VALUES(?)`;
+  //     fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
+  //       if (error) {
+  //         throw error;
+  //       }
+  //       dbStmt.prepare(sql, (error) => {
+  //         if (error) {
+  //           throw error;
+  //         }
+  //         dbStmt.bindParam([[buffer, IN, BLOB]], (error) => {
+  //           if (error) {
+  //             throw error;
+  //           }
+  //           dbStmt.execute((result, error) => {
+  //             if (error) {
+  //               console.log(util.inspect(error));
+  //               throw error;
+  //             }
+  //             expect(error).to.be.null;
+  //             done();
+  //           });
+  //         });
+  //       });
+  //     });
+  //   });
 
 
-    it('runs SQLExecute and to bind blob (bindParameters)', (done) => {
-      const user = (process.env.USER).toUpperCase();
-      // Table which only contains one BLOB(512k) Field
-      const sql = `INSERT INTO ${user}.BLOBTEST(BLOB_COLUMN) VALUES(?)`;
-      fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
-        if (error) {
-          throw error;
-        }
-        dbStmt.prepare(sql, (error) => {
-          if (error) {
-            throw error;
-          }
-          dbStmt.bindParameters([buffer], (error) => {
-            if (error) {
-              throw error;
-            }
-            dbStmt.execute((result, error) => {
-              if (error) {
-                console.log(util.inspect(error));
-                throw error;
-              }
-              expect(error).to.be.null;
-              done();
-            });
-          });
-        });
-      });
-    });
+  //   it('runs SQLExecute and to bind blob (1-D array)', (done) => {
+  //     const user = (process.env.USER).toUpperCase();
+  //     // Table which only contains one BLOB(512k) Field
+  //     const sql = `INSERT INTO ${user}.BLOBTEST(BLOB_COLUMN) VALUES(?)`;
+  //     fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
+  //       if (error) {
+  //         throw error;
+  //       }
+  //       dbStmt.prepare(sql, (error) => {
+  //         if (error) {
+  //           throw error;
+  //         }
+  //         dbStmt.bindParam([buffer], (error) => {
+  //           if (error) {
+  //             throw error;
+  //           }
+  //           dbStmt.execute((result, error) => {
+  //             if (error) {
+  //               console.log(util.inspect(error));
+  //               throw error;
+  //             }
+  //             expect(error).to.be.null;
+  //             done();
+  //           });
+  //         });
+  //       });
+  //     });
+  //   });
 
 
-    it('runs SQLExecute and to bind binary', (done) => {
-      const user = (process.env.USER).toUpperCase();
-      // Table which only contains one BLOB(10) Field
-      const sql = `INSERT INTO ${user}.BINARYTEST(BINARY_COLUMN) VALUES(?)`;
-      fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
-        if (error) {
-          throw error;
-        }
-        dbStmt.prepare(sql, (error) => {
-          if (error) {
-            throw error;
-          }
-          dbStmt.bindParam([[buffer, IN, BINARY]], (error) => {
-            if (error) {
-              throw error;
-            }
-            dbStmt.execute((result, error) => {
-              if (error) {
-                throw error;
-              }
-              expect(error).to.be.null;
-              done();
-            });
-          });
-        });
-      });
-    });
+  //   it('runs SQLExecute and to bind blob (bindParameters)', (done) => {
+  //     const user = (process.env.USER).toUpperCase();
+  //     // Table which only contains one BLOB(512k) Field
+  //     const sql = `INSERT INTO ${user}.BLOBTEST(BLOB_COLUMN) VALUES(?)`;
+  //     fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
+  //       if (error) {
+  //         throw error;
+  //       }
+  //       dbStmt.prepare(sql, (error) => {
+  //         if (error) {
+  //           throw error;
+  //         }
+  //         dbStmt.bindParameters([buffer], (error) => {
+  //           if (error) {
+  //             throw error;
+  //           }
+  //           dbStmt.execute((result, error) => {
+  //             if (error) {
+  //               console.log(util.inspect(error));
+  //               throw error;
+  //             }
+  //             expect(error).to.be.null;
+  //             done();
+  //           });
+  //         });
+  //       });
+  //     });
+  //   });
 
 
-    it('runs SQLExecute and to bind binary (1-D array)', (done) => {
-      const user = (process.env.USER).toUpperCase();
-      // Table which only contains one BLOB(10) Field
-      const sql = `INSERT INTO ${user}.BINARYTEST(BINARY_COLUMN) VALUES(?)`;
-      fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
-        if (error) {
-          throw error;
-        }
-        dbStmt.prepare(sql, (error) => {
-          if (error) {
-            throw error;
-          }
-          dbStmt.bindParam([buffer], (error) => {
-            if (error) {
-              throw error;
-            }
-            dbStmt.execute((result, error) => {
-              if (error) {
-                throw error;
-              }
-              expect(error).to.be.null;
-              done();
-            });
-          });
-        });
-      });
-    });
+  //   it('runs SQLExecute and to bind binary', (done) => {
+  //     const user = (process.env.USER).toUpperCase();
+  //     // Table which only contains one BLOB(10) Field
+  //     const sql = `INSERT INTO ${user}.BINARYTEST(BINARY_COLUMN) VALUES(?)`;
+  //     fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
+  //       if (error) {
+  //         throw error;
+  //       }
+  //       dbStmt.prepare(sql, (error) => {
+  //         if (error) {
+  //           throw error;
+  //         }
+  //         dbStmt.bindParam([[buffer, IN, BINARY]], (error) => {
+  //           if (error) {
+  //             throw error;
+  //           }
+  //           dbStmt.execute((result, error) => {
+  //             if (error) {
+  //               throw error;
+  //             }
+  //             expect(error).to.be.null;
+  //             done();
+  //           });
+  //         });
+  //       });
+  //     });
+  //   });
 
 
-    it('runs SQLExecute and to bind binary (bindParameters)', (done) => {
-      const user = (process.env.USER).toUpperCase();
-      // Table which only contains one BLOB(10) Field
-      const sql = `INSERT INTO ${user}.BINARYTEST(BINARY_COLUMN) VALUES(?)`;
-      fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
-        if (error) {
-          throw error;
-        }
-        dbStmt.prepare(sql, (error) => {
-          if (error) {
-            throw error;
-          }
-          dbStmt.bindParameters([buffer], (error) => {
-            if (error) {
-              throw error;
-            }
-            dbStmt.execute((result, error) => {
-              if (error) {
-                throw error;
-              }
-              expect(error).to.be.null;
-              done();
-            });
-          });
-        });
-      });
-    });
+  //   it('runs SQLExecute and to bind binary (1-D array)', (done) => {
+  //     const user = (process.env.USER).toUpperCase();
+  //     // Table which only contains one BLOB(10) Field
+  //     const sql = `INSERT INTO ${user}.BINARYTEST(BINARY_COLUMN) VALUES(?)`;
+  //     fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
+  //       if (error) {
+  //         throw error;
+  //       }
+  //       dbStmt.prepare(sql, (error) => {
+  //         if (error) {
+  //           throw error;
+  //         }
+  //         dbStmt.bindParam([buffer], (error) => {
+  //           if (error) {
+  //             throw error;
+  //           }
+  //           dbStmt.execute((result, error) => {
+  //             if (error) {
+  //               throw error;
+  //             }
+  //             expect(error).to.be.null;
+  //             done();
+  //           });
+  //         });
+  //       });
+  //     });
+  //   });
 
 
-    it('runs SQLExecute and to bind varbinary', (done) => {
-      const user = (process.env.USER).toUpperCase();
-      // Table which only contains one VARBINARY(10) Field
-      const sql = `INSERT INTO ${user}.VARBINTEST(VARBINARY_COLUMN) VALUES(?)`;
-      fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
-        if (error) {
-          throw error;
-        }
-        dbStmt.prepare(sql, (error) => {
-          if (error) {
-            throw error;
-          }
-          dbStmt.bindParam([[buffer, IN, BLOB]], (error) => {
-            if (error) {
-              throw error;
-            }
-            dbStmt.execute((result, error) => {
-              if (error) {
-                console.log(util.inspect(error));
-                throw error;
-              }
-              expect(error).to.be.null;
-              done();
-            });
-          });
-        });
-      });
-    });
-  });
+  //   it('runs SQLExecute and to bind binary (bindParameters)', (done) => {
+  //     const user = (process.env.USER).toUpperCase();
+  //     // Table which only contains one BLOB(10) Field
+  //     const sql = `INSERT INTO ${user}.BINARYTEST(BINARY_COLUMN) VALUES(?)`;
+  //     fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
+  //       if (error) {
+  //         throw error;
+  //       }
+  //       dbStmt.prepare(sql, (error) => {
+  //         if (error) {
+  //           throw error;
+  //         }
+  //         dbStmt.bindParameters([buffer], (error) => {
+  //           if (error) {
+  //             throw error;
+  //           }
+  //           dbStmt.execute((result, error) => {
+  //             if (error) {
+  //               throw error;
+  //             }
+  //             expect(error).to.be.null;
+  //             done();
+  //           });
+  //         });
+  //       });
+  //     });
+  //   });
 
 
-  it('runs SQLExecute and to bind varbinary (1-D array)', (done) => {
-    const user = (process.env.USER).toUpperCase();
-    // Table which only contains one VARBINARY(10) Field
-    const sql = `INSERT INTO ${user}.VARBINTEST(VARBINARY_COLUMN) VALUES(?)`;
-    fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
-      if (error) {
-        throw error;
-      }
-      dbStmt.prepare(sql, (error) => {
-        if (error) {
-          throw error;
-        }
-        dbStmt.bindParam([buffer], (error) => {
-          if (error) {
-            throw error;
-          }
-          dbStmt.execute((result, error) => {
-            if (error) {
-              console.log(util.inspect(error));
-              throw error;
-            }
-            expect(error).to.be.null;
-            done();
-          });
-        });
-      });
-    });
-  });
+  //   it('runs SQLExecute and to bind varbinary', (done) => {
+  //     const user = (process.env.USER).toUpperCase();
+  //     // Table which only contains one VARBINARY(10) Field
+  //     const sql = `INSERT INTO ${user}.VARBINTEST(VARBINARY_COLUMN) VALUES(?)`;
+  //     fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
+  //       if (error) {
+  //         throw error;
+  //       }
+  //       dbStmt.prepare(sql, (error) => {
+  //         if (error) {
+  //           throw error;
+  //         }
+  //         dbStmt.bindParam([[buffer, IN, BLOB]], (error) => {
+  //           if (error) {
+  //             throw error;
+  //           }
+  //           dbStmt.execute((result, error) => {
+  //             if (error) {
+  //               console.log(util.inspect(error));
+  //               throw error;
+  //             }
+  //             expect(error).to.be.null;
+  //             done();
+  //           });
+  //         });
+  //       });
+  //     });
+  //   });
+  // });
 
-  it('runs SQLExecute and to bind varbinary (bindParameters)', (done) => {
-    const user = (process.env.USER).toUpperCase();
-    // Table which only contains one VARBINARY(10) Field
-    const sql = `INSERT INTO ${user}.VARBINTEST(VARBINARY_COLUMN) VALUES(?)`;
-    fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
-      if (error) {
-        throw error;
-      }
-      dbStmt.prepare(sql, (error) => {
-        if (error) {
-          throw error;
-        }
-        dbStmt.bindParameters([buffer], (error) => {
-          if (error) {
-            throw error;
-          }
-          dbStmt.execute((result, error) => {
-            if (error) {
-              console.log(util.inspect(error));
-              throw error;
-            }
-            expect(error).to.be.null;
-            done();
-          });
-        });
-      });
-    });
-  });
+
+  // it('runs SQLExecute and to bind varbinary (1-D array)', (done) => {
+  //   const user = (process.env.USER).toUpperCase();
+  //   // Table which only contains one VARBINARY(10) Field
+  //   const sql = `INSERT INTO ${user}.VARBINTEST(VARBINARY_COLUMN) VALUES(?)`;
+  //   fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
+  //     if (error) {
+  //       throw error;
+  //     }
+  //     dbStmt.prepare(sql, (error) => {
+  //       if (error) {
+  //         throw error;
+  //       }
+  //       dbStmt.bindParam([buffer], (error) => {
+  //         if (error) {
+  //           throw error;
+  //         }
+  //         dbStmt.execute((result, error) => {
+  //           if (error) {
+  //             console.log(util.inspect(error));
+  //             throw error;
+  //           }
+  //           expect(error).to.be.null;
+  //           done();
+  //         });
+  //       });
+  //     });
+  //   });
+  // });
+
+  // it('runs SQLExecute and to bind varbinary (bindParameters)', (done) => {
+  //   const user = (process.env.USER).toUpperCase();
+  //   // Table which only contains one VARBINARY(10) Field
+  //   const sql = `INSERT INTO ${user}.VARBINTEST(VARBINARY_COLUMN) VALUES(?)`;
+  //   fs.readFile(`${__dirname}/../README.md`, (error, buffer) => {
+  //     if (error) {
+  //       throw error;
+  //     }
+  //     dbStmt.prepare(sql, (error) => {
+  //       if (error) {
+  //         throw error;
+  //       }
+  //       dbStmt.bindParameters([buffer], (error) => {
+  //         if (error) {
+  //           throw error;
+  //         }
+  //         dbStmt.execute((result, error) => {
+  //           if (error) {
+  //             console.log(util.inspect(error));
+  //             throw error;
+  //           }
+  //           expect(error).to.be.null;
+  //           done();
+  //         });
+  //       });
+  //     });
+  //   });
+  // });
 
 
   describe('exec read blob test', () => {
