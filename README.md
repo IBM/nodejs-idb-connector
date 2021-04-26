@@ -4,6 +4,8 @@ The Node.js iDB Connector is an IBM i Node.js Db2 driver open source project fro
 
 [![NPM](https://nodei.co/npm/idb-connector.png?downloads=true&downloadRank=true)](https://nodei.co/npm/idb-connector/)
 
+![Node-API v3 Badge](https://github.com/nodejs/abi-stable-node/blob/doc/assets/Node-API%20v3%20Badge.svg)
+
 ## Installation
 
 ```sh
@@ -101,7 +103,7 @@ View [`CHANGELOG.md`](https://github.com/IBM/nodejs-idb-connector/blob/master/CH
 
 ## Build
 
-Note that building isn't necessary for end users and is more for developers looking to compile the native Node.js extensions (C code).
+Note that building isn't necessary for end-users and is more for developers looking to compile the native Node.js extensions (C code).
 
 ```sh
     git clone git@github.com:IBM/nodejs-idb-connector.git
@@ -109,7 +111,7 @@ Note that building isn't necessary for end users and is more for developers look
     npm install --build-from-source
 ```
 ## Build Dependencies
-Note: sqlcli header files, gcc, and python are required to compile the code.
+Note: sqlcli header files, GCC, and Python are required to compile the code.
 
 ```sh
     yum install sqlcli-devel

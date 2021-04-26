@@ -51,14 +51,14 @@
     }
   ],
   "dependencies": {
-    "node-addon-api": "^1.7.1",
+    "node-addon-api": "^3.1.0",
     "@mapbox/node-pre-gyp": "^1.0.4"
   },
   "devDependencies": {
     "bindings": "^1.5.0",
-    "chai": "^4.2.0",
+    "chai": "^4.3.4",
     "eslint": "^7.25.0",
-    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-config-airbnb-base": "^14.2.1",
     "eslint-plugin-import": "^2.22.1",
     "mocha": "^8.3.2"
   },
