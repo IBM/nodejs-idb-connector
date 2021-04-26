@@ -1,6 +1,9 @@
 # idb-connector changelog
+## 1.2.12
+- [fix] stop setting error for SQL_NO_DATA_FOUND (#138)
+- [build] fix compiler warnings (#132)
+
 ## 1.2.11
-- [build] rebuild idb-connector with GCC10 to support Node.js v16.x (#141)
 - [fix] UTF-8 data not properly formed error (#129)
 
 ## 1.2.10
