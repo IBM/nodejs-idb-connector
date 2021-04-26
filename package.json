@@ -52,15 +52,15 @@
   ],
   "dependencies": {
     "node-addon-api": "^1.7.1",
-    "node-pre-gyp": "^0.14.0"
+    "@mapbox/node-pre-gyp": "^1.0.4"
   },
   "devDependencies": {
     "bindings": "^1.5.0",
     "chai": "^4.2.0",
-    "eslint": "^5.14.1",
+    "eslint": "^7.25.0",
     "eslint-config-airbnb-base": "^13.1.0",
-    "eslint-plugin-import": "^2.16.0",
-    "mocha": "^6.2.2"
+    "eslint-plugin-import": "^2.22.1",
+    "mocha": "^8.3.2"
   },
   "bundledDependencies": [
     "node-pre-gyp"
