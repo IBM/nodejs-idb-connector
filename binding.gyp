@@ -24,6 +24,7 @@
                   '-std=c++0x',
                   '-Wno-unknown-pragmas',
                   '-Wno-format',
+                  '-Wno-unused-function',
                   '-gxcoff',
                   '-O0',
                   '-DNAPI_DISABLE_CPP_EXCEPTIONS',
