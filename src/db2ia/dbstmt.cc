@@ -1503,6 +1503,7 @@ Napi::Value DbStmt::FetchSync(const Napi::CallbackInfo &info)
       return row;
     }
   }
+  return env.Null();
 }
 
 /******************************************************************************

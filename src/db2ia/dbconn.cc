@@ -385,11 +385,12 @@ Napi::Value DbConn::ValidStmt(const Napi::CallbackInfo &info)
     throwErrMsg(SQL_HANDLE_DBC, connh, env);
     return env.Null();
   }
-  if (outLen < sizeof(outSqlSt))
+  if ((unsigned int)outLen < sizeof(outSqlSt))
   {
     outSqlSt[outLen] = '\0';
     return Napi::String::New(env, outSqlSt);
   }
+  return env.Null();
 }
 
 /*
