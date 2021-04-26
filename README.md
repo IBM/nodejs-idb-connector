@@ -4,7 +4,7 @@ The Node.js iDB Connector is an IBM i Node.js Db2 driver open source project fro
 
 [![NPM](https://nodei.co/npm/idb-connector.png?downloads=true&downloadRank=true)](https://nodei.co/npm/idb-connector/)
 
-![Node-API v3 Badge](https://github.com/nodejs/abi-stable-node/blob/doc/assets/Node-API%20v3%20Badge.svg)
+[![Node-API v3 Badge](https://github.com/nodejs/abi-stable-node/blob/doc/assets/Node-API%20v3%20Badge.svg)](https://nodejs.org/dist/latest/docs/api/n-api.html#n_api_node_api_version_matrix)
 
 ## Installation
 
