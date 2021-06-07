@@ -1,6 +1,6 @@
 {
   "name": "idb-connector",
-  "version": "1.2.12",
+  "version": "1.2.13",
   "description": "A Node.js DB2 driver for IBM i",
   "homepage": "https://github.com/IBM/nodejs-idb-connector",
   "author": "IBM",
@@ -39,8 +39,8 @@
     "install": "node-pre-gyp install --fallback-to-build"
   },
   "dependencies": {
-    "node-addon-api": "^3.1.0",
-    "@mapbox/node-pre-gyp": "^1.0.4"
+    "@mapbox/node-pre-gyp": "^1.0.4",
+    "node-addon-api": "^3.1.0"
   },
   "devDependencies": {
     "bindings": "^1.5.0",

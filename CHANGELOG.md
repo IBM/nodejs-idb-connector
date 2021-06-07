@@ -1,4 +1,7 @@
 # idb-connector changelog
+## 1.2.13
+- [build] support Node.js v16 (#141)
+
 ## 1.2.12
 - [fix] stop setting error for SQL_NO_DATA_FOUND (#138)
 - [build] fix compiler warnings (#132)
