@@ -21,6 +21,7 @@
   - [dbconn.close()](#dbconnclose)
   - [dbconn.debug(flag)](#dbconndebugflag)
   - [dbconn.validStmt(sql)](#dbconnvalidstmtsql)
+  - [dbconn.getJobName()](#dbconngetjobname)
 - [Class dbstmt](#class-dbstmt)
   - [Constructor: dbstmt(connection)](#constructor-dbstmtconnection)
   - [dbstmt.setStmtAttr(attribute, value)](#dbstmtsetstmtattrattribute-value)
@@ -552,6 +553,29 @@ validStmt(sql)
 `string` the transformed sql string upon success, otherwise an error is thrown.
 
 **DB2 CLI API:** SQLNativeSql
+
+**Valid Scope:** After calling `conn` function
+
+___
+
+### dbconn.getJobName()
+
+**Description:**
+
+Retrieves the qualified job name for the connection.
+
+View [job name syntax](https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/rzaks/rzaksjobnamesyntax.htm)
+for more information.
+
+**Syntax:**
+
+getJobName()
+
+**Returns:**
+
+`string` the qualified job name, otherwise an error is thrown.
+
+**DB2 CLI API:** SQLGetInfo
 
 **Valid Scope:** After calling `conn` function
 

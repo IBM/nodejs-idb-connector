@@ -50,6 +50,7 @@ private:
   Napi::Value ValidStmt(const Napi::CallbackInfo &info);
   Napi::Value Debug(const Napi::CallbackInfo &info);
   Napi::Value IsConnected(const Napi::CallbackInfo &info);
+  Napi::Value GetJobName(const Napi::CallbackInfo &info);
 
   static Napi::FunctionReference constructor;
   static SQLHENV envh;

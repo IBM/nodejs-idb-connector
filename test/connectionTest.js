@@ -166,4 +166,14 @@ describe('Connection Test', () => {
       expect(result).to.be.true;
     });
   });
+  describe('getJobName', () => {
+    it('retrieves qualified job name', () => {
+      const connection = new dbconn();
+      connection.conn('*LOCAL');
+      const jobName = connection.getJobName();
+      connection.close();
+      const pattern = /^\d{0,6}\/[A-Z]{0,10}\/[A-Z]{0,10}$/
+      expect(pattern.test(jobName)).to.be.true;
+    });
+  });
 });
