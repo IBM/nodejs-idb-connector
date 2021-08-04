@@ -442,7 +442,7 @@ Napi::Value DbStmt::ExecSync(const Napi::CallbackInfo &info)
       this->resultSetAvailable = true;
     }
   }
-  else if (sqlReturnCode != SQL_SUCCESS)
+  else if (sqlReturnCode != SQL_SUCCESS && sqlReturnCode != SQL_NO_DATA_FOUND)
   {
     if (length == 2)
     { // callback signature function(result , error)
