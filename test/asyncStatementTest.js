@@ -147,6 +147,60 @@ describe('Statement Async Test', () => {
                 });
             });
           });
+        })
+      });
+    });
+    it("should insert spaces into CHAR columns when given a Javascript empty-string.", done => {
+      const sql = `
+      INSERT INTO QIWS.QCUSTCDT (
+        CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE
+        )
+      VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE `;
+      const dbConn2 = new dbconn();
+      dbConn2.conn("*LOCAL");
+      const dbStmt2 = new dbstmt(dbConn2);
+      const params = [
+        9998,
+        "",
+        "",
+        "123 Broadway",
+        "Hope",
+        "WA",
+        98101,
+        2000,
+        1,
+        250,
+        0.0,
+      ];
+      dbStmt2.prepare(sql, error => {
+        if (error) {
+          throw error;
+        }
+        dbStmt2.bindParameters(params, error => {
+          if (error) {
+            throw error;
+          }
+          expect(error).to.be.null;
+          dbStmt2.execute((out, error) => {
+            if (error) {
+              throw error;
+            }
+            expect(error).to.be.null;
+            dbStmt2.close();
+            dbStmt = new dbstmt(dbConn);
+            dbStmt.exec(
+              "SELECT q.*, hex(lstnam) AS hexlstnam FROM QIWS.QCUSTCDT q where q.lstnam = '        '",
+              (result, error) => {
+                if (error) {
+                  throw error;
+                }
+                const rowsSelected = Number(result.length);
+
+                expect(rowsSelected).to.equal(1);
+                done();
+              } // }4040404040404040
+            );
+          });
         });
       });
     });
