@@ -2776,9 +2776,14 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
           std::string string = value.ToString().Utf8Value();
           size_t str_length = string.length();
           const char *cString = string.c_str();
-
+          
+          if (cString[0] == '\0') // Check for JS empty-string.
+           {
+            param[i].ind = SQL_NTS;
+          } else {
+            param[i].ind = str_length;
+          }
           param[i].buf = strdup(cString);
-          param[i].ind = str_length;
         }
         else
         {
