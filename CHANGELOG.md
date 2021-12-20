@@ -1,6 +1,10 @@
 # idb-connector changelog
+## 1.2.15
+- [fix] Check for Javascript empty-string in bindParams
+- [feat] Set SQL_ATTR_NON_HEXCCSID by default (#136)
+
 ## 1.2.14
-- [dbstmt] fix: No error return on SQL_NO_DATA_FOUND (sync) (#146)
+- [fix] No error return on SQL_NO_DATA_FOUND (sync) (#146)
 
 ## 1.2.13
 - [build] support Node.js v16 (#141)
