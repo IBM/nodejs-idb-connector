@@ -3,7 +3,7 @@
     {
       'target_name': 'db2ia',
       "conditions": [
-        ['OS=="aix"', {
+        ['OS in "aix os400"', {
           'variables': {
               'os_name': '<!(uname -s)',
             },
