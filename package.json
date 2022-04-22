@@ -26,6 +26,7 @@
     "Mark Irish <mirish@ibm.com> (https://github.com/markdirish)"
   ],
   "os": [
+    "os400",
     "aix"
   ],
   "gypfile": true,
