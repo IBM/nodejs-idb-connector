@@ -1,4 +1,8 @@
 # idb-connector changelog
+## 1.2.16
+- [build] Fix EBADPLATFORM build error on Node 18 / Python 3.9
+- [build] Support Python 3.9 changes
+
 ## 1.2.15
 - [fix] Check for Javascript empty-string in bindParams
 - [feat] Set SQL_ATTR_NON_HEXCCSID by default (#136)
