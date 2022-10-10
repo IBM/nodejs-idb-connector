@@ -2611,9 +2611,9 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
         param[i].valueType = SQL_C_CHAR;
         // CLI does not honor the buffer size parameter or the output size in the indicator
         // Make the buffer size is at least the size of parameter or the size of the string
-        param[i].buf = (char *)calloc(std::max(static_cast<size_t>(param[i].paramSize) + 1, str_length), sizeof(char));
+        param[i].buf = (char *)calloc(std::max(static_cast<size_t>(param[i].paramSize), str_length) + 1, sizeof(char));
         // Set the indicator to be SQL_NTS
-        // this helps in edge cases like empty string where indicator is set 0
+        // this helps in edge cases like empty string where indicator is set 0 (which CLI doesn't like for some reason)
         param[i].ind = SQL_NTS;
         if (param[i].io != SQL_PARAM_OUTPUT) {
             // for SQL_PARAM_INPUT and SQL_PARAM_INPUT_OUTPUT
@@ -2778,9 +2778,9 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
           const char *cString = string.c_str();
           // CLI does not honor the buffer size parameter or the output size in the indicator
           // Make the buffer size is at least the size of parameter or the size of the string
-          param[i].buf = (char *)calloc(std::max(static_cast<size_t>(param[i].paramSize) + 1, str_length), sizeof(char));
+          param[i].buf = (char *)calloc(std::max(static_cast<size_t>(param[i].paramSize), str_length) +1, sizeof(char));
           // set the indicator to be SQL_NTS
-          // this helps in edge cases like empty string where indicator is set 0
+          // this helps in edge cases like empty string where indicator is set 0 (which CLI doesn't like for some reason)
           param[i].ind = SQL_NTS;
           // SQL_PARAM_INPUT_OUTPUT is always set so
           // copy the string to the buffer
