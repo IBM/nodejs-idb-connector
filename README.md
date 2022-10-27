@@ -128,12 +128,10 @@ Note: sqlcli header files, GCC, and Python are required to compile the code.
    npm run build-release
 
 ```
+
 Create a new github release and attach the generated tar file in the `build` directory to the github release.
 
-After the release is created the [publish](.github/workflows/publish.yml) action will automatically publish the release to npm.
-
-
-
+After the release is created the [publish](.github/workflows/publish.yml) action will automatically publish to npm.
 
 ## License
 
