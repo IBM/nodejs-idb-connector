@@ -2609,16 +2609,17 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
         size_t str_length = string.length();
         const char *cString = string.c_str();
         param[i].valueType = SQL_C_CHAR;
+        // CLI does not honor the buffer size parameter or the output size in the indicator
+        // Ensure the buffer size is at least the size of parameter or the size of the string
 
-        if (param[i].io == SQL_PARAM_INPUT || param[i].io == SQL_PARAM_INPUT_OUTPUT)
-        {
-          param[i].buf = strdup(cString);
-          param[i].ind = str_length;
-        }
-        else if (param[i].io == SQL_PARAM_OUTPUT)
-        {
-          param[i].buf = (char *)calloc(param[i].paramSize + 1, sizeof(char));
-          param[i].ind = param[i].paramSize;
+        param[i].buf = (char *)calloc(std::max(static_cast<size_t>(param[i].paramSize), str_length) + 1, sizeof(char));
+        // Set the indicator to be SQL_NTS
+        // this helps in edge cases like empty string where indicator is set 0 (which CLI doesn't like for some reason)
+        param[i].ind = SQL_NTS;
+        if (param[i].io != SQL_PARAM_OUTPUT) {
+            // for SQL_PARAM_INPUT and SQL_PARAM_INPUT_OUTPUT
+            // copy the string to the buffer
+            strcpy((char*)param[i].buf, cString);
         }
       }
       else if (bindIndicator == 2)
@@ -2776,14 +2777,16 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
           std::string string = value.ToString().Utf8Value();
           size_t str_length = string.length();
           const char *cString = string.c_str();
-          
-          if (cString[0] == '\0') // Check for JS empty-string.
-           {
-            param[i].ind = SQL_NTS;
-          } else {
-            param[i].ind = str_length;
-          }
-          param[i].buf = strdup(cString);
+          // CLI does not honor the buffer size parameter or the output size in the indicator
+          // Ensure the buffer size is at least the size of parameter or the size of the string
+
+          param[i].buf = (char *)calloc(std::max(static_cast<size_t>(param[i].paramSize), str_length) + 1, sizeof(char));
+          // set the indicator to be SQL_NTS
+          // this helps in edge cases like empty string where indicator is set 0 (which CLI doesn't like for some reason)
+          param[i].ind = SQL_NTS;
+          // SQL_PARAM_INPUT_OUTPUT is always set so
+          // copy the string to the buffer
+          strcpy((char*)param[i].buf, cString);
         }
         else
         {
