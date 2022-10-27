@@ -2777,7 +2777,8 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
           size_t str_length = string.length();
           const char *cString = string.c_str();
           // CLI does not honor the buffer size parameter or the output size in the indicator
-          // Make the buffer size is at least the size of parameter or the size of the string
+          // Ensure the buffer size is at least the size of parameter or the size of the string
+
           param[i].buf = (char *)calloc(std::max(static_cast<size_t>(param[i].paramSize), str_length) + 1, sizeof(char));
           // set the indicator to be SQL_NTS
           // this helps in edge cases like empty string where indicator is set 0 (which CLI doesn't like for some reason)
