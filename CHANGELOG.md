@@ -1,4 +1,11 @@
 # idb-connector changelog
+
+## 1.2.17
+- build(deps): Update deps to latest version
+- build: Add package-lock.json
+- fix: Binding parameters issues (#157)
+- ci: Add npm publish action (#161)
+
 ## 1.2.16
 - [build] Fix EBADPLATFORM build error on Node 18 / Python 3.9
 - [build] Support Python 3.9 changes
