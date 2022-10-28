@@ -37,6 +37,7 @@
   },
   "scripts": {
     "test": "ln -sf ./build-tmp-napi-v3 ./build && ./node_modules/mocha/bin/mocha.js --timeout 5s",
+    "test-node-versions": "nodever 12 && npm test test/dataTypes.js && nodever 14 && npm test test/dataTypes.js && nodever 16 && npm test test/dataTypes.js && nodever 18 && npm test test/dataTypes.js",
     "install": "node-pre-gyp install --fallback-to-build",
     "build": "npm install --build-from-source",
     "build-release": "./node_modules/.bin/node-pre-gyp rebuild --production && ./node_modules/.bin/node-pre-gyp package"
