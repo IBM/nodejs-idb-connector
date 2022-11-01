@@ -1,5 +1,8 @@
 # idb-connector changelog
 
+## 1.2.18
+- build: Fix the install failure with the lastest npm
+
 ## 1.2.17
 - build(deps): Update deps to latest version
 - build: Add package-lock.json
