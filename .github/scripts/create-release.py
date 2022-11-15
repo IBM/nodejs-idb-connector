@@ -24,48 +24,77 @@ base_headers = {
     'Authorization': f"token {token}",
 }
 
-url = 'https://api.github.com/repos/IBM/nodejs-idb-connector/tags'
-headers = base_headers
-r = requests.get(url)
-r.raise_for_status()
-tags = r.json()
+def generate_changelog_old(release_tag):
+    url = 'https://api.github.com/repos/IBM/nodejs-idb-connector/tags'
+    headers = base_headers
+    r = requests.get(url)
+    r.raise_for_status()
+    tags = r.json()
 
-# Find the tag prior to this one
-for i, tag in enumerate(tags):
-    if tag['name'] == release_tag:
-        prior_tag = tags[i+1]
-        break
-del tag
+    # Find the tag prior to this one
+    for i, tag in enumerate(tags):
+        if tag['name'] == release_tag:
+            prior_tag = tags[i+1]
+            break
+    del tag
 
-commit = prior_tag['commit']['sha']
+    commit = prior_tag['commit']['sha']
 
-print(f"# Prior tag is {prior_tag['name']}")
+    print(f"# Prior tag is {prior_tag['name']}")
 
-args = [
-  'git',
-  'log',
-  '--grep=Bump version',
-  '--invert-grep',
-  '--no-merges',
-  '--no-decorate',
-  '--pretty=format:- %s',
-  f"{commit}.."
-]
+    args = [
+      'git',
+      'log',
+      '--grep=Bump version',
+      '--invert-grep',
+      '--no-merges',
+      '--no-decorate',
+      '--pretty=format:- %s',
+      f"{commit}.."
+    ]
 
-print("# Generating changelog")
-r = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-output = r.stdout.decode('utf-8').rstrip()
+    print("# Generating changelog")
+    r = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    output = r.stdout.decode('utf-8').rstrip()
 
-body = f"""# nodejs-idb-connector {release_tag}
+    return f"""# nodejs-idb-connector {release_tag}
 
-## Changes
+    ## Changes
 
----
+    ---
 
-{output}
-"""
+    {output}
+    """
+
+def generate_release(release_tag):
+    url = f'https://api.github.com/repos/IBM/nodejs-idb-connector/releases/generate-notes'
+    headers = base_headers
+    payload = {
+        'tag_name': release_tag,
+    }
+
+    r = requests.post(url, headers=headers, json=payload)
+    r.raise_for_status()
+    response = r.json()
+
+    return response["name"], response["body"] 
+
+
 
 url = 'https://api.github.com/repos/IBM/nodejs-idb-connector/releases'
+
+body = generate_release_old(release_tag)
+
+name_new, body_new = generate_release(release_tag)
+
+print("------ OLD -------")
+print(release_tag)
+print(body)
+
+print("------ NEW -------")
+print(name_new)
+print(body_new)
+
 
 payload = {
     'tag_name': release_tag,
