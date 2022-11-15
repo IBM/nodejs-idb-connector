@@ -84,8 +84,9 @@ print(f"# Release created: {release['html_url']}")
 
 url = release['upload_url'].split('{')[0]
 
-for name in glob('build/stage/*/db2ia-v*-napi3-ibmi-ppc64.tar.gz'):
-    print(f"# Uploading {name}")
+for path in glob('build/stage/*/db2ia-*.tar.gz'):
+    name = path.split('/')[-1]
+    print(f"# Uploading {path} as {name}")
 
     params = { 'name': name }
     extra_headers = { 'Content-Type': 'application/gzip' }
