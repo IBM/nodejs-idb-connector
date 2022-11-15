@@ -91,7 +91,7 @@ for path in glob('build/stage/*/db2ia-*.tar.gz'):
     params = { 'name': name }
     extra_headers = { 'Content-Type': 'application/gzip' }
     headers = {**base_headers, **extra_headers}
-    r = requests.post(url, headers=headers, params=params, data=open(name, 'rb'))
+    r = requests.post(url, headers=headers, params=params, data=open(path, 'rb'))
     r.raise_for_status()
 
 
