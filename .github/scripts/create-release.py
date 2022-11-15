@@ -83,22 +83,11 @@ def generate_changelog(release_tag):
 
 url = 'https://api.github.com/repos/IBM/nodejs-idb-connector/releases'
 
-body = generate_changelog_old(release_tag)
-
-name_new, body_new = generate_changelog(release_tag)
-
-print("------ OLD -------")
-print(release_tag)
-print(body)
-
-print("------ NEW -------")
-print(name_new)
-print(body_new)
-
+name, body = generate_changelog(release_tag)
 
 payload = {
     'tag_name': release_tag,
-    'name': release_tag,
+    'name': name,
     'body': body,
     'draft': True
 }
