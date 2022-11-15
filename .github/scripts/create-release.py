@@ -66,7 +66,7 @@ def generate_changelog_old(release_tag):
     {output}
     """
 
-def generate_release(release_tag):
+def generate_changelog(release_tag):
     url = f'https://api.github.com/repos/IBM/nodejs-idb-connector/releases/generate-notes'
     headers = base_headers
     payload = {
@@ -83,9 +83,9 @@ def generate_release(release_tag):
 
 url = 'https://api.github.com/repos/IBM/nodejs-idb-connector/releases'
 
-body = generate_release_old(release_tag)
+body = generate_changelog_old(release_tag)
 
-name_new, body_new = generate_release(release_tag)
+name_new, body_new = generate_changelog(release_tag)
 
 print("------ OLD -------")
 print(release_tag)
