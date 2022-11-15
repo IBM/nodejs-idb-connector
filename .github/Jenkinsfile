@@ -1,0 +1,30 @@
+pipeline {
+  agent {
+    node {
+      label 'ibmi7.2'
+    }
+  }
+  stages {
+    stage('build') {
+      environment {
+        NODE_PATH = '/QOpenSys/pkgs/lib/nodejs14/bin'
+      }
+      steps {
+        sh '''
+            export PATH=$NODE_PATH:$PATH
+            npm i
+            ./node_modules/.bin/node-pre-gyp rebuild --production
+            ./node_modules/.bin/node-pre-gyp package
+        '''
+      }
+    }
+    stage('create-release') {
+      environment {
+        GITHUB_API_TOKEN = credentials('gh-token')
+      }
+      steps {
+        sh 'python3 -u .github/scripts/create-release.py'
+      }
+    }
+  }
+}
