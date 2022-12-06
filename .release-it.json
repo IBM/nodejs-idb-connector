@@ -1,0 +1,15 @@
+{
+   "npm": {
+      "publish": false
+   },
+   "git": {
+   "commitMessage": "chore: release ${version}",
+   "tagName": "${version}"
+   },
+   "github":{
+     "assets": ["build/stage/${version}/*.tar.gz"],
+     "release": false,
+     "autoGenerate": true,
+     "releaseName": "${verison}"
+   }
+}

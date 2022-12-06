@@ -129,9 +129,14 @@ Note: sqlcli header files, GCC, and Python are required to compile the code.
    ./node_modules/.bin/node-pre-gyp package
 ```
 
-Create a new github release and attach the generated tar file in the `build` directory to the github release.
+To generate a release use one of the npm scripts based on the release types.
 
-After the release is created the [publish](.github/workflows/publish.yml) action will automatically publish to npm.
+- patch release `npm run release`
+- for other release types run `npm run release-it` which will prompt you for the release type.
+
+These scripts will bump the version number, make a release commit, and tag the release.
+
+On new tag event our Jenkins server will build the package, create a GH release, and publish the release to npm.
 
 ## License
 
