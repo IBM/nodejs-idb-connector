@@ -3,20 +3,88 @@ const util = require('util');
 const db2a = require('../lib/db2a');
 
 const {
-  OUT, IN, CHAR, CLOB, NUMERIC, dbconn, dbstmt,
+  OUT, IN, CHAR, CLOB, NUMERIC, INT, dbconn, dbstmt,
 } = db2a;
 
+const schema = 'IDBTEST';
+const table = 'SCORES';
+const selectSchema = `SELECT SCHEMA_NAME FROM QSYS2.sysschemas WHERE SCHEMA_NAME = '${schema}'`;
+const createSchema = `CREATE SCHEMA ${schema}`;
+const createTable = `CREATE OR REPLACE TABLE ${schema}.${table}(team CHAR(10), score INTEGER)`;
+const insertTable = `INSERT INTO ${schema}.${table}(TEAM,SCORE) VALUES (?,?)`
+const countTeams = `SELECT COUNT(TEAM) as TEAMCOUNT FROM ${schema}.${table}`;
+const dropTable = `DROP TABLE ${schema}.${table}`;
+
 describe('Statement Sync Test', () => {
+  // global connection and statement that will be used for test cases
+  // dbConn is initialized in before hook and destoryed in after hook
+  // dbStmt is initialized in beforeEach hook and destoryed in afterEach hook
   var dbConn, dbStmt;
 
-  before(() => {
-    dbConn = new dbconn();
-    dbConn.conn('*LOCAL');
-  });
+  function cleanup(connection, statement) {
+    statement.close();
+    connection.disconn();
+    connection.close();
+  }
 
-  after(() => {
+  before('setup schema for tests', function (done) {
+    // setup the test infrastructure
+    this.timeout(0); // disbale timeout for hook
+    const connection = new dbconn();
+    connection.conn('*LOCAL');
+    const statement = new dbstmt(connection);
+    statement.exec(selectSchema, (schemaResult, schemaError) => {
+      if (schemaError){
+        cleanup(connection, statement);
+        done(schemaError);
+        return;
+      }
+      const rc = statement.closeCursor();
+      if (!schemaResult.length) {
+        statement.exec(createSchema, (createSchemaResult, createSchemaError) => {
+          if (createSchemaError) {
+            cleanup(connection, statement);
+            console.error(`failed to create the schema: ${schema}`);
+            console.error(createSchemaError);
+            done(createSchemaError);
+            return;
+          }
+        });
+      }
+      statement.exec(createTable, (createTableResult, createTableError) => {
+        if (createTableError) {
+          cleanup(connection, statement);
+          done(createTableError);
+          return;
+        }
+        console.log(`\n\nBefore hook: Created table: ${table}!\n\n`);
+        cleanup(connection, statement);
+        // create connection that will be used in all the later test cases
+        dbConn = new dbconn();
+        dbConn.conn('*LOCAL');
+        done();
+      });
+    });
+    });
+
+  after('drop objects after the tests', function (done) {
+    // close connection used in thetest cases
     dbConn.disconn();
     dbConn.close();
+    // tear down test infrastructure
+    this.timeout(0); // disable timeout for hook
+    const connection = new dbconn();
+    connection.conn('*LOCAL');
+    const statement = new dbstmt(connection);
+    statement.exec(dropTable, (dropTableResult, dropTableError) => {
+      if (dropTableError){
+        cleanup(connection, statement);
+        done(dropTableError);
+        return;
+      }
+        cleanup(connection, statement);
+        done();
+    });
   });
 
   beforeEach(() => {
@@ -48,32 +116,22 @@ describe('Statement Sync Test', () => {
 
   describe('bindParams callback', () => {
     it('associate parameter markers in an SQL statement to app variables', () => {
-      const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
       const params = [
-        [9997, IN, NUMERIC], // CUSNUM
-        ['Doe', IN, CHAR], // LASTNAME
-        ['J D', IN, CHAR], // INITIAL
-        ['123 Broadway', IN, CHAR], // ADDRESS
-        ['Hope', IN, CHAR], // CITY
-        ['WA', IN, CHAR], // STATE
-        [98101, IN, NUMERIC], // ZIP
-        [2000, IN, NUMERIC], // CREDIT LIMIT
-        [1, IN, NUMERIC], // change
-        [250, IN, NUMERIC], // BAL DUE
-        [0.00, IN, NUMERIC], // CREDIT DUE
+        ['TEST', IN, CHAR], // TEAM
+        [100, IN, INT], // SCORE
       ];
 
       const dbConn2 = new dbconn();
       dbConn2.conn('*LOCAL');
       const dbStmt2 = new dbstmt(dbConn2);
 
-      const result = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
-      let rowsBefore = result[0]['00001'];
+      const result = dbStmt.execSync(countTeams);
+      let rowsBefore = result[0]['TEAMCOUNT'];
 
       rowsBefore = Number(rowsBefore);
       dbStmt.close();
 
-      dbStmt2.prepareSync(sql, (error) => {
+      dbStmt2.prepareSync(insertTable, (error) => {
         if (error) {
           throw error;
         }
@@ -89,8 +147,8 @@ describe('Statement Sync Test', () => {
             }
             dbStmt = new dbstmt(dbConn);
 
-            const result2 = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
-            let rowsAfter = result2[0]['00001'];
+            const result2 = dbStmt.execSync(countTeams);
+            let rowsAfter = result2[0]['TEAMCOUNT'];
 
             rowsAfter = Number(rowsAfter);
 
@@ -103,20 +161,18 @@ describe('Statement Sync Test', () => {
 
   describe('bindParams callback (1-D array)', () => {
     it('associate parameter markers in an SQL statement to app variables', () => {
-      const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
-      const params = [9997, 'Doe', 'J D', '123 Broadway', 'Hope', 'WA', 98101, 2000, 1, 250, 0.00];
-
+      const params = ['TEST2', 200];
       const dbConn2 = new dbconn();
       dbConn2.conn('*LOCAL');
       const dbStmt2 = new dbstmt(dbConn2);
 
-      const result = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
-      let rowsBefore = result[0]['00001'];
+      const result = dbStmt.execSync(countTeams);
+      let rowsBefore = result[0]['TEAMCOUNT'];
 
       rowsBefore = Number(rowsBefore);
       dbStmt.close();
 
-      dbStmt2.prepareSync(sql, (error) => {
+      dbStmt2.prepareSync(insertTable, (error) => {
         if (error) {
           throw error;
         }
@@ -132,8 +188,8 @@ describe('Statement Sync Test', () => {
             }
             dbStmt = new dbstmt(dbConn);
 
-            const result2 = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
-            let rowsAfter = result2[0]['00001'];
+            const result2 = dbStmt.execSync(countTeams);
+            let rowsAfter = result2[0]['TEAMCOUNT'];
 
             rowsAfter = Number(rowsAfter);
 
@@ -146,20 +202,18 @@ describe('Statement Sync Test', () => {
 
   describe('bindParameters callback', () => {
     it('associate parameter markers in an SQL statement to app variables', () => {
-      const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
-      const params = [9997, 'Doe', 'J D', '123 Broadway', 'Hope', 'WA', 98101, 2000, 1, 250, 0.00];
-
+      const params = ['TEST3', 300];
       const dbConn2 = new dbconn();
       dbConn2.conn('*LOCAL');
       const dbStmt2 = new dbstmt(dbConn2);
 
-      const result = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
-      let rowsBefore = result[0]['00001'];
+      const result = dbStmt.execSync(countTeams);
+      let rowsBefore = result[0]['TEAMCOUNT'];
 
       rowsBefore = Number(rowsBefore);
       dbStmt.close();
 
-      dbStmt2.prepareSync(sql, (error) => {
+      dbStmt2.prepareSync(insertTable, (error) => {
         if (error) {
           throw error;
         }
@@ -175,8 +229,8 @@ describe('Statement Sync Test', () => {
             }
             dbStmt = new dbstmt(dbConn);
 
-            const result2 = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
-            let rowsAfter = result2[0]['00001'];
+            const result2 = dbStmt.execSync(countTeams);
+            let rowsAfter = result2[0]['TEAMCOUNT'];
 
             rowsAfter = Number(rowsAfter);
 
@@ -189,41 +243,32 @@ describe('Statement Sync Test', () => {
 
   describe('bindParams no-callback', () => {
     it('associate parameter markers in an SQL statement to app variables', () => {
-      const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
       const params = [
-        [9997, IN, NUMERIC], // CUSNUM
-        ['Doe', IN, CHAR], // LASTNAME
-        ['J D', IN, CHAR], // INITIAL
-        ['123 Broadway', IN, CHAR], // ADDRESS
-        ['Hope', IN, CHAR], // CITY
-        ['WA', IN, CHAR], // STATE
-        [98101, IN, NUMERIC], // ZIP
-        [2000, IN, NUMERIC], // CREDIT LIMIT
-        [1, IN, NUMERIC], // change
-        [250, IN, NUMERIC], // BAL DUE
-        [0.00, IN, NUMERIC], // CREDIT DUE
+        ['TEST4', IN, CHAR], // TEAM
+        [400, IN, INT], // SCORE
       ];
+
 
       const dbConn2 = new dbconn();
       dbConn2.conn('*LOCAL');
       const dbStmt2 = new dbstmt(dbConn2);
       // first get count of current rows
-      const result = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
-      let rowsBefore = result[0]['00001'];
+      const result = dbStmt.execSync(countTeams);
+      let rowsBefore = result[0]['TEAMCOUNT'];
 
       rowsBefore = Number(rowsBefore); // count retrurns as a String cast it to Number
 
       dbStmt.close();
 
       // now perform insert
-      dbStmt2.prepareSync(sql);
+      dbStmt2.prepareSync(insertTable);
       dbStmt2.bindParamSync(params);
       dbStmt2.executeSync();
 
       dbStmt = new dbstmt(dbConn);
 
-      const result2 = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
-      let rowsAfter = result2[0]['00001'];
+      const result2 = dbStmt.execSync(countTeams);
+      let rowsAfter = result2[0]['TEAMCOUNT'];
 
       rowsAfter = Number(rowsAfter);
 
@@ -233,29 +278,29 @@ describe('Statement Sync Test', () => {
 
   describe('bindParams no-callback (1-D array)', () => {
     it('associate parameter markers in an SQL statement to app variables', () => {
-      const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
-      const params = [9997, 'Doe', 'J D', '123 Broadway', 'Hope', 'WA', 98101, 2000, 1, 250, 0.00];
+      const params = ['TEST5', 500];
+      
 
       const dbConn2 = new dbconn();
       dbConn2.conn('*LOCAL');
       const dbStmt2 = new dbstmt(dbConn2);
       // first get count of current rows
-      const result = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
-      let rowsBefore = result[0]['00001'];
+      const result = dbStmt.execSync(countTeams);
+      let rowsBefore = result[0]['TEAMCOUNT'];
 
       rowsBefore = Number(rowsBefore); // count retrurns as a String cast it to Number
 
       dbStmt.close();
 
       // now perform insert
-      dbStmt2.prepareSync(sql);
+      dbStmt2.prepareSync(insertTable);
       dbStmt2.bindParamSync(params);
       dbStmt2.executeSync();
 
       dbStmt = new dbstmt(dbConn);
 
-      const result2 = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
-      let rowsAfter = result2[0]['00001'];
+      const result2 = dbStmt.execSync(countTeams);
+      let rowsAfter = result2[0]['TEAMCOUNT'];
 
       rowsAfter = Number(rowsAfter);
 
@@ -265,29 +310,28 @@ describe('Statement Sync Test', () => {
 
   describe('bindParameters no-callback', () => {
     it('associate parameter markers in an SQL statement to app variables', () => {
-      const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
-      const params = [9997, 'Doe', 'J D', '123 Broadway', 'Hope', 'WA', 98101, 2000, 1, 250, 0.00];
+      const params = ['TEST6', 600];
 
       const dbConn2 = new dbconn();
       dbConn2.conn('*LOCAL');
       const dbStmt2 = new dbstmt(dbConn2);
       // first get count of current rows
-      const result = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
-      let rowsBefore = result[0]['00001'];
+      const result = dbStmt.execSync(countTeams);
+      let rowsBefore = result[0]['TEAMCOUNT'];
 
       rowsBefore = Number(rowsBefore); // count retrurns as a String cast it to Number
 
       dbStmt.close();
 
       // now perform insert
-      dbStmt2.prepareSync(sql);
+      dbStmt2.prepareSync(insertTable);
       dbStmt2.bindParametersSync(params);
       dbStmt2.executeSync();
 
       dbStmt = new dbstmt(dbConn);
 
-      const result2 = dbStmt.execSync('SELECT COUNT(CUSNUM) FROM QIWS.QCUSTCDT');
-      let rowsAfter = result2[0]['00001'];
+      const result2 = dbStmt.execSync(countTeams);
+      let rowsAfter = result2[0]['TEAMCOUNT'];
 
       rowsAfter = Number(rowsAfter);
 
