@@ -110,7 +110,7 @@ Note that building isn't necessary for end-users and is more for developers look
     cd nodejs-idb-connector
     npm install --build-from-source
 ```
-## Build Dependencies
+### Build Dependencies
 Note: sqlcli header files, GCC, and Python are required to compile the code.
 
 ```sh
@@ -119,19 +119,27 @@ Note: sqlcli header files, GCC, and Python are required to compile the code.
     yum install python2
 ```
 
+
 ## Release
 
+To create a new release the developer first needs to run `release.sh`
 ```sh
-   git clone git@github.com:IBM/nodejs-idb-connector.git
-   cd nodejs-idb-connector
-   npm install
-   ./node_modules/.bin/node-pre-gyp rebuild --production
-   ./node_modules/.bin/node-pre-gyp package
+    ./release.sh
 ```
 
-Create a new github release and attach the generated tar file in the `build` directory to the github release.
+This script will create a new release branch, run release-it, push the new branch upstream.
 
-After the release is created the [publish](.github/workflows/publish.yml) action will automatically publish to npm.
+From there the developer needs to:
+
+1) Open a pull request, have it approved by at least 1 reviewer, and merged into the master branch
+2) Create a new release and tag from the [GitHub Web UI](https://github.com/IBM/nodejs-idb-connector/releases/new) with the release and tag name matching the version number in package.json.
+
+
+After the release is created our Jenkins instance will:
+
+1) Build the package
+2) Update the GH release with the binary asset
+3) Publish the release to NPM
 
 ## License
 

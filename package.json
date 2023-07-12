@@ -37,19 +37,22 @@
   },
   "scripts": {
     "test": "ln -sf ./build-tmp-napi-v3 ./build && ./node_modules/mocha/bin/mocha.js --timeout 5s",
-    "install": "node-pre-gyp install --fallback-to-build"
+    "install": "node-pre-gyp install --fallback-to-build",
+    "release": "./node_modules/release-it/bin/release-it.js"
   },
   "dependencies": {
     "@mapbox/node-pre-gyp": "^1.0.10",
     "node-addon-api": "^3.1.0"
   },
   "devDependencies": {
+    "@release-it/conventional-changelog": "^7.0.0",
     "bindings": "^1.5.0",
     "chai": "^4.3.6",
     "eslint": "^8.26.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.26.0",
-    "mocha": "^10.1.0"
+    "mocha": "^10.1.0",
+    "release-it": "^16.1.0"
   },
   "binary": {
     "module_name": "db2ia",
