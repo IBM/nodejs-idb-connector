@@ -1,3 +1,12 @@
+
+
+## [1.2.19-beta.0](https://github.com/IBM/nodejs-idb-connector/compare/1.2.18...1.2.19-beta.0) (2023-07-19)
+
+
+### Bug Fixes
+
+* stop returning nulls ([0857c59](https://github.com/IBM/nodejs-idb-connector/commit/0857c59e465b4245488727f79df0757a2137eb61)), closes [#169](https://github.com/IBM/nodejs-idb-connector/issues/169)
+
 # idb-connector changelog
 
 ## 1.2.18
