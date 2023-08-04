@@ -1,3 +1,6 @@
+// Copyright contributors to the nodejs-idb-connector project
+// SPDX-License-Identifier: MIT
+
 #pragma once
 
 #include <iostream>
