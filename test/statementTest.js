@@ -2,21 +2,85 @@ const { expect } = require('chai');
 const db2a = require('../lib/db2a');
 
 const {
-  IN, CHAR, NUMERIC, dbstmt, dbconn,
+  dbstmt, dbconn,
 } = db2a;
+
+const schema = 'IDBTEST';
+const table = 'SCORES';
+const selectSchema = `SELECT SCHEMA_NAME FROM QSYS2.sysschemas WHERE SCHEMA_NAME = '${schema}'`;
+const createSchema = `CREATE SCHEMA ${schema}`;
+const createTable = `CREATE OR REPLACE TABLE ${schema}.${table}(team CHAR(10), score INTEGER)`;
+const insertTable = `INSERT INTO ${schema}.${table}(TEAM,SCORE) VALUES (?,?)`
+const dropTable = `DROP TABLE ${schema}.${table}`;
 
 // Test Statement Misc
 describe('Statement Misc Test', () => {
+  // global connection and statement that will be used for test cases
+  // dbConn is initialized in before hook and destoryed in after hook
+  // dbStmt is initialized in beforeEach hook and destoryed in afterEach hook
   var dbConn, dbStmt;
 
-  before(() => {
-    dbConn = new dbconn();
-    dbConn.conn('*LOCAL');
-  });
+  function cleanup(connection, statement) {
+    statement.close();
+    connection.disconn();
+    connection.close();
+  }
 
-  after(() => {
+  before('setup schema for tests', function (done) {
+    // setup the test infrastructure
+    this.timeout(0); // disbale timeout for hook
+    const connection = new dbconn();
+    connection.conn('*LOCAL');
+    const statement = new dbstmt(connection);
+    statement.exec(selectSchema, (schemaResult, schemaError) => {
+      if (schemaError){
+        cleanup(connection, statement);
+        done(schemaError);
+        return;
+      }
+      const rc = statement.closeCursor();
+      if (!schemaResult.length) {
+        statement.exec(createSchema, (createSchemaResult, createSchemaError) => {
+          if (createSchemaError) {
+            cleanup(connection, statement);
+            done(createSchemaError);
+            return;
+          }
+        });
+      }
+      statement.exec(createTable, (createTableResult, createTableError) => {
+        if (createTableError) {
+          cleanup(connection, statement);
+          done(createTableError);
+          return;
+        }
+        cleanup(connection, statement);
+        // create connection that will be used in all the later test cases
+        dbConn = new dbconn();
+        dbConn.conn('*LOCAL');
+        done();
+      });
+    });
+    });
+
+  after('drop objects after the tests', function (done) {
+    // close connection used in thetest cases
     dbConn.disconn();
     dbConn.close();
+    // tear down test infrastructure
+    this.timeout(0); // disable timeout for hook
+    const connection = new dbconn();
+    connection.conn('*LOCAL');
+    const statement = new dbstmt(connection);
+    statement.exec(dropTable, (dropTableResult, dropTableError) => {
+      if (dropTableError){
+        cleanup(connection, statement);
+        done(dropTableError);
+        return;
+      }
+        cleanup(connection, statement);
+        done();
+    });
   });
 
   beforeEach(() => {
@@ -49,8 +113,8 @@ describe('Statement Misc Test', () => {
   });
 
   /*
-  TODO create pssing unit test for nextResult()
-
+  TODO create passing unit test for nextResult()
+  1) Create a Procedure that returns multiple reseult sets
   describe('nextResult', () => {
     it('Determines whether there is more information available on the statement', () => {
       let sql = 'SELECT * FROM QIWS.QCUSTCDT';
@@ -85,11 +149,9 @@ describe('Statement Misc Test', () => {
 
   describe('commit', () => {
     it('adds all changes to the database that have been made on the connection since connect time ', (done) => {
-      const sql = 'INSERT INTO QIWS.QCUSTCDT(CUSNUM,LSTNAM,INIT,STREET,CITY,STATE,ZIPCOD,CDTLMT,CHGCOD,BALDUE,CDTDUE) VALUES (?,?,?,?,?,?,?,?,?,?,?) with NONE ';
+      const params = ['TEST', 100];
 
-      const params = [9997, 'Doe', 'J D', '123 Broadway', 'Hope', 'WA', 98101, 2000, 1, 250, 0.00];
-
-      dbStmt.prepare(sql, (error) => {
+      dbStmt.prepare(insertTable, (error) => {
         if (error) {
           throw error;
         }
