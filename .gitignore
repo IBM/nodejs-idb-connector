@@ -3,3 +3,4 @@ build*
 .lock*
 lib/binding/
 npm-debug.log
+.npmrc

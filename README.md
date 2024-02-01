@@ -110,7 +110,7 @@ Note that building isn't necessary for end-users and is more for developers look
     cd nodejs-idb-connector
     npm install --build-from-source
 ```
-## Build Dependencies
+### Build Dependencies
 Note: sqlcli header files, GCC, and Python are required to compile the code.
 
 ```sh
@@ -118,20 +118,6 @@ Note: sqlcli header files, GCC, and Python are required to compile the code.
     yum group install 'Development tools' 
     yum install python2
 ```
-
-## Release
-
-```sh
-   git clone git@github.com:IBM/nodejs-idb-connector.git
-   cd nodejs-idb-connector
-   npm install
-   ./node_modules/.bin/node-pre-gyp rebuild --production
-   ./node_modules/.bin/node-pre-gyp package
-```
-
-Create a new github release and attach the generated tar file in the `build` directory to the github release.
-
-After the release is created the [publish](.github/workflows/publish.yml) action will automatically publish to npm.
 
 ## License
 

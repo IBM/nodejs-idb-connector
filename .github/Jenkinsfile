@@ -1,0 +1,46 @@
+pipeline {
+	agent {
+    node {
+      label 'ibmi7.3'
+    }
+  }
+  environment {
+     NODE_PATH = '/QOpenSys/pkgs/lib/nodejs18/bin'
+  }
+  stages {
+    stage('build') {
+      steps {
+        sh '''
+            export PATH=$NODE_PATH:$PATH
+            npm i
+            ./node_modules/.bin/node-pre-gyp rebuild --production
+            ./node_modules/.bin/node-pre-gyp package
+        '''
+      }
+    }
+    stage('create-gh-release') {
+      environment {
+        GH_TOKEN = credentials('idb-connector-gh-token')
+      }
+      steps {
+        sh '''
+           export PATH=$NODE_PATH:$PATH
+           export GITHUB_TOKEN=$GH_TOKEN_PSW
+           ./node_modules/release-it/bin/release-it.js --ci --no-increment --no-git --github.release --github.update --no-plugins.@release-it/conventional-changelog.infile
+        '''
+      }
+    }
+    stage('create-npm-release') {
+      environment {
+        NPM_TOKEN = credentials('idb-connector-npm-token')
+      }
+      steps {
+        sh '''
+           export PATH=$NODE_PATH:$PATH
+           npm config set --location=project //registry.npmjs.org/:_authToken $NPM_TOKEN
+           ./node_modules/release-it/bin/release-it.js --ci --no-increment --no-git --npm.publish --npm.skipChecks --no-plugins.@release-it/conventional-changelog.infile
+        '''
+      }
+    }
+  }
+}
