@@ -1,0 +1,24 @@
+{
+   "npm": {
+     "publish": false
+   },
+   "git": {
+     "commitMessage": "chore: release ${version}",
+     "push": false,
+     "tag": false
+   },
+   "github":{
+     "assets": ["build/stage/${version}/*.tar.gz"],
+     "release": false,
+     "autoGenerate": true,
+     "releaseName": "${version}"
+   },
+   "plugins": {
+     "@release-it/conventional-changelog": {
+       "header": "# idb-connector changelog",
+       "preset": "conventionalcommits",
+       "infile": "CHANGELOG.md",
+       "ignoreRecommendedBump": true
+     }
+   }
+}
