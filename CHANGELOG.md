@@ -1,5 +1,12 @@
 # idb-connector changelog
 
+## [1.2.19](https://github.com/IBM/nodejs-idb-connector/compare/1.2.18...1.2.19) (2024-02-05)
+
+
+### Bug Fixes
+
+* stop returning nulls ([#170](https://github.com/IBM/nodejs-idb-connector/issues/170)) ([f3924b4](https://github.com/IBM/nodejs-idb-connector/commit/f3924b476874e7954f96c9911c71ad44891a619e))
+
 ## 1.2.18
 - build: Fix the install failure with the lastest npm
 
