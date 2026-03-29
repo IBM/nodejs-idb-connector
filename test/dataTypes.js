@@ -400,6 +400,30 @@ describe('Data Type Test', () => {
         done();
       });
     });
+
+    it('char with 4-byte UTF-8 characters', (done) => {
+      // U+1F600 (😀) is 4 bytes in UTF-8. For CHAR(2), colPrecise=2,
+      // bind buffer = 2 * 4 + 1 = 9 bytes. Two 4-byte chars = 8 bytes + null = 9,
+      // which exactly fills the buffer, testing the null terminator boundary.
+      const emoji = '\u{1F600}\u{1F601}';
+      const sql = 'select cast(? as char(8) ccsid 1208) as char_val from sysibm.sysdummy1';
+      dbStmt.prepare(sql, (error) => {
+        if (error) { throw error; }
+        dbStmt.bindParameters([emoji], (error) => {
+          if (error) { throw error; }
+          dbStmt.execute((out, error) => {
+            if (error) { throw error; }
+            dbStmt.fetchAll((result, error) => {
+              if (error) { throw error; }
+              expect(result).to.be.an('array');
+              expect(result.length).to.be.greaterThan(0);
+              expect(result[0].CHAR_VAL).to.equal(emoji);
+              done();
+            });
+          });
+        });
+      });
+    });
   });
 
   describe('select boolean type', () => {
