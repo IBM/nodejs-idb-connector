@@ -367,6 +367,77 @@ describe('Data Type Test', () => {
   // });
 
 
+  describe('select char types', () => {
+    it('char', (done) => {
+      const sql = "select * from (values cast('ABCDE' as char(5))) as x (char_val)";
+      dbStmt.exec(sql, (result, error) => {
+        expect(error).to.be.null;
+        expect(result).to.be.an('array');
+        expect(result.length).to.be.greaterThan(0);
+        expect(Object.values(result[0])[0]).to.equal('ABCDE');
+        done();
+      });
+    });
+
+    it('char with padding', (done) => {
+      const sql = "select * from (values cast('AB' as char(5))) as x (char_val)";
+      dbStmt.exec(sql, (result, error) => {
+        expect(error).to.be.null;
+        expect(result).to.be.an('array');
+        expect(result.length).to.be.greaterThan(0);
+        expect(Object.values(result[0])[0]).to.equal('AB   ');
+        done();
+      });
+    });
+
+    it('varchar', (done) => {
+      const sql = "select * from (values cast('ABCDE' as varchar(10))) as x (varchar_val)";
+      dbStmt.exec(sql, (result, error) => {
+        expect(error).to.be.null;
+        expect(result).to.be.an('array');
+        expect(result.length).to.be.greaterThan(0);
+        expect(Object.values(result[0])[0]).to.equal('ABCDE');
+        done();
+      });
+    });
+  });
+
+  describe('select boolean type', () => {
+    it('boolean true', (done) => {
+      const sql = "select * from (values boolean('true')) as x (bool_val)";
+      dbStmt.exec(sql, (result, error) => {
+        expect(error).to.be.null;
+        expect(result).to.be.an('array');
+        expect(result.length).to.be.greaterThan(0);
+        expect(Object.values(result[0])[0]).to.equal('TRUE');
+        done();
+      });
+    });
+
+    it('boolean false', (done) => {
+      const sql = "select * from (values boolean('false')) as x (bool_val)";
+      dbStmt.exec(sql, (result, error) => {
+        expect(error).to.be.null;
+        expect(result).to.be.an('array');
+        expect(result.length).to.be.greaterThan(0);
+        expect(Object.values(result[0])[0]).to.equal('FALSE');
+        done();
+      });
+    });
+
+    it('boolean null', (done) => {
+      const sql = 'select * from (values cast(null as boolean)) as x (bool_val)';
+      dbStmt.exec(sql, (result, error) => {
+        expect(error).to.be.null;
+        expect(result).to.be.an('array');
+        expect(result.length).to.be.greaterThan(0);
+        expect(Object.values(result[0])[0]).to.be.null;
+        done();
+      });
+    });
+  });
+
+
   describe('exec read blob test', () => {
     it('performs action of given SQL String', (done) => {
       const sql = 'SELECT CAST(\'test\' AS BLOB(10k)) FROM SYSIBM.SYSDUMMY1';
