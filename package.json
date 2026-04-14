@@ -45,7 +45,7 @@
     "release": "./node_modules/release-it/bin/release-it.js"
   },
   "dependencies": {
-    "@mapbox/node-pre-gyp": "^1.0.10",
+    "@mapbox/node-pre-gyp": "^2.0.3",
     "node-addon-api": "^3.1.0"
   },
   "devDependencies": {
