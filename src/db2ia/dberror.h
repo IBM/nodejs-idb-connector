@@ -133,7 +133,7 @@ static const char* getSQLType(int sqlType)
         return "CLOB";
     case SQL_DBCLOB:        // SQL_DBCLOB = 15
         return "DBCLOB";
-    case SQL_DATALINK:      // SQL_DATALINK = 16
+    case SQL_DATALINK:      // SQL_DATALINK = 16 (pre-7.5) or -400 (7.5+)
         return "DATALINK";
     case SQL_WCHAR:         // SQL_WCHAR = 17
         return "WCHAR";

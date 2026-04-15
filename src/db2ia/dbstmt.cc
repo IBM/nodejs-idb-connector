@@ -2347,9 +2347,14 @@ int DbStmt::bindColData(Napi::Env env)
       sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
     }
     break;
-    default: // SQL_CHAR / SQL_VARCHAR
+    default: // SQL_CHAR / SQL_VARCHAR / SQL_BOOLEAN and other string-representable types
     {
+      // colPrecise * 4 + 1 accounts for multi-byte character expansion + null terminator.
+      // Minimum of 6 ensures types like BOOLEAN (colPrecise=1, but string representation
+      // "FALSE" needs 6 bytes) have a large enough buffer.
       maxColLen = dbColumn[col].colPrecise * 4 + 1;
+      if (maxColLen < 6)
+        maxColLen = 6;
       bindingRowInC[col] = (SQLCHAR *)calloc(maxColLen, sizeof(SQLCHAR));
       sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
     }
@@ -2430,8 +2435,12 @@ int DbStmt::fetchData()
       }
       else
       {
+        // rlength is the actual data length (e.g. 5 for CHAR(5) or "FALSE").
+        // Allocate colLen + 1 to ensure null termination, since memcpy copies
+        // only the data bytes without a null terminator. The extra byte is
+        // zero-filled by calloc.
         colLen = dbColumn[col].rlength;
-        rowOfResultSetInC[col].data = (SQLCHAR *)calloc(colLen, sizeof(SQLCHAR));
+        rowOfResultSetInC[col].data = (SQLCHAR *)calloc(colLen + 1, sizeof(SQLCHAR));
         memcpy(rowOfResultSetInC[col].data, bindingRowInC[col], colLen * sizeof(SQLCHAR));
         rowOfResultSetInC[col].rlength = colLen;
       }
@@ -2489,7 +2498,12 @@ int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array)
             break;
           }
         default:
-            value = Napi::String::New(env, resultSetInC[row][col].data);
+          // Use the known data length to bound string creation rather than relying
+          // on null termination, as a safeguard against buffer overreads.
+          if (resultSetInC[row][col].rlength == SQL_NTS)
+            value = Napi::String::New(env, (const char *)resultSetInC[row][col].data);
+          else
+            value = Napi::String::New(env, (const char *)resultSetInC[row][col].data, resultSetInC[row][col].rlength);
           break;
         }
       }
