@@ -2432,7 +2432,7 @@ int DbStmt::fetchData()
         // SQL_NTS for BOOLEAN, and the strlen() path below would read 0 bytes
         // for false (0x00000000) and 1 byte for true.
         colLen = sizeof(int);
-        rowOfResultSetInC[col].data = (SQLCHAR *)calloc(colLen, sizeof(SQLCHAR));
+        rowOfResultSetInC[col].data = (SQLCHAR *)malloc(sizeof(int));
         memcpy(rowOfResultSetInC[col].data, bindingRowInC[col], colLen);
         rowOfResultSetInC[col].rlength = colLen;
       }
@@ -2503,7 +2503,7 @@ int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array)
           // NULL is already handled before this switch (JS null).
           int boolValue;
           memcpy(&boolValue, resultSetInC[row][col].data, sizeof(int));
-          value = Napi::Boolean::New(env, boolValue != 0);
+          value = Napi::Boolean::New(env, (bool) boolValue);
           break;
         }
         case SQL_SMALLINT: // -32768 to +32767
@@ -2692,7 +2692,7 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
         // bind an integer instead: Db2 accepts 1/0 for BOOLEAN, and the fixed
         // 4-byte buffer is also large enough to receive an output value.
         int *boolean = (int *)malloc(sizeof(int));
-        *boolean = value.ToBoolean() ? 1 : 0;
+        *boolean = value.ToBoolean().Value();
         param[i].valueType = SQL_C_LONG;
         param[i].buf = boolean;
         param[i].ind = 0;
@@ -2733,7 +2733,7 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
         // bind an integer instead: Db2 accepts 1/0 for BOOLEAN, and the fixed
         // 4-byte buffer is also large enough to receive an output value.
         int *boolean = (int *)malloc(sizeof(int));
-        *boolean = value.ToBoolean() ? 1 : 0;
+        *boolean = value.ToBoolean().Value();
         param[i].valueType = SQL_C_LONG;
         param[i].buf = boolean;
         param[i].ind = 0;
@@ -2884,7 +2884,7 @@ int DbStmt::fetchSp(Napi::Env env, Napi::Array *array)
       else if (p->valueType == SQL_C_DOUBLE) // Decimal
         array->Set(j, Napi::Number::New(env, *(double *)p->buf));
       else if (p->valueType == SQL_C_LONG) // Boolean
-        array->Set(j, Napi::Boolean::New(env, *(int *)p->buf != 0));
+        array->Set(j, Napi::Boolean::New(env, (bool) *(int *)p->buf));
       else
         array->Set(j, Napi::String::New(env, (char *)p->buf));
       j++;
@@ -2923,7 +2923,7 @@ int DbStmt::fetch(Napi::Env env, Napi::Object *row)
         // "TRUE"/"FALSE", which fetchAll() has never done.
         int boolValue;
         memcpy(&boolValue, bindingRowInC[col], sizeof(int));
-        value = Napi::Boolean::New(env, boolValue != 0);
+        value = Napi::Boolean::New(env, (bool) boolValue);
         break;
       }
       default:
