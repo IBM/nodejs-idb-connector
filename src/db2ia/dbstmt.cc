@@ -107,7 +107,7 @@ Napi::Object DbStmt::Init(Napi::Env env, Napi::Object exports)
  *        function takes 0 or 1 argument.
  *        info[0] (Boolean): true for ON false for OFF.
  *    Returns: boolean true/false indicating the state of the debug switch.
- * 
+ *
  */
 Napi::Value DbStmt::AsNumber(const Napi::CallbackInfo &info)
 {
@@ -186,7 +186,7 @@ Napi::Value DbStmt::SetStmtAttr(const Napi::CallbackInfo &info)
 /*
  *  DbStmt::GetStmtAttr
  *    Description: Returns the current settings for the specified statement option
- *    Parameters: 
+ *    Parameters:
  *      const Napi::CallbackInfo& info:
  *        The information passed by Napi from the JavaScript call, including
  *        arguments from the JavaScript function. In JavaScript, the exported
@@ -194,7 +194,7 @@ Napi::Value DbStmt::SetStmtAttr(const Napi::CallbackInfo &info)
  *          info[0] (Number): Attribute is the statement attribute to set.
  *                            Refer to the attribute table for more details.
  *    Return: The attribute option in the format of a Number or a String.
- * 
+ *
  */
 Napi::Value DbStmt::GetStmtAttr(const Napi::CallbackInfo &info)
 {
@@ -275,7 +275,7 @@ public:
     //  - SQL_ERROR
     //  - SQL_INVALID_HANDLE
     //  - SQL_NO_DATA_FOUND
-    // SQL_NO_DATA_FOUND is returned if the SQL statement is a Searched UPDATE 
+    // SQL_NO_DATA_FOUND is returned if the SQL statement is a Searched UPDATE
     // or Searched DELETE and no rows satisfy the search condition.
     if (sqlReturnCode == SQL_SUCCESS_WITH_INFO)
     {
@@ -744,7 +744,7 @@ private:
  *    Parameters:
  *      const Napi::CallbackInfo& info:
  *        The information passed by Napi from the JavaScript call. Contains 2 parameters,
- * 
+ *
  *        info[0]: [Array]: An array of arrays, the inner arrays containing
  *                         the data to bind to the prepared statement.
  *        info[1]: [Function]: The callback function, with
@@ -896,7 +896,7 @@ private:
  *    Parameters:
  *      const Napi::CallbackInfo& info:
  *        The information passed by Napi from the JavaScript call. Contains 2 parameters,
- * 
+ *
  *        info[0]: [Array]: An array of the data to bind to the prepared statement.
  *        info[1]: [Function]: The callback function, with
  *                 arguments passed to it in the format function(error):
@@ -1134,7 +1134,7 @@ void DbStmt::Execute(const Napi::CallbackInfo &info)
 
 /*
  *  DbStmt::ExecuteSync
- *    Syntex: executeSync(), executeSync(function(OutputParameters, error)) 
+ *    Syntex: executeSync(), executeSync(function(OutputParameters, error))
  *    Description:
  *      Runs the "Execute" workflow synchronously, blocking the Node.js event
  *      loop. Takes a statement prepared with "Prepare" and possibly bound
@@ -1366,7 +1366,7 @@ private:
  *    Syntex 1: fetch(function Callback(Row, ReturnCode/error))
  *    Syntex 2: fetch(int Orient, int Offset, function Callback(Row, ReturnCode/error))
  *    Description:
- *      Advances the cursor to the next row of the result set, and retrieves any bound columns. 
+ *      Advances the cursor to the next row of the result set, and retrieves any bound columns.
  *      Or positions the cursor based on the requested orientation.
  *    Parameters:
  *      const Napi::CallbackInfo& info:
@@ -2347,8 +2347,22 @@ int DbStmt::bindColData(Napi::Env env)
       sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
     }
     break;
-    default: // SQL_CHAR / SQL_VARCHAR
+    case SQL_BOOLEAN:
     {
+      // Bind as an integer (1/0) rather than letting the CLI render the
+      // "TRUE"/"FALSE" string, so the buffer size does not depend on the
+      // string representation.
+      // NOTE: on IBM i 7.4 and earlier, type code 16 is DATALINK rather than
+      // BOOLEAN (see dberror.h). Such a column reaches this case and will fail
+      // to bind, where the string binding used to tolerate it.
+      maxColLen = sizeof(int);
+      bindingRowInC[col] = (SQLCHAR *)calloc(maxColLen, sizeof(SQLCHAR));
+      sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_LONG, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
+    }
+    break;
+    default: // SQL_CHAR / SQL_VARCHAR and other string-representable types
+    {
+      // colPrecise * 4 + 1 accounts for multi-byte character expansion + null terminator.
       maxColLen = dbColumn[col].colPrecise * 4 + 1;
       bindingRowInC[col] = (SQLCHAR *)calloc(maxColLen, sizeof(SQLCHAR));
       sqlReturnCode = SQLBindCol(stmth, col + 1, SQL_C_CHAR, (SQLPOINTER)bindingRowInC[col], maxColLen, &dbColumn[col].rlength);
@@ -2411,6 +2425,17 @@ int DbStmt::fetchData()
                 SQL_ATTR_FREE_LOCATORS, dbColumn[col].clobLoc);
         }
       }
+      else if (dbColumn[col].sqlType == SQL_BOOLEAN && dbColumn[col].rlength != SQL_NULL_DATA)
+      {
+        // Bound as SQL_C_LONG, so the buffer always holds sizeof(int) bytes.
+        // Copy a fixed width rather than trusting rlength: the CLI reports
+        // SQL_NTS for BOOLEAN, and the strlen() path below would read 0 bytes
+        // for false (0x00000000) and 1 byte for true.
+        colLen = sizeof(int);
+        rowOfResultSetInC[col].data = (SQLCHAR *)malloc(sizeof(int));
+        memcpy(rowOfResultSetInC[col].data, bindingRowInC[col], colLen);
+        rowOfResultSetInC[col].rlength = colLen;
+      }
       else if (dbColumn[col].rlength == SQL_NTS)
       { // SQL_NTS = -3
         colLen = strlen(bindingRowInC[col]);
@@ -2430,8 +2455,12 @@ int DbStmt::fetchData()
       }
       else
       {
+        // rlength is the actual data length (e.g. 5 for CHAR(5) or "FALSE").
+        // Allocate colLen + 1 to ensure null termination, since memcpy copies
+        // only the data bytes without a null terminator. The extra byte is
+        // zero-filled by calloc.
         colLen = dbColumn[col].rlength;
-        rowOfResultSetInC[col].data = (SQLCHAR *)calloc(colLen, sizeof(SQLCHAR));
+        rowOfResultSetInC[col].data = (SQLCHAR *)calloc(colLen + 1, sizeof(SQLCHAR));
         memcpy(rowOfResultSetInC[col].data, bindingRowInC[col], colLen * sizeof(SQLCHAR));
         rowOfResultSetInC[col].rlength = colLen;
       }
@@ -2467,6 +2496,16 @@ int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array)
           });
           break;
         }
+        case SQL_BOOLEAN:
+        {
+          // Bound as SQL_C_LONG, so the buffer holds a 4-byte 1/0 (see
+          // fetchData, which copies it at a fixed width).
+          // NULL is already handled before this switch (JS null).
+          int boolValue;
+          memcpy(&boolValue, resultSetInC[row][col].data, sizeof(int));
+          value = Napi::Boolean::New(env, (bool) boolValue);
+          break;
+        }
         case SQL_SMALLINT: // -32768 to +32767
         case SQL_INTEGER:  // -2147483648 to +2147483647
         // case SQL_BIGINT:   // -9223372036854775808 to +9223372036854775807
@@ -2489,7 +2528,12 @@ int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array)
             break;
           }
         default:
-            value = Napi::String::New(env, resultSetInC[row][col].data);
+          // Use the known data length to bound string creation rather than relying
+          // on null termination, as a safeguard against buffer overreads.
+          if (resultSetInC[row][col].rlength == SQL_NTS)
+            value = Napi::String::New(env, (const char *)resultSetInC[row][col].data);
+          else
+            value = Napi::String::New(env, (const char *)resultSetInC[row][col].data, resultSetInC[row][col].rlength);
           break;
         }
       }
@@ -2587,7 +2631,7 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
         error = "BIND INDICATOR TYPE OF PARAMETER " + std::to_string(i + 1) + " IS INVALID\n";
         return -1;
       }
-      
+
       param[i].io = io;
       bindIndicator = bindValue.ToNumber().Int32Value(); //convert from Napi::Value to an int
 
@@ -2644,9 +2688,12 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
       }
       else if (bindIndicator == 5 || value.IsBoolean())
       { //Parameter is Boolean
-        bool *boolean = (bool *)malloc(sizeof(bool));
-        *boolean = value.ToBoolean();
-        param[i].valueType = SQL_C_BIT;
+        // The IBM i CLI rejects SQL_C_BIT for a BOOLEAN parameter (HY003), so
+        // bind an integer instead: Db2 accepts 1/0 for BOOLEAN, and the fixed
+        // 4-byte buffer is also large enough to receive an output value.
+        int *boolean = (int *)malloc(sizeof(int));
+        *boolean = value.ToBoolean().Value();
+        param[i].valueType = SQL_C_LONG;
         param[i].buf = boolean;
         param[i].ind = 0;
       }
@@ -2682,9 +2729,12 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
       }
       else if (value.IsBoolean())
       { //Parameter is Boolean
-        bool *boolean = (bool *)malloc(sizeof(bool));
-        *boolean = value.ToBoolean();
-        param[i].valueType = SQL_C_BIT;
+        // The IBM i CLI rejects SQL_C_BIT for a BOOLEAN parameter (HY003), so
+        // bind an integer instead: Db2 accepts 1/0 for BOOLEAN, and the fixed
+        // 4-byte buffer is also large enough to receive an output value.
+        int *boolean = (int *)malloc(sizeof(int));
+        *boolean = value.ToBoolean().Value();
+        param[i].valueType = SQL_C_LONG;
         param[i].buf = boolean;
         param[i].ind = 0;
       }
@@ -2752,7 +2802,7 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
         {
           std::string string = value.ToString().Utf8Value();
           const char *cString = string.c_str();
-          if(strlen(cString) > 0) 
+          if(strlen(cString) > 0)
           {
             strcpy((char *)param[i].buf, cString);
             param[i].ind = strlen(cString);
@@ -2792,7 +2842,7 @@ int DbStmt::bindParams(Napi::Env env, Napi::Array *params, std::string &error)
       break;
       }
     }
-    
+
     //link to doc https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_73/cli/rzadpfnbndpm.htm
     sqlReturnCode = SQLBindParameter(
         stmth,              //SQLHSTMT statement handle
@@ -2824,12 +2874,17 @@ int DbStmt::fetchSp(Napi::Env env, Napi::Array *array)
     db2ParameterDescription *p = &param[i];
     if (p->io != SQL_PARAM_INPUT)
     {
-      if (p->valueType == SQL_C_BIGINT) // Integer
+      // The driver writes SQL_NULL_DATA into the indicator when the procedure
+      // returns NULL. Without this check the parameter buffer is read as if it
+      // held a value, so a NULL BOOLEAN came back as false.
+      if (p->ind == SQL_NULL_DATA)
+        array->Set(j, env.Null());
+      else if (p->valueType == SQL_C_BIGINT) // Integer
         array->Set(j, Napi::Number::New(env, *(int64_t *)p->buf).Int32Value());
       else if (p->valueType == SQL_C_DOUBLE) // Decimal
         array->Set(j, Napi::Number::New(env, *(double *)p->buf));
-      else if (p->valueType == SQL_C_BIT) // Boolean
-        array->Set(j, Napi::Boolean::New(env, *(bool *)p->buf));
+      else if (p->valueType == SQL_C_LONG) // Boolean
+        array->Set(j, Napi::Boolean::New(env, (bool) *(int *)p->buf));
       else
         array->Set(j, Napi::String::New(env, (char *)p->buf));
       j++;
@@ -2861,6 +2916,16 @@ int DbStmt::fetch(Napi::Env env, Napi::Object *row)
       case SQL_BLOB:
         value = Napi::Buffer<char>::New(env, bindingRowInC[col], dbColumn[col].rlength);
         break;
+      case SQL_BOOLEAN:
+      {
+        // Bound as SQL_C_LONG, so the buffer holds a 4-byte 1/0. Previously
+        // this fell through to the default and returned the string
+        // "TRUE"/"FALSE", which fetchAll() has never done.
+        int boolValue;
+        memcpy(&boolValue, bindingRowInC[col], sizeof(int));
+        value = Napi::Boolean::New(env, (bool) boolValue);
+        break;
+      }
       default:
         value = Napi::String::New(env, bindingRowInC[col]);
         break;

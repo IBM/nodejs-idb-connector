@@ -69,18 +69,18 @@ describe('Misc Test', () => {
     describe('The stored procedure with result set issue', () => {
         let user = (process.env.USER).toUpperCase();
         let sql = `CALL ${user}.SPWITHRS`;
-        let crtSP = `CREATE OR REPLACE PROCEDURE ${user}.SPWITHRS()     
-                        LANGUAGE SQL                                       
+        let crtSP = `CREATE OR REPLACE PROCEDURE ${user}.SPWITHRS()
+                        LANGUAGE SQL
                         DYNAMIC RESULT SETS 1
-                        BEGIN ATOMIC 
+                        BEGIN ATOMIC
                         DECLARE C1 CURSOR FOR
 
                         SELECT * FROM QIWS.QCUSTCDT LIMIT 5;
 
                         OPEN C1 ;
-                        
+
                         SET RESULT SETS WITH RETURN TO CLIENT CURSOR C1 ;
-                        
+
                         END`;
 
         before((done) => {
@@ -159,5 +159,15 @@ describe('Misc Test', () => {
                 });
               });
         });
+
+    describe('SQL type constants', () => {
+        it('SQL_BOOLEAN should be defined with value 16', () => {
+            expect(db2a.SQL_BOOLEAN).to.equal(16);
+        });
+
+        it('SQL_DATALINK should be defined with value -400', () => {
+            expect(db2a.SQL_DATALINK).to.equal(-400);
+        });
+    });
     });
 });

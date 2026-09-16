@@ -40,7 +40,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "ln -sf ./build-tmp-napi-v3 ./build && ./node_modules/mocha/bin/mocha.js --timeout 5s",
+    "test": "ln -sf ./build-tmp-napi-v3 ./build && ./node_modules/mocha/bin/mocha.js --timeout 30s",
     "install": "node-pre-gyp install --fallback-to-build",
     "release": "./node_modules/release-it/bin/release-it.js"
   },

@@ -9,6 +9,24 @@
 #include <string.h>
 
 #include "sqlcli.h"
+
+// SQL type code 16 is release-dependent at runtime: on IBM i 7.5+ the driver
+// describes a BOOLEAN column as 16 and a DATALINK as -400, whereas on 7.4 and
+// earlier 16 is DATALINK (there is no BOOLEAN type). The bundled sqlcli.h is
+// stale on every release (it defines SQL_DATALINK as 16 and omits SQL_BOOLEAN),
+// so the defines below normalise both constants to their 7.5+ runtime values.
+//
+// Consequence: these constants make code 16 mean BOOLEAN. On 7.4 a DATALINK
+// column (described as 16) is therefore routed through the BOOLEAN path. This
+// is intentional -- DATALINK is effectively unused and is not supported on 7.4.
+#ifndef SQL_BOOLEAN
+#define SQL_BOOLEAN 16
+#endif
+
+#ifdef SQL_DATALINK
+#undef SQL_DATALINK
+#endif
+#define SQL_DATALINK -400
 #include "napi.h"
 
 #define DEBUG(object, f_, ...)       \
@@ -133,7 +151,9 @@ static const char* getSQLType(int sqlType)
         return "CLOB";
     case SQL_DBCLOB:        // SQL_DBCLOB = 15
         return "DBCLOB";
-    case SQL_DATALINK:      // SQL_DATALINK = 16
+    case SQL_BOOLEAN:       // SQL_BOOLEAN = 16 (7.5+)
+        return "BOOLEAN";
+    case SQL_DATALINK:      // SQL_DATALINK = -400 (7.5+), was 16 (pre-7.5)
         return "DATALINK";
     case SQL_WCHAR:         // SQL_WCHAR = 17
         return "WCHAR";
