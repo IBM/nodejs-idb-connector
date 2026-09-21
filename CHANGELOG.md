@@ -1,6 +1,6 @@
 # idb-connector changelog
 
-## [1.3.0-rc](https://github.com/IBM/nodejs-idb-connector/compare/1.2.19...1.3.0-rc) (2026-09-21)
+## [1.3.0-rc.1](https://github.com/IBM/nodejs-idb-connector/compare/1.3.0-rc...1.3.0-rc.1) (2026-09-21)
 
 - build: update release-it to 0.17.5
 - build(deps): bump tar from 6.2.0 to 6.2.1
