@@ -26,10 +26,8 @@
     "Mark Irish <mirish@ibm.com> (https://github.com/markdirish)"
   ],
   "os": [
-    "os400",
-    "aix"
+    "os400"
   ],
-  "gypfile": true,
   "main": "lib/db2a.js",
   "files": [
     "src/",
@@ -40,32 +38,19 @@
     "test": "test"
   },
   "scripts": {
-    "test": "ln -sf ./build-tmp-napi-v3 ./build && ./node_modules/mocha/bin/mocha.js --timeout 30s",
-    "install": "node-pre-gyp install --fallback-to-build",
+    "test": "./node_modules/mocha/bin/mocha.js --timeout 30s",
     "release": "./node_modules/release-it/bin/release-it.js"
   },
   "dependencies": {
-    "@mapbox/node-pre-gyp": "^2.0.3",
     "node-addon-api": "^3.1.0"
   },
   "devDependencies": {
     "@release-it/conventional-changelog": "^12.0.0",
-    "bindings": "^1.5.0",
     "chai": "^4.3.6",
     "eslint": "^8.26.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.26.0",
     "mocha": "^12.0.1",
     "release-it": "^21.0.0"
-  },
-  "binary": {
-    "module_name": "db2ia",
-    "module_path": "./lib/binding/{configuration}/napi{napi_build_version}-ibmi-{arch}/",
-    "remote_path": "./{version}/",
-    "package_name": "{module_name}-v{version}-napi{napi_build_version}-ibmi-{arch}.tar.gz",
-    "host": "https://github.com/IBM/nodejs-idb-connector/releases/download",
-    "napi_versions": [
-      3
-    ]
   }
 }

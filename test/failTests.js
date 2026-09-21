@@ -1,8 +1,7 @@
 const {assert} = require('chai');
 const {expect} = require('chai');
-const addon = require('bindings')('db2ia');
 const util = require('util');
-const db2a = require('../lib/db2a');
+const addon = require('../lib/db2a');
 
 // // Test Connection Class
 
