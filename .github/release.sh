@@ -5,7 +5,7 @@ PATH="/QOpenSys/pkgs/bin:$PATH"
 DATE=$(date +"%Y-%m-%d_%H-%M-%S")
 BRANCH="release-$DATE"
 REMOTE="origin"
-MAIN_BRANCH="master"
+MAIN_BRANCH="main"
 
 if [ ! -d node_modules ]; then
 # install deps
