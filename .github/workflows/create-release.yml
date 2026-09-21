@@ -1,0 +1,35 @@
+name: Create Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  id-token: write  # Required for OIDC
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: get-npm-version
+      id: package-version
+      run: jq -r '"version=" + .version' package.json  >> "$GITHUB_OUTPUT"
+    - name: get-npm-tag
+      id: package-tag
+      run: .github/npm-tag.sh $PACKAGE_VERSION >> "$GITHUB_OUTPUT"
+      env:
+        PACKAGE_VERSION: ${{ steps.package-version.outputs.version }}
+    - name: Download bindings
+      uses: actions/download-artifact@v8
+      with:
+        name: db2ia.node
+        path: lib/
+    - name: Publish to NPM
+      uses: actions/setup-node@v6
+      with:
+        node-version: '24'
+        registry-url: 'https://registry.npmjs.org'
+    - run: npm publish --tag $PACKAGE_TAG
+      env:
+        PACKAGE_TAG: ${{ steps.package-tag.outputs.tag }}
