@@ -12,7 +12,8 @@ pipeline {
       steps {
         sh '''
             export PATH=$NODE_PATH:$PATH
-            npm rebuild
+            npm i
+            npm rebuild --verbose
         '''
       }
     }
