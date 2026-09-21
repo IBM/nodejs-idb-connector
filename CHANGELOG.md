@@ -1,5 +1,32 @@
 # idb-connector changelog
 
+## [1.3.0-rc](https://github.com/IBM/nodejs-idb-connector/compare/1.2.19...1.3.0-rc) (2026-09-21)
+
+- build: update release-it to 0.17.5
+- build(deps): bump tar from 6.2.0 to 6.2.1
+- build(deps-dev): bump braces from 3.0.2 to 3.0.3
+- build(deps): bump serialize-javascript and mocha
+- build(deps-dev): bump handlebars from 4.7.8 to 4.7.9
+- build(deps): bump basic-ftp from 5.0.4 to 5.2.2
+- build(deps): bump tar and @mapbox/node-pre-gyp
+- build(deps-dev): bump js-yaml from 4.1.0 to 4.1.1
+- build(deps-dev): bump flatted from 3.2.9 to 3.4.2
+- build(deps): bump tmp, @release-it/conventional-changelog and release-it
+- build(deps-dev): bump minimatch from 3.1.2 to 3.1.5
+- build(deps): bump picomatch from 2.3.1 to 2.3.2
+- build(deps-dev): bump brace-expansion from 1.1.11 to 1.1.14
+- build(deps): bump undici, @release-it/conventional-changelog and release-it
+- build(deps): bump tar from 7.5.13 to 7.5.22
+- build(deps-dev): bump js-yaml from 4.1.1 to 4.3.0
+- build(deps-dev): bump js-yaml from 4.1.1 to 4.3.2
+- build(deps-dev): bump brace-expansion from 1.1.14 to 1.1.21
+- build(deps): bump serialize-javascript and mocha
+- Fix boolean
+- chore: Run npm audit fix
+- Update build process
+- chore: Update main branch name
+
+
 ## [1.2.19](https://github.com/IBM/nodejs-idb-connector/compare/1.2.18...1.2.19) (2024-02-05)
 
 
