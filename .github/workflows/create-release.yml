@@ -21,7 +21,7 @@ jobs:
       env:
         PACKAGE_VERSION: ${{ steps.package-version.outputs.version }}
     - name: Download bindings
-    - run: |
+      run: |
        mkdir -p prebuilds/os400-ppc64
        curl -o prebuilds/os400-ppc64/db2ia.node \
         "https://github.com/IBM/nodejs-idb-connector/releases/download/$PACKAGE_VERSION/db2ia.node"
