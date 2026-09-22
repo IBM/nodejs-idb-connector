@@ -31,18 +31,21 @@
   "main": "lib/db2a.js",
   "files": [
     "src/",
-    "lib/"
+    "lib/",
+    "prebuilds/"
   ],
   "directories": {
     "lib": "lib",
     "test": "test"
   },
   "scripts": {
+    "install": "node-gyp-build",
     "test": "./node_modules/mocha/bin/mocha.js --timeout 30s",
     "release": "./node_modules/release-it/bin/release-it.js"
   },
   "dependencies": {
-    "node-addon-api": "^3.1.0"
+    "node-addon-api": "^3.1.0",
+    "node-gyp-build": "^4.8.4"
   },
   "devDependencies": {
     "@release-it/conventional-changelog": "^12.0.0",
