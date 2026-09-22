@@ -1,7 +1,9 @@
 # idb-connector changelog
 
-## [1.3.0-rc.1](https://github.com/IBM/nodejs-idb-connector/compare/1.3.0-rc...1.3.0-rc.1) (2026-09-21)
+## [1.3.0](https://github.com/IBM/nodejs-idb-connector/compare/1.2.19...1.3.0) (2026-09-22)
 
+- docs: add npm 12 install scripts notice (#222)
+- build: use node-gyp-build (#220)
 - build: update release-it to 0.17.5
 - build(deps): bump tar from 6.2.0 to 6.2.1
 - build(deps-dev): bump braces from 3.0.2 to 3.0.3
