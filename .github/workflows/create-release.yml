@@ -21,10 +21,12 @@ jobs:
       env:
         PACKAGE_VERSION: ${{ steps.package-version.outputs.version }}
     - name: Download bindings
-      uses: actions/download-artifact@v8
-      with:
-        name: db2ia.node
-        path: lib/
+    - run: |
+       mkdir -p prebuilds/os400-ppc64
+       curl -o prebuilds/os400-ppc64/db2ia.node \
+        "https://github.com/IBM/nodejs-idb-connector/releases/download/$PACKAGE_VERSION/db2ia.node"
+      env:
+        PACKAGE_VERSION: ${{ steps.package-version.outputs.version }}
     - name: Publish to NPM
       uses: actions/setup-node@v6
       with:

@@ -43,7 +43,7 @@ const headers = {
         // Returns a goofy URL "template", get rid of the parameters
         const upload_url = release_obj.upload_url.substr(0, release_obj.upload_url.indexOf('{'));;
 
-        const file = "lib/db2ia.node";
+        const file = "prebuilds/os400-ppc64/db2ia.node";
         const name = "db2ia.node";
         console.log(`Uploading ${file} -> ${name}`);
 
