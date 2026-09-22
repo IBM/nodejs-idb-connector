@@ -2519,6 +2519,7 @@ int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array)
             value = Napi::Number::New(env, nvalue.ToNumber());
             break;
           }
+         // FALLTHRU
         case SQL_DECIMAL:  // -(10^n) + 1 to +(10^n) - 1
         case SQL_NUMERIC:
           if (asNumber == true && dbColumn[col].colPrecise <= 15)
@@ -2527,6 +2528,7 @@ int DbStmt::buildJsObject(Napi::Env env, Napi::Array *array)
             value = Napi::Number::New(env, nvalue.ToNumber());
             break;
           }
+          // FALLTHRU
         default:
           // Use the known data length to bound string creation rather than relying
           // on null termination, as a safeguard against buffer overreads.
