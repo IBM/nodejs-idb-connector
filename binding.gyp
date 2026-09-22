@@ -37,7 +37,7 @@
       "copies": [
         {
           "files": [ "<(PRODUCT_DIR)/db2ia.node" ],
-          "destination": "<(module_root_dir)/lib"
+          "destination": "<(module_root_dir)/prebuilds/os400-ppc64"
         }
       ]
     }
