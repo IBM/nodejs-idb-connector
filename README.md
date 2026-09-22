@@ -12,13 +12,25 @@ The Node.js iDB Connector is an IBM i Node.js Db2 driver open source project fro
     npm i idb-connector
 ```
 
-**NOTE** This package only installs on IBM i systems.
+**NOTE:** This package only installs on IBM i systems.
 
 Then you can _require_ in your code, as shown below.
 
 ```js
     const db = require('idb-connector');
 ```
+
+---
+**NOTE:** starting with version 12, npm will no longer run install scripts by default. When installing, you will see a message like this:
+
+```sh
+npm warn install-scripts   idb-connector@1.3.0 (install: node-gyp-build)
+```
+
+We use [node-gyp-build](https://github.com/prebuild/node-gyp-build) to build and ship a prebuilt binary with the package. With the prebuilt binary, the install script doesn't actually do anything and you do not need to approve it for the package to work. You may want to approve it to silence the warning, however.
+
+For more information refer to the [npm blog post](https://github.blog/changelog/2026-06-09-upcoming-breaking-changes-for-npm-v12/).
+
 
 ## Quick Example
 
