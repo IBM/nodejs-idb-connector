@@ -28,6 +28,9 @@
   "os": [
     "os400"
   ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "main": "lib/db2a.js",
   "files": [
     "src/",
