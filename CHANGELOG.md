@@ -1,5 +1,9 @@
 # idb-connector changelog
 
+## [1.3.1](https://github.com/IBM/nodejs-idb-connector/compare/1.3.0...1.3.1) (2026-09-23)
+
+- build: support Node.js >= 20
+
 ## [1.3.0](https://github.com/IBM/nodejs-idb-connector/compare/1.2.19...1.3.0) (2026-09-22)
 
 - docs: add npm 12 install scripts notice (#222)
